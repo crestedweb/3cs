@@ -1981,7 +1981,7 @@ export default function App() {
       </section>
 
       {/* ── TEAM ── */}
-      <section className="sec" style={{ background: "#F5F7FA" }}>
+    {/*  <section className="sec" style={{ background: "#F5F7FA" }}>
         <div className="sec-wide">
           <Reveal>
             <div className="text-center" style={{ marginBottom: 44 }}>
@@ -2011,7 +2011,7 @@ export default function App() {
             </div>
           </Reveal>
         </div>
-      </section>
+      </section> */}
 
       <section id="careers-apply" className="sec" style={{ background: "#FFFFFF" }}>
         <div className="sec-wide careers-panel">
