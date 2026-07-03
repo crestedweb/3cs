@@ -31,7 +31,7 @@ const CAREER_ROLES = [
 
 const WHY = [
   { icon: "💙", title: "Person-Centred", body: "Every care plan is built around the individual — their preferences, routines, and life story." },
-  { icon: "✅", title: "CQC Registered", body: "Registered and inspected by the Care Quality Commission. You're always in safe hands." },
+  { icon: "✅", title: "Quality Care Commitment", body: "Delivering care that supports independence and well-being" },
   { icon: "🌟", title: "Trained Staff", body: "All carers complete rigorous training, DBS checks, and ongoing professional development." },
   { icon: "📋", title: "Bespoke Plans", body: "Flexible care plans that adapt as needs change over time." },
   { icon: "🕐", title: "24/7 Support", body: "Our team is available round the clock — families always have someone to call." },
@@ -378,6 +378,7 @@ const CSS = `
     position: absolute; top: 20px; left: 20px; background: #28A745; color: #fff;
     padding: 8px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 700;
     box-shadow: 0 4px 12px rgba(40,167,69,0.4);
+    border: 0; cursor: pointer; font-family: inherit;
   }
 
   /* ── Stats ── */
@@ -614,6 +615,54 @@ const CSS = `
     box-shadow: 0 4px 16px rgba(40,167,69,0.4);
   }
   .about-badge span { font-size: 1.5rem; display: block; font-weight: 900; }
+  .about-more {
+    display: grid;
+    gap: 0;
+    margin-top: 14px;
+    margin-bottom: 24px;
+  }
+  .about-detail {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(10px);
+    transition: grid-template-rows 0.5s ease, opacity 0.35s ease, transform 0.35s ease, margin-top 0.35s ease;
+  }
+  .about-detail.active {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+    margin-top: 14px;
+  }
+  .about-detail > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .about-mission {
+    background: #f5f9f6;
+    border-left: 4px solid #28A745;
+    border-radius: 0 10px 10px 0;
+    padding: 16px 18px;
+  }
+  .about-mission-label {
+    display: block;
+    color: #28A745;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .about-mission p,
+  .about-extra-copy {
+    color: #5a6a7e;
+    line-height: 1.72;
+    margin: 0;
+  }
+  .about-mission p {
+    color: #0B1D3A;
+    font-weight: 700;
+  }
   .check-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
   .check-dot { width: 22px; height: 22px; border-radius: 50%; background: #28A745; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.65rem; font-weight: 900; margin-top: 1px; }
   .check-text { color: #0B1D3A; font-weight: 600; font-size: 0.9rem; line-height: 1.5; }
@@ -1425,10 +1474,12 @@ export default function App() {
   const [showBtt, setShowBtt] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
   const [careSlide, setCareSlide] = useState(1);
+  const [aboutRevealLevel, setAboutRevealLevel] = useState(0);
   const [postcode, setPostcode] = useState("");
   const [postcodeMsg, setPostcodeMsg] = useState("");
   const [postcodeError, setPostcodeError] = useState(false);
   const [statsRef, statsVisible] = useReveal();
+  const aboutRef = useRef(null);
 
   useEffect(() => {
     const onScroll = () => {
@@ -1478,13 +1529,35 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const updateAboutReveal = () => {
+      const el = aboutRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const viewport = window.innerHeight || document.documentElement.clientHeight;
+      const progress = (viewport * 0.72 - rect.top) / Math.max(rect.height, 1);
+      const nextLevel = progress > 0.48 ? 2 : progress > 0.22 ? 1 : 0;
+      if (nextLevel > 0) {
+        setAboutRevealLevel((level) => Math.max(level, nextLevel));
+      }
+    };
+
+    updateAboutReveal();
+    window.addEventListener("scroll", updateAboutReveal, { passive: true });
+    window.addEventListener("resize", updateAboutReveal);
+    return () => {
+      window.removeEventListener("scroll", updateAboutReveal);
+      window.removeEventListener("resize", updateAboutReveal);
+    };
+  }, []);
+
   return (
     <>
       <style>{CSS}</style>
 
       {/* ── Top bar ── */}
       <div className="topbar">
-        <span>📞 <a href="tel:01162966163">0116 296 6163</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
+        <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
         <span>📍 65A London Road, Oadby, Leicester LE2 5DN</span>
       </div>
 
@@ -1570,7 +1643,7 @@ export default function App() {
               </div>
               <div className="hero-trust-text">
                 <strong>500+ Families Trust Us</strong>
-                CQC Registered · Fully Insured · DBS Checked Staff
+                Care delivered in clients' own homes across Leicester and surrounding areas
               </div>
             </div>
           </div>
@@ -1578,9 +1651,9 @@ export default function App() {
             <div className="hero-img-wrap">
               <img src={IMAGES.hero} alt="Compassionate carer with elderly client at home" loading="eager"/>
               <div className="hero-img-overlay"/>
-              <div className="hero-cert-badge">
-                ✅ CQC Registered
-              </div>
+              <button className="hero-cert-badge" onClick={() => go("contact-form")}>
+                Book a Free Care Assessment
+              </button>
             </div>
           </div>
         </div>
@@ -1627,7 +1700,7 @@ export default function App() {
           </div>
           <Reveal>
             <div className="service-proof" aria-label="Care quality highlights">
-              <span>CQC registered</span>
+              <span>Quality Care Commitment</span>
               <span>DBS checked carers</span>
               <span>24-hour response aim</span>
             </div>
@@ -1739,7 +1812,7 @@ export default function App() {
       </section>
 
       {/* ── ABOUT ── */}
-      <section id="about-us" className="sec" style={{ background: "#fff" }}>
+      <section id="about-us" className="sec" style={{ background: "#fff" }} ref={aboutRef}>
         <div className="sec-wide about-inner">
           <Reveal>
             <div className="about-img-wrap">
@@ -1759,9 +1832,21 @@ export default function App() {
               <p style={{ color: "#5a6a7e", lineHeight: 1.78, marginBottom: 14 }}>
                 3Cs Care Services Limited was founded on a simple belief: everyone deserves to live well, with dignity, in the place they call home. Based in Oadby, Leicester, we serve individuals and families across the region with a full range of domiciliary care services.
               </p>
-              <p style={{ color: "#5a6a7e", lineHeight: 1.78, marginBottom: 28 }}>
-                Our carefully selected, fully trained carers work alongside clients and their families to craft care plans that genuinely fit — not just what's easiest, but what's right for each person.
-              </p>
+              <div className="about-more" id="about-more-copy" aria-live="polite">
+                <div className={`about-detail${aboutRevealLevel >= 1 ? " active" : ""}`}>
+                  <div className="about-mission">
+                    <span className="about-mission-label">OUR MISSION</span>
+                    <p>
+                      To provide compassionate, safe and person-centered home care that enables people to live independently with dignity and confidence in the comfort of their own homes.
+                    </p>
+                  </div>
+                </div>
+                <div className={`about-detail${aboutRevealLevel >= 2 ? " active" : ""}`}>
+                  <p className="about-extra-copy">
+                    Our carefully selected, fully trained carers work alongside clients and their families to craft care plans that genuinely fit — not just what's easiest, but what's right for each person.
+                  </p>
+                </div>
+              </div>
               {[
                 "Compassion at the heart of everything we do",
                 "Commitment to the highest care standards",
@@ -1774,7 +1859,7 @@ export default function App() {
               ))}
               <div style={{ marginTop: 32, display: "flex", gap: 14, flexWrap: "wrap" }}>
                 <button className="btn btn-navy" onClick={() => go("contact-form")} style={{ width: "auto", padding: "13px 28px" }}>Learn More</button>
-                <a href="tel:01162966163" style={{ textDecoration: "none" }}>
+                <a href="tel:+441162766600" style={{ textDecoration: "none" }}>
                   <button className="btn btn-ghost-green" style={{ width: "auto", padding: "13px 28px" }}>📞 Call Us Now</button>
                 </a>
               </div>
@@ -1946,9 +2031,9 @@ export default function App() {
               <button className="btn btn-green" onClick={() => go("contact-form")} style={{ width: "auto", padding: "15px 36px", fontSize: "1rem" }}>
                 Book Free Assessment
               </button>
-              <a href="tel:01162966163" style={{ textDecoration: "none" }}>
+              <a href="tel:+441162766600" style={{ textDecoration: "none" }}>
                 <button className="btn btn-ghost-white" style={{ width: "auto", padding: "15px 36px", fontSize: "1rem" }}>
-                  📞 0116 296 6163
+                  📞 +44 116 276 6600
                 </button>
               </a>
             </div>
@@ -1958,7 +2043,7 @@ export default function App() {
 
       <a
         className="whatsapp-fab"
-        href="https://wa.me/2348032897744"
+        href="https://wa.me/441162766600"
         target="_blank"
         rel="noreferrer"
         aria-label="Chat with us on WhatsApp"
@@ -1983,10 +2068,10 @@ export default function App() {
             <Reveal>
               <div>
                 {[
-                  ["📞","PHONE","0116 296 6163","tel:01162966163"],
+                  ["📞","PHONE","+44 116 276 6600","tel:+441162766600"],
                   ["✉","EMAIL","info@3cscareservices.co.uk","mailto:info@3cscareservices.co.uk"],
                   ["🌐","WEBSITE","www.3cscareservices.co.uk","https://www.3cscareservices.co.uk"],
-                  ["📍","ADDRESS","The Old School House, 65A London Road, Oadby, Leicester LE2 5DN", null],
+                  ["📍","ADDRESS","Administrative Office, 7A Francis street, Stoneygate, Leicester LE2 2BE", null],
                 ].map(([icon, label, val, href]) => (
                   <div key={label} className="ci-item">
                     <div className="ci-icon">{icon}</div>
