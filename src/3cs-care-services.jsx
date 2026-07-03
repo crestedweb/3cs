@@ -375,10 +375,34 @@ const CSS = `
     background: linear-gradient(to bottom, transparent 50%, rgba(11,29,58,0.6) 100%);
   }
   .hero-cert-badge {
-    position: absolute; top: 20px; left: 20px; background: #28A745; color: #fff;
-    padding: 8px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 700;
-    box-shadow: 0 4px 12px rgba(40,167,69,0.4);
-    border: 0; cursor: pointer; font-family: inherit;
+    position: absolute; top: 20px; left: 20px;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #28A745; color: #fff;
+    padding: 11px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 800;
+    box-shadow: 0 10px 24px rgba(11,29,58,0.28), 0 4px 14px rgba(40,167,69,0.42);
+    border: 2px solid rgba(255,255,255,0.82);
+    cursor: pointer; font-family: inherit;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  }
+  .hero-cert-badge:hover {
+    background: #1e8c38;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(11,29,58,0.32), 0 7px 20px rgba(40,167,69,0.48);
+  }
+  .hero-cert-badge:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+  }
+  .hero-cert-arrow {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    font-size: 1rem; line-height: 1;
+    transition: transform 0.16s ease, background 0.16s ease;
+  }
+  .hero-cert-badge:hover .hero-cert-arrow {
+    background: rgba(255,255,255,0.28);
+    transform: translateX(2px);
   }
 
   /* ── Stats ── */
@@ -929,8 +953,9 @@ const CSS = `
     .cta-strip img { object-position: center; }
     .hero-cert-badge {
       top: auto; left: 14px; bottom: 14px;
-      padding: 7px 11px; font-size: 0.72rem;
+      padding: 9px 12px; font-size: 0.72rem;
     }
+    .hero-cert-arrow { width: 20px; height: 20px; font-size: 0.94rem; }
     .hero-img-overlay { background: linear-gradient(to top, rgba(11,29,58,0.24), transparent 54%); }
     .testi-grid {
       justify-items: center;
@@ -1651,8 +1676,9 @@ export default function App() {
             <div className="hero-img-wrap">
               <img src={IMAGES.hero} alt="Compassionate carer with elderly client at home" loading="eager"/>
               <div className="hero-img-overlay"/>
-              <button className="hero-cert-badge" onClick={() => go("contact-form")}>
-                Book a Free Care Assessment
+              <button className="hero-cert-badge" onClick={() => go("contact-form")} aria-label="Book a free care assessment">
+                <span>Book a Free Care Assessment</span>
+                <span className="hero-cert-arrow" aria-hidden="true">&rarr;</span>
               </button>
             </div>
           </div>
