@@ -8,6 +8,9 @@ import carePhoto6 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-15-41-PM
 import carePhoto7 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-15-55-PM.jpg";
 import carePhoto8 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-16-08-PM.jpg";
 import carePhoto9 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-16-19-PM.jpg";
+import logoImage from "./assets/logo.png";
+import asianCareImage from "./assets/asian.png";
+import americanCareImage from "./assets/American.png";
 
 /* ─── DATA ─── */
 const SERVICES = [
@@ -111,12 +114,16 @@ const CARE_ACTION_FEATURES = [
     body: "Practical help that keeps nutrition calm, respectful, and unhurried.",
   },
    {
-    ...GALLERY[2],
+    src: asianCareImage,
+    alt: "3Cs carer offering friendly companionship at home",
+    focus: "center",
     title: "Companionship that feels personal",
     body: "Friendly support that keeps conversation, confidence, and comfort close at hand.",
   },
   {
-    ...GALLERY[3],
+    src: americanCareImage,
+    alt: "3Cs care support creating comfort at home",
+    focus: "center",
     title: "Comfort in the details",
     body: "A tidy room and thoughtful setup can make the whole day feel easier.",
   },
@@ -224,6 +231,8 @@ const CSS = `
   .btn-navy:hover  { background: #0d2448; transform: translateY(-2px); }
   .btn-ghost-white { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.7); }
   .btn-ghost-white:hover { background: #fff; color: #0B1D3A; }
+  .hero .btn-ghost-white { color: #0B1D3A; border-color: rgba(11,29,58,0.28); }
+  .hero .btn-ghost-white:hover { background: #0B1D3A; color: #fff; border-color: #0B1D3A; }
   .btn-ghost-green { background: transparent; color: #28A745; border: 2px solid #28A745; }
   .btn-ghost-green:hover { background: #28A745; color: #fff; }
   .whatsapp-fab {
@@ -280,71 +289,132 @@ const CSS = `
   /* ── Top bar ── */
   .topbar {
     background: #060f1e; color: #7a9bbf;
-    font-size: 0.76rem; padding: 8px 20px;
-    display: none; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+    font-size: 0.58rem; padding: 6px 14px;
+    display: flex; justify-content: flex-start; flex-wrap: nowrap;
+    text-align: left; line-height: 1.2; white-space: nowrap;
+    overflow: hidden;
+  }
+  .topbar-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 310;
+  }
+  .topbar-track {
+    display: inline-flex;
+    align-items: center;
+    gap: 28px;
+    flex: 0 0 auto;
+    min-width: max-content;
+    animation: topbarMarquee 22s linear infinite;
+  }
+  .topbar-track span { flex: 0 0 auto; }
+  .topbar > span { display: none; }
+  @keyframes topbarMarquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-50% - 14px)); }
   }
   .topbar a { color: #4cde6e; text-decoration: none; }
 
   /* ── Nav ── */
   .nav-wrap {
     position: sticky; top: 0; z-index: 300;
-    background: #0B1D3A;
+    background: #fff;
+    border-bottom: 1px solid #eef2f6;
     transition: box-shadow 0.3s, background 0.3s;
   }
-  .nav-wrap.scrolled { box-shadow: 0 2px 24px rgba(0,0,0,0.4); background: rgba(11,29,58,0.97); backdrop-filter: blur(10px); }
+  .nav-wrap.scrolled { box-shadow: 0 8px 28px rgba(11,29,58,0.12); background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); }
   .nav-inner {
     max-width: 1200px; margin-inline: auto;
     padding: 0 20px; height: 64px;
     display: flex; align-items: center; justify-content: space-between;
   }
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .brand-mark {
+    display: block;
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+  }
+  .brand-copy { display: flex; flex-direction: column; line-height: 1; }
+  .brand-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: 1.12rem;
+    color: #0B1D3A;
+    letter-spacing: -0.01em;
+  }
+  .brand-title span { color: #28A745; font-size: 1.34rem; }
+  .brand-lockup.light .brand-title,
+  .brand-lockup.light .brand-subtitle { color: #fff; }
+  .brand-subtitle {
+    color: #0B1D3A;
+    font-size: 0.42rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    line-height: 1.25;
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+  .brand-logo-icon {
+    display: block;
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+  }
   .mobile-primary-cta, .mobile-care-search { display: none; }
   .nav-desktop { display: none; align-items: center; gap: 20px; }
   .nav-desktop a {
-    color: #c8d8ec; font-size: 0.84rem; font-weight: 600;
+    color: #0B1D3A; font-size: 0.84rem; font-weight: 700;
     text-decoration: none; padding: 4px 2px;
     border-bottom: 2px solid transparent;
     transition: border-color 0.2s, color 0.2s;
   }
-  .nav-desktop a:hover, .nav-desktop a.active { color: #fff; border-bottom-color: #28A745; }
-  .ham { background: none; border: none; color: #fff; font-size: 1.6rem; line-height: 1; padding: 6px; border-radius: 4px; transition: background 0.2s; }
-  .ham:hover { background: rgba(255,255,255,0.08); }
+  .nav-desktop a:hover, .nav-desktop a.active { color: #28A745; border-bottom-color: #28A745; }
+  .ham { background: none; border: none; color: #0B1D3A; font-size: 1.6rem; line-height: 1; padding: 6px; border-radius: 4px; transition: background 0.2s; }
+  .ham:hover { background: rgba(11,29,58,0.08); }
   .care-search-icon { color: #28A745; font-size: 1.1rem; line-height: 1; flex: 0 0 auto; }
   .care-search-input {
     min-width: 0; flex: 1 1 auto; border: 0; outline: 0;
-    background: transparent; color: #fff; font: 600 0.9rem 'Open Sans', sans-serif;
+    background: transparent; color: #0B1D3A; font: 600 0.9rem 'Open Sans', sans-serif;
   }
-  .care-search-input::placeholder { color: rgba(255,255,255,0.58); }
+  .care-search-input::placeholder { color: rgba(11,29,58,0.48); }
   .care-search-btn {
     border: 0; border-radius: 999px; background: #fff; color: #0B1D3A;
     font-weight: 800; font-size: 0.82rem; padding: 10px 18px; white-space: nowrap;
   }
   .care-search-msg {
-    display: none; color: rgba(255,255,255,0.76); font-size: 0.72rem;
+    display: none; color: rgba(11,29,58,0.72); font-size: 0.72rem;
     padding: 0 14px 12px; margin-top: -8px;
   }
-  .care-search-msg.error { color: #ffffff; }
+  .care-search-msg.error { color: #0B1D3A; }
   .mob-menu {
-    background: #060f1e; padding: 12px 20px 28px;
-    border-top: 1px solid rgba(255,255,255,0.07);
+    background: #fff; padding: 12px 20px 28px;
+    border-top: 1px solid #eef2f6;
+    box-shadow: 0 18px 28px rgba(11,29,58,0.1);
     animation: slideDown 0.25s ease;
   }
   @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
   .mob-menu a {
-    display: block; color: #c8d8ec; font-size: 1rem; font-weight: 600;
+    display: block; color: #0B1D3A; font-size: 1rem; font-weight: 700;
     text-decoration: none; padding: 14px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid #eef2f6;
     transition: color 0.2s, padding-left 0.2s;
   }
-  .mob-menu a:hover { color: #4cde6e; padding-left: 8px; }
+  .mob-menu a:hover { color: #28A745; padding-left: 8px; }
 
   /* ── Hero ── */
   .hero {
-    background: linear-gradient(160deg, #0B1D3A 0%, #0e2648 65%, #0B1D3A 100%);
+    background: #f5f7fa;
     padding: 56px 20px 0; overflow: hidden; position: relative;
   }
   .hero::before {
     content: ''; position: absolute; inset: 0;
-    background: radial-gradient(circle at 75% 40%, rgba(40,167,69,0.07) 0%, transparent 55%);
+    background: radial-gradient(circle at 76% 42%, rgba(40,167,69,0.08) 0%, transparent 48%);
     pointer-events: none;
   }
   .hero-badge {
@@ -356,14 +426,14 @@ const CSS = `
   }
   .hero-h1 {
     font-family: 'Montserrat', sans-serif; font-weight: 900;
-    font-size: clamp(2rem, 8vw, 3.5rem); color: #fff;
+    font-size: clamp(2rem, 8vw, 3.5rem); color: #0B1D3A;
     line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 20px;
   }
-  .hero-p { color: #b3c6e0; font-size: 1rem; line-height: 1.78; margin-bottom: 32px; max-width: 500px; }
+  .hero-p { color: #42526a; font-size: 1rem; line-height: 1.78; margin-bottom: 32px; max-width: 500px; }
   .hero-btns { display: flex; flex-direction: column; gap: 12px; margin-bottom: 44px; }
   .hero-trust { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
-  .hero-trust-text { color: #7a9bbf; font-size: 0.8rem; line-height: 1.4; }
-  .hero-trust-text strong { color: #4cde6e; display: block; }
+  .hero-trust-text { color: #5a6a7e; font-size: 0.8rem; line-height: 1.4; }
+  .hero-trust-text strong { color: #0B1D3A; display: block; }
   .hero-img-wrap {
     position: relative; border-radius: 16px 16px 0 0; overflow: hidden;
     max-width: 520px; margin-inline: auto;
@@ -861,7 +931,9 @@ const CSS = `
 
   /* ── Tablet 600px+ ── */
   @media (min-width: 600px) {
-    .topbar { display: flex; }
+    .topbar { justify-content: space-between; overflow: visible; font-size: 0.76rem; padding: 8px 20px; }
+    .topbar-track { width: 100%; justify-content: space-between; gap: 20px; animation: none; }
+    .topbar-duplicate { display: none; }
     .sec { padding: 72px 32px; }
     .btn { width: auto; }
     .hero-btns { flex-direction: row; flex-wrap: wrap; }
@@ -898,15 +970,16 @@ const CSS = `
   }
 
   @media (max-width: 599px) {
-    .nav-wrap { background: #0B1D3A; }
+    .nav-wrap { background: #fff; }
     .nav-inner {
       height: auto; min-height: 82px; padding: 16px 14px 14px; gap: 10px;
     }
-    .nav-inner > div:first-child { min-width: 0; }
-    .nav-inner > div:first-child svg { width: 34px; height: 34px; }
-    .nav-inner > div:first-child div div:first-child { font-size: 1.08rem !important; }
-    .nav-inner > div:first-child div div:first-child span { font-size: 1.34rem !important; }
-    .nav-inner > div:first-child div div:last-child { font-size: 0.4rem !important; }
+    .nav-inner > div:first-child { min-width: 0; flex: 1 1 auto; }
+    .brand-lockup { gap: 7px; }
+    .brand-mark { width: 42px; height: 42px; }
+    .brand-title { font-size: 1rem; }
+    .brand-title span { font-size: 1.22rem; }
+    .brand-subtitle { font-size: 0.36rem; letter-spacing: 0.14em; line-height: 1.35; margin-top: 4px; }
     .mobile-primary-cta {
       display: inline-flex; align-items: center; justify-content: center;
       border: 0; border-radius: 999px; background: #28A745; color: #fff;
@@ -914,7 +987,7 @@ const CSS = `
       padding: 12px 18px; min-width: 112px; box-shadow: 0 8px 22px rgba(40,167,69,0.26);
     }
     .ham {
-      width: 46px; height: 46px; border-radius: 50%; background: #fff; color: #0B1D3A;
+      width: 46px; height: 46px; border-radius: 50%; background: rgba(11,29,58,0.08); color: #0B1D3A;
       display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
       font-size: 1.35rem;
     }
@@ -925,6 +998,7 @@ const CSS = `
     .care-search-msg { display: block; }
     .care-search-field {
       min-width: 0; flex: 1 1 auto; height: 42px; display: flex; align-items: center; gap: 9px;
+      background: #f5f7fa; border: 1px solid #e5ebf2; border-radius: 999px; padding: 0 14px;
     }
     #our-services.sec { padding-inline: 16px; }
     .srv-grid { max-width: 360px; margin-inline: auto; gap: 12px; }
@@ -935,11 +1009,11 @@ const CSS = `
     .srv-more { opacity: 1; transform: none; margin-top: 8px; }
     .service-proof { max-width: 360px; margin-inline: auto; margin-top: 22px; justify-content: stretch; }
     .service-proof span { flex: 1 1 100%; text-align: center; }
-    .hero { padding: 0; background: #0B1D3A; }
+    .hero { padding: 0; }
     .hero::before { display: none; }
     .hero-layout { display: flex; flex-direction: column-reverse; }
     .hero-text {
-      padding: 26px 20px 38px; background: linear-gradient(180deg, #0B1D3A 0%, #0d2448 100%);
+      padding: 26px 20px 38px; background: transparent;
     }
     .hero-badge { margin-bottom: 14px; }
     .hero-h1 { font-size: clamp(1.78rem, 8vw, 2.35rem); margin-bottom: 14px; }
@@ -1041,6 +1115,7 @@ const CSS = `
     .hero-text { flex: 1 1 480px; }
     .hero-visual { flex: 1 1 400px; }
     .hero-img-wrap img { height: 440px; }
+    .hero-cert-badge { display: none; }
     .srv-grid { grid-template-columns: repeat(4, 1fr); }
     .care-layout { grid-template-columns: 0.9fr 1.1fr; gap: 28px; }
     .care-gallery {
@@ -1078,31 +1153,24 @@ const CSS = `
 `;
 
 /* ─── LOGO ─── */
-function Logo({ size = 44 }) {
+function Logo({ size = 26, className = "brand-logo-icon" }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="48" fill="#0B1D3A" stroke="#28A745" strokeWidth="3"/>
-      <circle cx="36" cy="28" r="9" fill="#fff"/>
-      <circle cx="64" cy="28" r="9" fill="#28A745"/>
-      <path d="M30 68 L30 82 L44 82 L44 68 Z" fill="#fff"/>
-      <path d="M56 68 L56 82 L70 82 L70 68 Z" fill="#fff"/>
-      <polygon points="24,70 50,50 76,70" fill="#28A745"/>
-      <path d="M20 66 L50 44 L80 66" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinecap="round"/>
-    </svg>
+    <img
+      src={logoImage}
+      alt="3Cs Care Services Limited"
+      className={className}
+      style={{ width: size, height: size }}
+    />
   );
 }
 
-function BrandName() {
+function BrandName({ variant = "dark" }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <Logo size={42}/>
-      <div>
-        <div style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 900, fontSize: "1.35rem", color: "#fff", lineHeight: 1 }}>
-          3C<span style={{ color: "#28A745", fontSize: "1.7rem" }}>s</span>
-        </div>
-        <div style={{ fontSize: "0.49rem", color: "#8aaac8", letterSpacing: "0.18em", fontWeight: 700, lineHeight: 1.3 }}>
-          CARE SERVICES<br/>LIMITED
-        </div>
+    <div className={`brand-lockup ${variant}`} aria-label="3Cs Care Services Limited">
+      <img src={logoImage} alt="" className="brand-mark" aria-hidden="true" />
+      <div className="brand-copy">
+        <div className="brand-title">3C<span>s</span></div>
+        <div className="brand-subtitle">Care Services<br/>Limited</div>
       </div>
     </div>
   );
@@ -1581,13 +1649,20 @@ export default function App() {
       <style>{CSS}</style>
 
       {/* ── Top bar ── */}
-      <div className="topbar">
-        <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
-        <span>📍 65A London Road, Oadby, Leicester LE2 5DN</span>
-      </div>
+      <div className="topbar-wrap">
+        <div className="topbar">
+          <div className="topbar-track">
+            <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
+            <span>📍 7A Francis Street, Stoneygate, Leicester LE2 2BE</span>
+            <span className="topbar-duplicate" aria-hidden="true">📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
+            <span className="topbar-duplicate" aria-hidden="true">📍 7A Francis Street, Stoneygate, Leicester LE2 2BE</span>
+          </div>
+          <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
+          <span>📍 7A Francis Street, Stoneygate, Leicester LE2 2BE</span>
+        </div>
 
-      {/* ── Nav ── */}
-      <nav className={`nav-wrap${scrolled ? " scrolled" : ""}`}>
+        {/* ── Nav ── */}
+        <nav className={`nav-wrap${scrolled ? " scrolled" : ""}`}>
         <div className="nav-inner">
           <div style={{ cursor: "pointer" }} onClick={() => go("home")}><BrandName/></div>
           <button className="mobile-primary-cta" onClick={() => go("contact-form")}>
@@ -1640,6 +1715,7 @@ export default function App() {
           </div>
         )}
       </nav>
+      </div>
 
       {/* ── HERO ── */}
       <section id="home" className="hero">
@@ -1856,7 +1932,7 @@ export default function App() {
                 High Quality Care<br/>in the Comfort of Your Home
               </h2>
               <p style={{ color: "#5a6a7e", lineHeight: 1.78, marginBottom: 14 }}>
-                3Cs Care Services Limited was founded on a simple belief: everyone deserves to live well, with dignity, in the place they call home. Based in Oadby, Leicester, we serve individuals and families across the region with a full range of domiciliary care services.
+                3Cs Care Services Limited was founded on a simple belief: everyone deserves to live well, with dignity, in the place they call home. Based in Stoneygate, Leicester, we serve individuals and families across the region with a full range of domiciliary care services.
               </p>
               <div className="about-more" id="about-more-copy" aria-live="polite">
                 <div className={`about-detail${aboutRevealLevel >= 1 ? " active" : ""}`}>
@@ -2138,7 +2214,7 @@ export default function App() {
         <div className="sec-wide">
           <div className="foot-grid">
             <div>
-              <div style={{ marginBottom: 18 }}><BrandName/></div>
+              <div style={{ marginBottom: 18 }}><BrandName variant="light"/></div>
               <p style={{ color: "#7a9bbf", fontSize: "0.875rem", lineHeight: 1.75, maxWidth: 290 }}>
                 Caring with Compassion, Confidence and Commitment. Domiciliary care services that promote independence, dignity, and wellbeing.
               </p>
@@ -2166,7 +2242,7 @@ export default function App() {
           </div>
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 24, display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ color: "#7a9bbf", fontSize: "0.78rem" }}>© {new Date().getFullYear()} 3Cs Care Services Limited. All rights reserved.</span>
-            <span style={{ color: "#7a9bbf", fontSize: "0.78rem" }}>65A London Road, Oadby, Leicester LE2 5DN</span>
+            <span style={{ color: "#7a9bbf", fontSize: "0.78rem" }}>7A Francis Street, Stoneygate, Leicester LE2 2BE</span>
           </div>
         </div>
       </footer>
