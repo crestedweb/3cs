@@ -91,7 +91,7 @@ app.post('/api/send-message', upload.single('cv'), async (req, res) => {
       return res.status(400).json({ error: "Name, email, and message are required." });
     }
 
-    const subject = `New website enquiry from ${name}`;
+    const subject = `New Care Enquiry from ${name}`;
     const text = [
       `Name: ${name}`,
       `Email: ${email}`,
@@ -104,15 +104,197 @@ app.post('/api/send-message', upload.single('cv'), async (req, res) => {
     ].join("\n");
 
     const html = `
-      <h2>New website enquiry</h2>
-      <p><strong>Name:</strong> ${name}</p>
-      <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Phone:</strong> ${phone || "Not provided"}</p>
-      <p><strong>Postcode:</strong> ${postcode || "Not provided"}</p>
-      <p><strong>Service:</strong> ${service || "Not selected"}</p>
-      <p><strong>Message:</strong></p>
-      <p>${message.replace(/\n/g, "<br>")}</p>
-    `;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Care Enquiry</title>
+</head>
+
+<body style="margin:0;padding:30px;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td align="center">
+
+<table width="700" cellpadding="0" cellspacing="0"
+style="background:#ffffff;border-radius:14px;overflow:hidden;
+box-shadow:0 8px 25px rgba(0,0,0,.08);">
+
+<!-- Header -->
+<tr>
+<td style="background:#0d2240;padding:30px;text-align:center;">
+
+<h1 style="margin:0;color:#ffffff;font-size:32px;">
+3CS Care Services
+</h1>
+
+<p style="margin:10px 0 0;color:#b8ffd2;font-size:17px;">
+New Website Care Enquiry
+</p>
+
+</td>
+</tr>
+
+<!-- Greeting -->
+<tr>
+<td style="padding:35px;">
+
+<p style="font-size:17px;color:#333;margin-top:0;">
+A new enquiry has been submitted through your website.
+</p>
+
+<!-- Client Information -->
+<table width="100%" cellpadding="12" cellspacing="0"
+style="border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+
+<tr style="background:#f8fafc;">
+<td width="180"><strong>Full Name</strong></td>
+<td>${name}</td>
+</tr>
+
+<tr>
+<td><strong>Email Address</strong></td>
+<td>
+<a href="mailto:${email}" style="color:#16a34a;text-decoration:none;">
+${email}
+</a>
+</td>
+</tr>
+
+<tr style="background:#f8fafc;">
+<td><strong>Phone Number</strong></td>
+<td>${phone || "Not provided"}</td>
+</tr>
+
+<tr>
+<td><strong>Postcode</strong></td>
+<td>${postcode || "Not provided"}</td>
+</tr>
+
+<tr style="background:#f8fafc;">
+<td><strong>Service Required</strong></td>
+<td>${service || "Not selected"}</td>
+</tr>
+
+</table>
+
+<!-- Message -->
+<h2 style="margin-top:35px;color:#16a34a;font-size:22px;">
+Client Message
+</h2>
+
+<div style="
+background:#f8fafc;
+padding:20px;
+border-left:5px solid #16a34a;
+border-radius:6px;
+line-height:1.8;
+font-size:15px;
+color:#333;
+">
+
+${message.replace(/\n/g,"<br>")}
+
+</div>
+
+<!-- Attachment -->
+${
+req.file
+? `
+<h2 style="margin-top:35px;color:#16a34a;font-size:22px;">
+Attached Document
+</h2>
+
+<div style="
+background:#ecfdf5;
+padding:15px;
+border-radius:8px;
+border:1px solid #bbf7d0;
+font-size:15px;
+">
+
+📎 <strong>${req.file.originalname}</strong>
+
+</div>
+`
+: ""
+}
+
+<!-- Buttons -->
+<table width="100%" style="margin-top:40px;">
+<tr>
+
+<td align="center">
+
+<a href="mailto:${email}"
+style="
+display:inline-block;
+background:#16a34a;
+color:#ffffff;
+padding:14px 30px;
+text-decoration:none;
+border-radius:8px;
+font-weight:bold;
+margin-right:10px;
+">
+Reply to Client
+</a>
+
+${
+phone
+? `
+<a href="tel:${phone}"
+style="
+display:inline-block;
+background:#0d2240;
+color:#ffffff;
+padding:14px 30px;
+text-decoration:none;
+border-radius:8px;
+font-weight:bold;
+">
+Call Client
+</a>
+`
+: ""
+}
+
+</td>
+
+</tr>
+</table>
+
+<hr style="margin:40px 0;border:none;border-top:1px solid #e5e7eb;">
+
+<p style="font-size:13px;color:#777;text-align:center;line-height:1.6;">
+
+This enquiry was submitted via the
+<strong>3CS Care Services</strong> website.
+
+<br><br>
+
+Received on:
+<strong>${new Date().toLocaleString("en-GB", {
+  dateStyle: "full",
+  timeStyle: "short",
+})}</strong>
+
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+`;
 
     const transporter = nodemailer.createTransport({
       host: smtpHost,

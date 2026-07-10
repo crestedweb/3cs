@@ -417,8 +417,13 @@ const CSS = `
   }
   .care-search-input::placeholder { color: rgba(11,29,58,0.48); }
   .care-search-btn {
-    border: 0; border-radius: 999px; background: #fff; color: #0B1D3A;
+    border: 0; border-radius: 999px; background: #28A745; color: #fff;
     font-weight: 800; font-size: 0.82rem; padding: 10px 18px; white-space: nowrap;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .care-search-btn:hover {
+    background: #1e8c38;
+    transform: translateY(-1px);
   }
   .care-search-msg {
     display: none; color: rgba(11,29,58,0.72); font-size: 0.72rem;
@@ -1016,10 +1021,14 @@ const CSS = `
       padding: 0 14px 14px; max-width: 1200px; margin-inline: auto;
     }
     .care-search-msg { display: block; }
-    .care-search-field {
-      min-width: 0; flex: 1 1 auto; height: 42px; display: flex; align-items: center; gap: 9px;
-      background: #f5f7fa; border: 1px solid #e5ebf2; border-radius: 999px; padding: 0 14px;
-    }
+  .care-search-field {
+    min-width: 0; flex: 1 1 auto; height: 42px; display: flex; align-items: center; gap: 9px;
+    background: #f5f7fa; border: 1px solid #e5ebf2; border-radius: 999px; padding: 0 14px;
+  }
+  [data-theme="dark"] .care-search-field {
+    background: #0d1a2e;
+    border-color: #28A745;
+  }
     #our-services.sec { padding-inline: 16px; }
     .srv-grid { max-width: 360px; margin-inline: auto; gap: 12px; }
     .srv-card { padding: 18px 16px 16px; border-radius: 14px; box-shadow: 0 10px 22px rgba(11,29,58,0.055); }
