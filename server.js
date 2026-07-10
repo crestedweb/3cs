@@ -118,6 +118,7 @@ app.post('/api/send-message', upload.single('cv'), async (req, res) => {
       host: smtpHost,
       port: smtpPort,
       secure: smtpPort === 465,
+      requireTLS: smtpPort === 587,
       auth: {
         user: smtpUser,
         pass: smtpPass,
