@@ -131,7 +131,7 @@ box-shadow:0 8px 25px rgba(0,0,0,.08);">
 </h1>
 
 <p style="margin:10px 0 0;color:#b8ffd2;font-size:17px;">
-New Website Care Enquiry
+New Care Enquiry Received
 </p>
 
 </td>
