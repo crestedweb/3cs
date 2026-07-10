@@ -343,11 +343,19 @@ const CSS = `
   /* ── Nav ── */
   .nav-wrap {
     position: sticky; top: 0; z-index: 300;
-    background: #fff;
-    border-bottom: 1px solid #eef2f6;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border, #eef2f6);
     transition: box-shadow 0.3s, background 0.3s;
   }
-  .nav-wrap.scrolled { box-shadow: 0 8px 28px rgba(11,29,58,0.12); background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); }
+  .nav-wrap.scrolled { 
+    box-shadow: 0 8px 28px rgba(11,29,58,0.12); 
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(10px); 
+  }
+  
+  [data-theme="dark"] .nav-wrap.scrolled {
+    background: rgba(13, 26, 46, 0.96);
+  }
   .nav-inner {
     max-width: 1200px; margin-inline: auto;
     padding: 0 20px; height: 64px;
@@ -982,7 +990,7 @@ const CSS = `
   }
 
   @media (max-width: 599px) {
-    .nav-wrap { background: #fff; }
+    .nav-wrap { background: var(--bg-primary); }
     .nav-inner {
       height: auto; min-height: 82px; padding: 16px 14px 14px; gap: 10px;
     }
