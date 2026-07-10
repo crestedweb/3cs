@@ -1,16 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import careBedMaking from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-14-29-PM.jpg";
-import careMealSupport from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-14-47-PM.jpg";
-import careCompanionship from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-15-05-PM.jpg";
-import careMobility from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-15-18-PM.jpg";
-import carePhoto5 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-15-30-PM.jpg";
-import carePhoto6 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-15-41-PM.jpg";
-import carePhoto7 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-15-55-PM.jpg";
-import carePhoto8 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-16-08-PM.jpg";
-import carePhoto9 from "./assets/optimized/ChatGPT-Image-Jun-28-2026-06-16-19-PM.jpg";
 import logoImage from "./assets/logo.png";
-import asianCareImage from "./assets/asian.png";
-import americanCareImage from "./assets/American.png";
+import heroImage from "./assets/hero.png";
+import careImageA from "./assets/optimized/a.png";
+import careImageB from "./assets/optimized/b.png";
+import careImageC from "./assets/optimized/c.png";
+import careImageD from "./assets/optimized/d.png";
+import careImageE from "./assets/optimized/e.jpg";
 
 /* ─── DATA ─── */
 const SERVICES = [
@@ -70,21 +65,17 @@ const STATS = [
 const NAV = ["Home", "About Us", "Our Services", "Why Choose Us", "Testimonials", "Contact"];
 
 const IMAGES = {
-  hero: careCompanionship,
-  about: careMealSupport,
-  cta: careMobility,
+  hero: careImageE,
+  about: careImageA,
+  cta: careImageD,
 };
 
 const GALLERY = [
-  { src: careCompanionship, alt: "3Cs carer providing companionship at home", focus: "center" },
-  { src: careMealSupport, alt: "3Cs carer supporting a client with a meal", focus: "center" },
-  { src: careMobility, alt: "3Cs carer helping a client with mobility at home", focus: "center" },
-  { src: careBedMaking, alt: "3Cs carer preparing a comfortable bedroom", focus: "center" },
-  { src: carePhoto5, alt: "3Cs care service moment at home", focus: "center" },
-  { src: carePhoto6, alt: "3Cs care service moment at home", focus: "center" },
-  { src: carePhoto7, alt: "3Cs care service moment at home", focus: "center" },
-  { src: carePhoto8, alt: "3Cs care service moment at home", focus: "center" },
-  { src: carePhoto9, alt: "3Cs care service moment at home", focus: "center" },
+  { src: careImageA, alt: "3Cs carer providing companionship at home", focus: "center" },
+  { src: careImageB, alt: "3Cs carer supporting a client with a meal", focus: "center" },
+  { src: careImageC, alt: "3Cs carer helping a client with mobility at home", focus: "center" },
+  { src: careImageD, alt: "3Cs carer preparing a comfortable bedroom", focus: "center" },
+  { src: careImageE, alt: "3Cs care service moment at home", focus: "center" },
 ];
 
 const CARE_ACTION_NOTES = [
@@ -114,14 +105,14 @@ const CARE_ACTION_FEATURES = [
     body: "Practical help that keeps nutrition calm, respectful, and unhurried.",
   },
    {
-    src: asianCareImage,
+    src: careImageA,
     alt: "3Cs carer offering friendly companionship at home",
     focus: "center",
     title: "Companionship that feels personal",
     body: "Friendly support that keeps conversation, confidence, and comfort close at hand.",
   },
   {
-    src: americanCareImage,
+    src: careImageD,
     alt: "3Cs care support creating comfort at home",
     focus: "center",
     title: "Comfort in the details",
@@ -194,9 +185,43 @@ const FAQS = [
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Open+Sans:wght@400;500;600;700&display=swap');
 
+  :root {
+    --bg-primary: #fff;
+    --bg-secondary: #f5f7fa;
+    --bg-card: #ffffff;
+    --text-primary: #0B1D3A;
+    --text-secondary: #5a6a7e;
+    --accent: #28A745;
+  }
+
+  [data-theme="dark"] {
+    --bg-primary: #0B1D3A;
+    --bg-secondary: #060f1e;
+    --bg-card: #0d1a2e;
+    --text-primary: #fff;
+    --text-secondary: #b3c6e0;
+    --accent: #4cde6e;
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-  body { font-family: 'Open Sans', sans-serif; overflow-x: hidden; }
+  body { font-family: 'Open Sans', sans-serif; overflow-x: hidden; background: var(--bg-secondary); color: var(--text-primary); }
+
+  [data-theme="dark"] body {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+
+  [data-theme="dark"] .hero { background: var(--bg-secondary); }
+  [data-theme="dark"] .sec-h2 { color: var(--text-primary); }
+  [data-theme="dark"] .sec-h2-white { color: #fff !important; }
+  [data-theme="dark"] .hero-h1 { color: var(--text-primary); }
+  [data-theme="dark"] .hero-p { color: var(--text-secondary); }
+  [data-theme="dark"] .hero-trust-text { color: var(--text-secondary); }
+  [data-theme="dark"] .hero-trust-text strong { color: #fff; }
+  [data-theme="dark"] .nav-wrap { background: var(--bg-primary); border-bottom-color: var(--border); }
+  [data-theme="dark"] .brand-title, [data-theme="dark"] .brand-subtitle { color: var(--text-primary); }
+  [data-theme="dark"] .srv-card, [data-theme="dark"] .faq-item, [data-theme="dark"] .why-card, [data-theme="dark"] .form-box, [data-theme="dark"] .testi-card { background: var(--bg-card); }
   img  { max-width: 100%; display: block; }
   button { cursor: pointer; font-family: inherit; }
 
@@ -910,19 +935,6 @@ const CSS = `
   .foot-link { display: block; color: #8aaac8; font-size: 0.875rem; text-decoration: none; margin-bottom: 10px; transition: color 0.2s, padding-left 0.2s; }
   .foot-link:hover { color: #4cde6e; padding-left: 4px; }
 
-  /* ── Back to top ── */
-  .btt {
-    position: fixed; bottom: 24px; right: 20px; z-index: 400;
-    width: 46px; height: 46px; border-radius: 50%;
-    background: #28A745; color: #fff; border: none;
-    font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 20px rgba(40,167,69,0.45);
-    transition: opacity 0.3s, transform 0.3s;
-    cursor: pointer;
-  }
-  .btt:hover { transform: translateY(-3px); background: #1e8c38; }
-  .btt.hidden { opacity: 0; pointer-events: none; transform: translateY(16px); }
-
   /* Active nav indicator */
   .nav-indicator {
     display: inline-block; width: 6px; height: 6px; border-radius: 50%;
@@ -1093,13 +1105,6 @@ const CSS = `
       width: 40px;
       height: 40px;
       font-size: 1.2rem;
-    }
-    .btt {
-      right: 14px;
-      bottom: 78px;
-      width: 44px;
-      height: 44px;
-      font-size: 1.1rem;
     }
   }
 
@@ -1564,8 +1569,18 @@ function Testimonials() {
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [showBtt, setShowBtt] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("darkMode");
+    if (saved === "true") setDarkMode(true);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
+    localStorage.setItem("darkMode", darkMode.toString());
+  }, [darkMode]);
   const [careSlide, setCareSlide] = useState(1);
   const [aboutRevealLevel, setAboutRevealLevel] = useState(0);
   const [postcode, setPostcode] = useState("");
@@ -1578,7 +1593,6 @@ export default function App() {
     const onScroll = () => {
       const y = window.scrollY;
       setScrolled(y > 50);
-      setShowBtt(y > 400);
       // Active nav detection
       const sections = ["home","about-us","our-services","why-choose-us","testimonials","contact"];
       const labels = ["Home","About Us","Our Services","Why Choose Us","Testimonials","Contact"];
@@ -1679,8 +1693,22 @@ export default function App() {
               Book Free Assessment
             </button>
           </div>
-          <button className="ham" onClick={() => setMenuOpen(o => !o)} aria-label="Toggle menu" aria-expanded={menuOpen}>
+<button className="ham" onClick={() => setMenuOpen(o => !o)} aria-label="Toggle menu" aria-expanded={menuOpen}>
             {menuOpen ? "✕" : "☰"}
+          </button>
+<button 
+            onClick={() => setDarkMode(!darkMode)}
+            aria-label="Toggle dark mode"
+            style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: darkMode ? "#28A745" : "rgba(11,29,58,0.08)",
+              color: darkMode ? "#fff" : "#0B1D3A",
+              border: "none", fontSize: "0.9rem",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              marginLeft: 8
+            }}
+          >
+            {darkMode ? "🌙" : "☀️"}
           </button>
         </div>
         <div className="mobile-care-search">
@@ -2247,10 +2275,6 @@ export default function App() {
         </div>
       </footer>
 
-      {/* ── BACK TO TOP ── */}
-      <button className={`btt${!showBtt ? " hidden" : ""}`} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top">
-        ↑
-      </button>
     </>
   );
 }
