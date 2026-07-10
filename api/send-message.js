@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Name, email, and message are required." });
   }
 
-  const subject = `New website enquiry from ${name}`;
+  const subject = `New care enquiry from ${name}`;
   const text = [
     `Name: ${name}`,
     `Email: ${email}`,
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   ].join("\n");
 
   const html = `
-    <h2>New website enquiry</h2>
+    <h2>New care enquiry</h2>
     <p><strong>Name:</strong> ${name}</p>
     <p><strong>Email:</strong> ${email}</p>
     <p><strong>Phone:</strong> ${phone || "Not provided"}</p>
