@@ -314,8 +314,7 @@ const CSS = `
   .btn-ghost-green { background: transparent; color: #28A745; border: 2px solid #28A745; }
   .btn-ghost-green:hover { background: #28A745; color: #fff; }
   .btn-ghost-green:active { transform: scale(0.97); }
-  .sticky-cta-bar { display: none; }
-  .call-fab {
+  .whatsapp-fab {
     position: fixed;
     right: 16px;
     bottom: 18px;
@@ -327,28 +326,28 @@ const CSS = `
     height: 58px;
     padding: 0;
     border-radius: 50%;
-    background: #0B1D3A;
+    background: #28A745;
     color: #fff;
     text-decoration: none;
-    box-shadow: 0 10px 24px rgba(11,29,58,0.38);
+    box-shadow: 0 10px 24px rgba(37, 211, 102, 0.34);
     border: 3px solid #fff;
     transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
   }
-  .call-fab:hover {
+  .whatsapp-fab:hover {
     transform: translateY(-2px);
-    box-shadow: 0 14px 30px rgba(11,29,58,0.46);
-    filter: brightness(1.08);
+    box-shadow: 0 14px 30px rgba(37, 211, 102, 0.42);
+    filter: brightness(1.02);
   }
-  .call-fab-icon {
-    width: 26px;
-    height: 26px;
+  .whatsapp-fab-icon {
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
   }
-  .call-fab-icon svg { width: 100%; height: 100%; display: block; }
+  .whatsapp-fab-icon svg { width: 100%; height: 100%; display: block; }
 
   /* ── Labels & headings ── */
   .label {
@@ -1199,39 +1198,18 @@ const CSS = `
     .care-caption p { font-size: 0.8rem; line-height: 1.45; }
     .care-dots { margin-top: 14px; }
     .hero > svg { display: none !important; }
-    .call-fab { display: none; }
-    .sticky-cta-bar {
-      display: flex;
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      z-index: 340;
-      background: var(--bg-primary);
-      border-top: 1px solid var(--border);
-      padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-      gap: 10px;
-      box-shadow: 0 -8px 24px rgba(11,29,58,0.14);
-      animation: stickyCtaIn 0.28s ease;
+    .whatsapp-fab {
+      right: 14px;
+      bottom: 14px;
+      width: 54px;
+      height: 54px;
     }
-    .sticky-cta-btn {
-      flex: 1;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 13px;
-      border-radius: 10px;
-      font-weight: 800;
-      font-size: 0.86rem;
-      text-decoration: none;
-      border: 0;
-      font-family: 'Open Sans', sans-serif;
+    .whatsapp-fab-icon {
+      width: 40px;
+      height: 40px;
+      font-size: 1.2rem;
     }
-    .sticky-cta-call { background: rgba(11,29,58,0.08); color: #0B1D3A; }
-    [data-theme="dark"] .sticky-cta-call { background: rgba(255,255,255,0.12); color: #fff; }
-    .sticky-cta-book { background: #28A745; color: #fff; }
-    .site-footer { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; }
   }
-  @keyframes stickyCtaIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
 
   /* ── Desktop 900px+ ── */
@@ -1271,7 +1249,7 @@ const CSS = `
     .contact-grid { grid-template-columns: 1fr 1fr; gap: 64px; }
     .careers-panel { grid-template-columns: 0.85fr 1.15fr; gap: 42px; }
     .foot-grid { grid-template-columns: 2fr 1fr 1fr; }
-    .call-fab {
+    .whatsapp-fab {
       right: 24px;
       bottom: 24px;
       width: 58px;
@@ -1696,7 +1674,6 @@ function Testimonials() {
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [showStickyCta, setShowStickyCta] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
   const [darkMode, setDarkMode] = useState(false);
 
@@ -1729,7 +1706,6 @@ export default function App() {
     const onScroll = () => {
       const y = window.scrollY;
       setScrolled(y > 50);
-      setShowStickyCta(y > window.innerHeight * 0.65);
       // Active nav detection
       const sections = ["home","about-us","our-services","why-choose-us","testimonials","contact"];
       const labels = ["Home","About Us","Our Services","Why Choose Us","Testimonials","Contact"];
@@ -2319,27 +2295,18 @@ export default function App() {
       </div>
 
       <a
-        className="call-fab"
-        href="tel:+441162766600"
-        aria-label="Call us now"
+        className="whatsapp-fab"
+        href="https://wa.me/447464970018"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Chat with us on WhatsApp"
       >
-        <span className="call-fab-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img" focusable="false">
-            <path fill="#FFFFFF" d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.57 3.58a1 1 0 0 1-.25 1.01l-2.2 2.2Z"/>
+        <span className="whatsapp-fab-icon" aria-hidden="true">
+          <svg viewBox="0 0 32 32" role="img" focusable="false">
+            <path fill="#FFFFFF" d="M16.03 4.5c-6.24 0-11.32 5.02-11.32 11.2 0 2.12.6 4.16 1.74 5.94L4.5 27.5l6.08-1.9a11.45 11.45 0 0 0 5.45 1.39c6.24 0 11.32-5.02 11.32-11.2S22.27 4.5 16.03 4.5Zm0 20.55c-1.72 0-3.4-.47-4.87-1.36l-.35-.21-3.58 1.12 1.15-3.45-.23-.36a9.2 9.2 0 0 1-1.5-5.09c0-5.1 4.21-9.25 9.38-9.25s9.38 4.15 9.38 9.25-4.21 9.35-9.38 9.35Zm5.15-6.98c-.28-.14-1.66-.81-1.92-.9-.26-.09-.45-.14-.64.14-.19.28-.74.9-.9 1.08-.17.19-.33.21-.61.07-.28-.14-1.18-.43-2.25-1.37-.83-.73-1.39-1.64-1.55-1.92-.16-.28-.02-.43.12-.57.13-.13.28-.33.42-.49.14-.16.19-.28.28-.47.09-.19.05-.35-.02-.49-.07-.14-.64-1.53-.88-2.1-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.49.07-.75.35-.26.28-.99.96-.99 2.33s1.01 2.7 1.15 2.89c.14.19 1.98 3 4.8 4.2.67.29 1.2.46 1.61.59.68.21 1.29.18 1.78.11.54-.08 1.66-.67 1.9-1.32.23-.65.23-1.2.16-1.32-.07-.12-.26-.19-.54-.33Z"/>
           </svg>
         </span>
       </a>
-
-      {showStickyCta && (
-        <div className="sticky-cta-bar" role="region" aria-label="Quick contact options">
-          <a href="tel:+441162766600" className="sticky-cta-btn sticky-cta-call">
-            <span aria-hidden="true">📞</span> Call Now
-          </a>
-          <button type="button" className="sticky-cta-btn sticky-cta-book" onClick={() => go("contact-form")}>
-            Book Assessment
-          </button>
-        </div>
-      )}
 
 
       {/* ── CONTACT ── */}
@@ -2395,7 +2362,7 @@ export default function App() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="site-footer" style={{ background: "#060f1e", padding: "56px 20px 28px" }}>
+      <footer style={{ background: "#060f1e", padding: "56px 20px 28px" }}>
         <div className="sec-wide">
           <div className="foot-grid">
             <div>
