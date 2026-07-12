@@ -56,10 +56,10 @@ const TEAM = [
 ];
 
 const STATS = [
-  { target: 500, suffix: "+", label: "Clients Supported" },
-  { target: 10, suffix: "+", label: "Years Experience" },
-  { target: 50, suffix: "+", label: "Dedicated Carers" },
-  { target: 98, suffix: "%", label: "Client Satisfaction" },
+  { icon: "👥", target: 500, suffix: "+", label: "Clients Supported" },
+  { icon: "📅", target: 10, suffix: "+", label: "Years Experience" },
+  { icon: "🤝", target: 50, suffix: "+", label: "Dedicated Carers" },
+  { icon: "💚", target: 98, suffix: "%", label: "Client Satisfaction" },
 ];
 
 const NAV = ["Home", "About Us", "Our Services", "Why Choose Us", "Testimonials", "Contact"];
@@ -192,6 +192,7 @@ const CSS = `
     --text-primary: #0B1D3A;
     --text-secondary: #5a6a7e;
     --accent: #28A745;
+    --border: #e4ecf6;
   }
 
   [data-theme="dark"] {
@@ -201,7 +202,56 @@ const CSS = `
     --text-primary: #fff;
     --text-secondary: #b3c6e0;
     --accent: #4cde6e;
+    --border: rgba(255,255,255,0.12);
   }
+  [data-theme="dark"] .srv-card {
+    background: #0d1a2e;
+    border-color: #28A745;
+  }
+  [data-theme="dark"] .srv-name {
+    color: #fff;
+  }
+  [data-theme="dark"] .srv-desc {
+    color: #b3c6e0;
+  }
+  [data-theme="dark"] .srv-icon {
+    background: rgba(255,255,255,0.1);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+  }
+  [data-theme="dark"] .srv-card:nth-child(even) .srv-icon {
+    background: rgba(76,222,110,0.14);
+    box-shadow: inset 0 0 0 1px rgba(76,222,110,0.32);
+  }
+  [data-theme="dark"] .faq-section { background: #060f1e; }
+  [data-theme="dark"] .faq-item { background: #0d1a2e; border-color: rgba(255,255,255,0.1); }
+  [data-theme="dark"] .faq-q { color: #fff; }
+  [data-theme="dark"] .faq-a, [data-theme="dark"] .faq-list li { color: #b3c6e0; }
+  [data-theme="dark"] .mob-menu { background: #0d1a2e; border-top-color: rgba(255,255,255,0.1); }
+  [data-theme="dark"] .mob-menu a { color: #fff; border-bottom-color: rgba(255,255,255,0.1); }
+  [data-theme="dark"] .stats-bg, [data-theme="dark"] #contact .sec { background: #060f1e; }
+  [data-theme="dark"] .stat-n { color: #fff; }
+  [data-theme="dark"] .service-proof span { background: #0d1a2e; color: #b3c6e0; border-color: rgba(255,255,255,0.2); }
+  [data-theme="dark"] .care-story { background: linear-gradient(180deg, #0d1a2e 0%, #0B1D3A 100%); border-color: rgba(255,255,255,0.1); }
+  [data-theme="dark"] .care-story h3 { color: #fff; }
+  [data-theme="dark"] .care-story > p { color: #b3c6e0; }
+  [data-theme="dark"] .care-note h4 { color: #fff; }
+  [data-theme="dark"] .care-note p { color: #b3c6e0; }
+  [data-theme="dark"] .care-mobile-bullets li { color: #b3c6e0; }
+  [data-theme="dark"] .care-dot::before { background: rgba(255,255,255,0.28); }
+  [data-theme="dark"] .care-dot.active::before { background: #4cde6e; }
+  [data-theme="dark"] .about-mission { background: rgba(40,167,69,0.08); }
+  [data-theme="dark"] .about-mission p { color: #fff; }
+  [data-theme="dark"] .about-extra-copy { color: #b3c6e0; }
+  [data-theme="dark"] .check-text { color: #fff; }
+  [data-theme="dark"] .team-card { background: #0d1a2e; border-color: rgba(255,255,255,0.1); }
+  [data-theme="dark"] .t-name { color: #fff; }
+  [data-theme="dark"] .career-list div { background: #0d1a2e; border-color: rgba(255,255,255,0.1); color: #fff; }
+  [data-theme="dark"] .career-note { background: #0d1a2e; border-color: rgba(255,255,255,0.1); color: #b3c6e0; }
+  [data-theme="dark"] .form-box { box-shadow: 0 8px 40px rgba(0,0,0,0.5); border-color: rgba(255,255,255,0.1); }
+  [data-theme="dark"] .finput { background: #060f1e; border-color: rgba(255,255,255,0.15); color: #fff; }
+  [data-theme="dark"] .finput::placeholder { color: rgba(255,255,255,0.4); }
+  [data-theme="dark"] .ci-val { color: #fff; }
+  [data-theme="dark"] .ci-icon { background: linear-gradient(135deg, #060f1e, #0d1a2e); }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -221,7 +271,7 @@ const CSS = `
   [data-theme="dark"] .hero-trust-text strong { color: #fff; }
   [data-theme="dark"] .nav-wrap { background: var(--bg-primary); border-bottom-color: var(--border); }
   [data-theme="dark"] .brand-title, [data-theme="dark"] .brand-subtitle { color: var(--text-primary); }
-  [data-theme="dark"] .srv-card, [data-theme="dark"] .faq-item, [data-theme="dark"] .why-card, [data-theme="dark"] .form-box, [data-theme="dark"] .testi-card { background: var(--bg-card); }
+  [data-theme="dark"] .srv-card, [data-theme="dark"] .faq-item, [data-theme="dark"] .why-card, [data-theme="dark"] .form-box { background: var(--bg-card); }
   img  { max-width: 100%; display: block; }
   button { cursor: pointer; font-family: inherit; }
 
@@ -252,15 +302,20 @@ const CSS = `
   }
   .btn-green { background: #28A745; color: #fff; }
   .btn-green:hover { background: #1e8c38; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(40,167,69,0.35); }
+  .btn-green:active { transform: scale(0.97); box-shadow: 0 3px 10px rgba(40,167,69,0.3); }
   .btn-navy  { background: #0B1D3A; color: #fff; }
   .btn-navy:hover  { background: #0d2448; transform: translateY(-2px); }
+  .btn-navy:active { transform: scale(0.97); }
   .btn-ghost-white { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.7); }
   .btn-ghost-white:hover { background: #fff; color: #0B1D3A; }
+  .btn-ghost-white:active { transform: scale(0.97); }
   .hero .btn-ghost-white { color: #0B1D3A; border-color: rgba(11,29,58,0.28); }
   .hero .btn-ghost-white:hover { background: #0B1D3A; color: #fff; border-color: #0B1D3A; }
   .btn-ghost-green { background: transparent; color: #28A745; border: 2px solid #28A745; }
   .btn-ghost-green:hover { background: #28A745; color: #fff; }
-  .whatsapp-fab {
+  .btn-ghost-green:active { transform: scale(0.97); }
+  .sticky-cta-bar { display: none; }
+  .call-fab {
     position: fixed;
     right: 16px;
     bottom: 18px;
@@ -272,28 +327,28 @@ const CSS = `
     height: 58px;
     padding: 0;
     border-radius: 50%;
-    background: #28A745;
+    background: #0B1D3A;
     color: #fff;
     text-decoration: none;
-    box-shadow: 0 10px 24px rgba(37, 211, 102, 0.34);
+    box-shadow: 0 10px 24px rgba(11,29,58,0.38);
     border: 3px solid #fff;
     transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
   }
-  .whatsapp-fab:hover {
+  .call-fab:hover {
     transform: translateY(-2px);
-    box-shadow: 0 14px 30px rgba(37, 211, 102, 0.42);
-    filter: brightness(1.02);
+    box-shadow: 0 14px 30px rgba(11,29,58,0.46);
+    filter: brightness(1.08);
   }
-  .whatsapp-fab-icon {
-    width: 34px;
-    height: 34px;
+  .call-fab-icon {
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
   }
-  .whatsapp-fab-icon svg { width: 100%; height: 100%; display: block; }
+  .call-fab-icon svg { width: 100%; height: 100%; display: block; }
 
   /* ── Labels & headings ── */
   .label {
@@ -413,9 +468,10 @@ const CSS = `
   .care-search-icon { color: #28A745; font-size: 1.1rem; line-height: 1; flex: 0 0 auto; }
   .care-search-input {
     min-width: 0; flex: 1 1 auto; border: 0; outline: 0;
-    background: transparent; color: #0B1D3A; font: 600 0.9rem 'Open Sans', sans-serif;
+    background: transparent; color: var(--text-primary); font: 600 0.9rem 'Open Sans', sans-serif;
   }
   .care-search-input::placeholder { color: rgba(11,29,58,0.48); }
+  [data-theme="dark"] .care-search-input::placeholder { color: rgba(255,255,255,0.45); }
   .care-search-btn {
     border: 0; border-radius: 999px; background: #28A745; color: #fff;
     font-weight: 800; font-size: 0.82rem; padding: 10px 18px; white-space: nowrap;
@@ -430,6 +486,8 @@ const CSS = `
     padding: 0 14px 12px; margin-top: -8px;
   }
   .care-search-msg.error { color: #0B1D3A; }
+  [data-theme="dark"] .care-search-msg { color: rgba(255,255,255,0.65); }
+  [data-theme="dark"] .care-search-msg.error { color: #ff8a80; }
   .mob-menu {
     background: #fff; padding: 12px 20px 28px;
     border-top: 1px solid #eef2f6;
@@ -516,6 +574,7 @@ const CSS = `
   /* ── Stats ── */
   .stats-bg { background: #fff; padding: 44px 20px 52px; }
   .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 20px; }
+  .stat-icon { font-size: 1.5rem; margin-bottom: 6px; line-height: 1; }
   .stat-n { font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 2.4rem; color: #0B1D3A; line-height: 1; }
   .stat-l { color: #28A745; font-weight: 700; font-size: 0.76rem; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 5px; }
 
@@ -543,7 +602,11 @@ const CSS = `
     display: inline-flex; align-items: center; justify-content: center;
     background: #f3f7fb; box-shadow: inset 0 0 0 1px rgba(11,29,58,0.14);
     font-size: 1.3rem; margin-bottom: 14px;
+    transition: transform 0.25s ease;
   }
+  .srv-card:nth-child(odd) .srv-icon { background: rgba(11,29,58,0.07); box-shadow: inset 0 0 0 1px rgba(11,29,58,0.16); }
+  .srv-card:nth-child(even) .srv-icon { background: rgba(40,167,69,0.10); box-shadow: inset 0 0 0 1px rgba(40,167,69,0.24); }
+  .srv-card:hover .srv-icon { transform: scale(1.1) rotate(-4deg); }
   .srv-name { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.03rem; line-height: 1.15; color: #0B1D3A; margin-bottom: 10px; }
   .srv-desc { color: #5a6a7e; font-size: 0.86rem; line-height: 1.6; min-height: 2.7em; }
   .srv-more {
@@ -611,18 +674,28 @@ const CSS = `
   .care-dots {
     display: flex;
     justify-content: center;
-    gap: 8px;
-    margin-top: 18px;
+    gap: 2px;
+    margin-top: 10px;
   }
   .care-dot {
-    width: 9px;
-    height: 9px;
+    position: relative;
+    width: 44px;
+    height: 44px;
     border: 0;
-    border-radius: 999px;
-    background: rgba(11,29,58,0.18);
+    background: transparent;
     padding: 0;
   }
-  .care-dot.active { background: #0B1D3A; transform: scale(1.18); }
+  .care-dot::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 9px; height: 9px;
+    border-radius: 999px;
+    background: rgba(11,29,58,0.18);
+    transform: translate(-50%, -50%) scale(1);
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .care-dot.active::before { background: #0B1D3A; transform: translate(-50%, -50%) scale(1.3); }
   .care-photo {
     position: relative;
     opacity: 1;
@@ -669,13 +742,17 @@ const CSS = `
     border-radius: 16px;
     box-shadow: 0 10px 28px rgba(11,29,58,0.05);
     overflow: hidden;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
   }
-  .faq-item[open] {
+  .faq-item.open {
     border-color: rgba(40,167,69,0.26);
     box-shadow: 0 14px 32px rgba(11,29,58,0.08);
   }
   .faq-q {
-    list-style: none;
+    width: 100%;
+    background: none;
+    border: 0;
+    text-align: left;
     cursor: pointer;
     padding: 18px 18px 18px 18px;
     display: flex;
@@ -688,7 +765,6 @@ const CSS = `
     font-size: 0.98rem;
     line-height: 1.35;
   }
-  .faq-q::-webkit-details-marker { display: none; }
   .faq-q-icon {
     width: 30px;
     height: 30px;
@@ -701,12 +777,23 @@ const CSS = `
     color: #28A745;
     font-size: 1rem;
     font-weight: 800;
-    transition: transform 0.2s ease, background 0.2s ease;
+    transition: transform 0.25s ease, background 0.2s ease;
   }
-  .faq-item[open] .faq-q-icon {
+  .faq-item.open .faq-q-icon {
     transform: rotate(45deg);
     background: rgba(40,167,69,0.18);
   }
+  .faq-a-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 0.35s ease, opacity 0.25s ease;
+  }
+  .faq-a-wrap.open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+  .faq-a-wrap > * { min-height: 0; overflow: hidden; }
   .faq-a {
     padding: 0 18px 18px;
     color: #5a6a7e;
@@ -1112,18 +1199,40 @@ const CSS = `
     .care-caption p { font-size: 0.8rem; line-height: 1.45; }
     .care-dots { margin-top: 14px; }
     .hero > svg { display: none !important; }
-    .whatsapp-fab {
-      right: 14px;
-      bottom: 14px;
-      width: 54px;
-      height: 54px;
+    .call-fab { display: none; }
+    .sticky-cta-bar {
+      display: flex;
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 340;
+      background: var(--bg-primary);
+      border-top: 1px solid var(--border);
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+      gap: 10px;
+      box-shadow: 0 -8px 24px rgba(11,29,58,0.14);
+      animation: stickyCtaIn 0.28s ease;
     }
-    .whatsapp-fab-icon {
-      width: 40px;
-      height: 40px;
-      font-size: 1.2rem;
+    .sticky-cta-btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 13px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 0.86rem;
+      text-decoration: none;
+      border: 0;
+      font-family: 'Open Sans', sans-serif;
     }
+    .sticky-cta-call { background: rgba(11,29,58,0.08); color: #0B1D3A; }
+    [data-theme="dark"] .sticky-cta-call { background: rgba(255,255,255,0.12); color: #fff; }
+    .sticky-cta-book { background: #28A745; color: #fff; }
+    .site-footer { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; }
   }
+  @keyframes stickyCtaIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
 
   /* ── Desktop 900px+ ── */
   @media (min-width: 900px) {
@@ -1162,7 +1271,7 @@ const CSS = `
     .contact-grid { grid-template-columns: 1fr 1fr; gap: 64px; }
     .careers-panel { grid-template-columns: 0.85fr 1.15fr; gap: 42px; }
     .foot-grid { grid-template-columns: 2fr 1fr 1fr; }
-    .whatsapp-fab {
+    .call-fab {
       right: 24px;
       bottom: 24px;
       width: 58px;
@@ -1199,7 +1308,7 @@ function BrandName({ variant = "dark" }) {
 }
 
 /* ─── ANIMATED COUNTER ─── */
-function Counter({ target, suffix, label, visible }) {
+function Counter({ icon, target, suffix, label, visible }) {
   const [count, setCount] = useState(0);
   const started = useRef(false);
 
@@ -1220,6 +1329,7 @@ function Counter({ target, suffix, label, visible }) {
 
   return (
     <div style={{ textAlign: "center" }}>
+      {icon && <div className="stat-icon" aria-hidden="true">{icon}</div>}
       <div className="stat-n">{count}{suffix}</div>
       <div className="stat-l">{label}</div>
     </div>
@@ -1341,8 +1451,8 @@ function ContactForm({ initialPostcode = "" }) {
   if (sent) return (
     <div style={{ textAlign: "center", padding: "40px 0" }}>
       <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(40,167,69,0.1)", border: "2px solid #28A745", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: "1.8rem" }}>✅</div>
-      <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, color: "#0B1D3A", marginBottom: 10 }}>Message Sent!</h3>
-      <p style={{ color: "#5a6a7e", marginBottom: 24, lineHeight: 1.7 }}>We'll be in touch within 24 hours to discuss your care needs.</p>
+      <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, color: "var(--text-primary)", marginBottom: 10 }}>Message Sent!</h3>
+      <p style={{ color: "var(--text-secondary)", marginBottom: 24, lineHeight: 1.7 }}>We'll be in touch within 24 hours to discuss your care needs.</p>
       <button className="btn btn-ghost-green" onClick={() => { setSent(false); setForm({ name: "", email: "", phone: "", postcode: initialPostcode, service: "", message: "" }); }} style={{ width: "auto", padding: "12px 28px" }}>Send Another</button>
     </div>
   );
@@ -1357,7 +1467,7 @@ function ContactForm({ initialPostcode = "" }) {
       ].map(f => (
         <input key={f.name} className="finput" name={f.name} type={f.type} placeholder={f.ph} value={form[f.name]} onChange={set} autoComplete={f.name}/>
       ))}
-      <select className="finput" name="service" value={form.service} onChange={set} style={{ color: form.service ? "#0B1D3A" : "#a0afc0" }}>
+      <select className="finput" name="service" value={form.service} onChange={set} style={{ color: form.service ? "var(--text-primary)" : "#a0afc0" }}>
         <option value="">Select a Service</option>
         {SERVICES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
       </select>
@@ -1505,8 +1615,8 @@ function ApplicationForm() {
   if (sent) return (
     <div style={{ textAlign: "center", padding: "36px 0" }}>
       <div style={{ width: 62, height: 62, borderRadius: "50%", background: "rgba(40,167,69,0.1)", border: "2px solid #28A745", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", fontSize: "1.7rem" }}>✅</div>
-      <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, color: "#0B1D3A", marginBottom: 10 }}>Application Sent</h3>
-      <p style={{ color: "#5a6a7e", marginBottom: 22, lineHeight: 1.7 }}>Thank you. Our recruitment team will review your details and contact you with the next step.</p>
+      <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, color: "var(--text-primary)", marginBottom: 10 }}>Application Sent</h3>
+      <p style={{ color: "var(--text-secondary)", marginBottom: 22, lineHeight: 1.7 }}>Thank you. Our recruitment team will review your details and contact you with the next step.</p>
       <button className="btn btn-ghost-green" onClick={() => { setSent(false); setForm(emptyForm); cvFileRef.current && (cvFileRef.current.value = ""); }} style={{ width: "auto", padding: "12px 28px" }}>Send Another</button>
     </div>
   );
@@ -1519,7 +1629,7 @@ function ApplicationForm() {
         <input className="finput" name="phone" type="tel" placeholder="Phone Number *" value={form.phone} onChange={set} autoComplete="tel"/>
         <input className="finput" name="postcode" type="text" placeholder="Postcode" value={form.postcode} onChange={set} autoComplete="postal-code"/>
       </div>
-      <select className="finput" name="role" value={form.role} onChange={set} style={{ color: form.role ? "#0B1D3A" : "#a0afc0" }}>
+      <select className="finput" name="role" value={form.role} onChange={set} style={{ color: form.role ? "var(--text-primary)" : "#a0afc0" }}>
         <option value="">Role Applying For *</option>
         {CAREER_ROLES.map(role => <option key={role} value={role}>{role}</option>)}
       </select>
@@ -1530,7 +1640,7 @@ function ApplicationForm() {
       <label className="check-row"><input type="checkbox" name="driving" checked={form.driving} onChange={set}/> I have a driving licence / access to a car</label>
       <textarea className="finput" name="message" placeholder="Tell us why you would like to join 3Cs..." rows={4} value={form.message} onChange={set} style={{ resize: "vertical", marginBottom: 18 }}/>
       <div style={{ marginBottom: 18 }}>
-        <label style={{ display: "block", marginBottom: 6, color: "#0B1D3A", fontWeight: 600, fontSize: "0.92rem" }}>Upload CV (PDF, DOC, DOCX - Max 5MB)</label>
+        <label style={{ display: "block", marginBottom: 6, color: "var(--text-primary)", fontWeight: 600, fontSize: "0.92rem" }}>Upload CV (PDF, DOC, DOCX - Max 5MB)</label>
         <input
           ref={cvFileRef}
           type="file"
@@ -1540,11 +1650,11 @@ function ApplicationForm() {
             display: "block",
             width: "100%",
             padding: "10px 14px",
-            border: "1px solid #d4dce6",
+            border: "1px solid var(--border)",
             borderRadius: "8px",
             fontSize: "0.92rem",
-            color: "#0B1D3A",
-            backgroundColor: "#fff",
+            color: "var(--text-primary)",
+            backgroundColor: "var(--bg-card)",
             fontFamily: "inherit",
           }}
         />
@@ -1586,6 +1696,7 @@ function Testimonials() {
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showStickyCta, setShowStickyCta] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
   const [darkMode, setDarkMode] = useState(false);
 
@@ -1604,12 +1715,21 @@ export default function App() {
   const [postcodeMsg, setPostcodeMsg] = useState("");
   const [postcodeError, setPostcodeError] = useState(false);
   const [statsRef, statsVisible] = useReveal();
+  const [openFaqs, setOpenFaqs] = useState(() => new Set([0]));
+  const toggleFaq = useCallback((i) => {
+    setOpenFaqs(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  }, []);
   const aboutRef = useRef(null);
 
   useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY;
       setScrolled(y > 50);
+      setShowStickyCta(y > window.innerHeight * 0.65);
       // Active nav detection
       const sections = ["home","about-us","our-services","why-choose-us","testimonials","contact"];
       const labels = ["Home","About Us","Our Services","Why Choose Us","Testimonials","Contact"];
@@ -1814,7 +1934,7 @@ export default function App() {
         <div className="sec-wide">
           <div className="stats-grid" ref={statsRef}>
             {STATS.map((s, i) => (
-              <Counter key={s.label} target={s.target} suffix={s.suffix} label={s.label} visible={statsVisible}/>
+              <Counter key={s.label} icon={s.icon} target={s.target} suffix={s.suffix} label={s.label} visible={statsVisible}/>
             ))}
           </div>
         </div>
@@ -1822,13 +1942,13 @@ export default function App() {
       <div style={{ height: 4, background: "linear-gradient(90deg, #0B1D3A 0%, #28A745 50%, #0B1D3A 100%)" }}/>
 
       {/* ── SERVICES ── */}
-      <section id="our-services" className="sec" style={{ background: "#F5F7FA" }}>
+      <section id="our-services" className="sec" style={{ background: "var(--bg-secondary)" }}>
         <div className="sec-wide">
           <Reveal>
             <div className="text-center" style={{ marginBottom: 44 }}>
               <span className="label">WHAT WE OFFER</span>
               <h2 className="sec-h2">Our Services</h2>
-              <p style={{ color: "#5a6a7e", marginTop: 12, maxWidth: 520, marginInline: "auto", lineHeight: 1.7 }}>
+              <p style={{ color: "var(--text-secondary)", marginTop: 12, maxWidth: 520, marginInline: "auto", lineHeight: 1.7 }}>
                 Practical care, tailored support, and a calmer day-to-day life for you and your family.
               </p>
             </div>
@@ -1863,13 +1983,13 @@ export default function App() {
       </section>
 
       {/* ── CARE IN ACTION ── */}
-      <section className="sec" style={{ background: "#fff" }}>
+      <section className="sec" style={{ background: "var(--bg-primary)" }}>
         <div className="sec-wide">
           <Reveal>
             <div className="text-center" style={{ marginBottom: 36 }}>
               <span className="label">CARE IN ACTION</span>
               <h2 className="sec-h2">Support That Feels Familiar</h2>
-              <p style={{ color: "#5a6a7e", marginTop: 12, maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
+              <p style={{ color: "var(--text-secondary)", marginTop: 12, maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
                 Everyday care moments delivered with patience, dignity, and a personal touch.
               </p>
             </div>
@@ -1959,7 +2079,7 @@ export default function App() {
       </section>
 
       {/* ── ABOUT ── */}
-      <section id="about-us" className="sec" style={{ background: "#fff" }} ref={aboutRef}>
+      <section id="about-us" className="sec" style={{ background: "var(--bg-primary)" }} ref={aboutRef}>
         <div className="sec-wide about-inner">
           <Reveal>
             <div className="about-img-wrap">
@@ -1976,7 +2096,7 @@ export default function App() {
               <h2 className="sec-h2" style={{ marginTop: 8, marginBottom: 18 }}>
                 High Quality Care<br/>in the Comfort of Your Home
               </h2>
-              <p style={{ color: "#5a6a7e", lineHeight: 1.78, marginBottom: 14 }}>
+              <p style={{ color: "var(--text-secondary)", lineHeight: 1.78, marginBottom: 14 }}>
                 3Cs Care Services Limited was founded on a simple belief: everyone deserves to live well, with dignity, in the place they call home. Based in Stoneygate, Leicester, we serve individuals and families across the region with a full range of domiciliary care services.
               </p>
               <div className="about-more" id="about-more-copy" aria-live="polite">
@@ -2016,13 +2136,13 @@ export default function App() {
       </section>
 
       {/* ── TESTIMONIALS ── */}
-      <section id="testimonials" className="sec" style={{ background: "#F5F7FA" }}>
+      <section id="testimonials" className="sec" style={{ background: "var(--bg-secondary)" }}>
         <div className="sec-wide">
           <Reveal>
             <div className="text-center" style={{ marginBottom: 44 }}>
               <span className="label">WHAT FAMILIES SAY</span>
               <h2 className="sec-h2">Trusted by Hundreds of Families</h2>
-              <p style={{ color: "#5a6a7e", marginTop: 12, maxWidth: 480, marginInline: "auto", lineHeight: 1.7 }}>
+              <p style={{ color: "var(--text-secondary)", marginTop: 12, maxWidth: 480, marginInline: "auto", lineHeight: 1.7 }}>
                 Don't just take our word for it — hear from the families we're proud to support every day.
               </p>
             </div>
@@ -2030,9 +2150,9 @@ export default function App() {
           <Testimonials/>
           <Reveal>
             <div className="text-center" style={{ marginTop: 40 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e4ecf6", borderRadius: 100, padding: "10px 20px" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 100, padding: "10px 20px" }}>
                 <span style={{ color: "#f5a623", fontSize: "1.1rem" }}>★★★★★</span>
-                <span style={{ color: "#0B1D3A", fontWeight: 700, fontSize: "0.88rem" }}>5.0 from 120+ reviews</span>
+                <span style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "0.88rem" }}>5.0 from 120+ reviews</span>
               </div>
             </div>
           </Reveal>
@@ -2046,38 +2166,48 @@ export default function App() {
             <div className="text-center" style={{ marginBottom: 36 }}>
               <span className="label">FREQUENTLY ASKED QUESTIONS</span>
               <h2 className="sec-h2">Answers to Common Questions</h2>
-              <p style={{ color: "#5a6a7e", marginTop: 12, maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
+              <p style={{ color: "var(--text-secondary)", marginTop: 12, maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
                 A quick guide to help you understand how we work, what we offer, and how to get started.
               </p>
             </div>
           </Reveal>
           <div className="faq-grid">
-            {FAQS.map((item, i) => (
-              <Reveal key={item.question} delay={(i % 4) + 1}>
-                <details className="faq-item" open={i === 0}>
-                  <summary className="faq-q">
-                    <span>{item.question}</span>
-                    <span className="faq-q-icon" aria-hidden="true">+</span>
-                  </summary>
-                  <div className="faq-a">
-                    <p>{item.answer}</p>
-                    {item.points && (
-                      <ul className="faq-list">
-                        {item.points.map((point) => (
-                          <li key={point}>{point}</li>
-                        ))}
-                      </ul>
-                    )}
+            {FAQS.map((item, i) => {
+              const isOpen = openFaqs.has(i);
+              return (
+                <Reveal key={item.question} delay={(i % 4) + 1}>
+                  <div className={`faq-item${isOpen ? " open" : ""}`}>
+                    <button
+                      type="button"
+                      className="faq-q"
+                      onClick={() => toggleFaq(i)}
+                      aria-expanded={isOpen}
+                    >
+                      <span>{item.question}</span>
+                      <span className="faq-q-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div className={`faq-a-wrap${isOpen ? " open" : ""}`}>
+                      <div className="faq-a">
+                        <p>{item.answer}</p>
+                        {item.points && (
+                          <ul className="faq-list">
+                            {item.points.map((point) => (
+                              <li key={point}>{point}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </details>
-              </Reveal>
-            ))}
+                </Reveal>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* ── SOCIAL POSTS ── */}
-      <section className="sec" style={{ background: "#fff" }}>
+      <section className="sec" style={{ background: "var(--bg-primary)" }}>
         <div className="sec-wide">
           <Reveal>
             <div className="text-center" style={{ marginBottom: 36 }}>
@@ -2108,7 +2238,7 @@ export default function App() {
             <div className="text-center" style={{ marginBottom: 44 }}>
               <span className="label">OUR PEOPLE</span>
               <h2 className="sec-h2">Meet the Team</h2>
-              <p style={{ color: "#5a6a7e", marginTop: 12, maxWidth: 460, marginInline: "auto", lineHeight: 1.7 }}>
+              <p style={{ color: "var(--text-secondary)", marginTop: 12, maxWidth: 460, marginInline: "auto", lineHeight: 1.7 }}>
                 Dedicated professionals who bring genuine care and warmth to every interaction.
               </p>
             </div>
@@ -2134,13 +2264,13 @@ export default function App() {
         </div>
       </section> */}
 
-      <section id="careers-apply" className="sec" style={{ background: "#FFFFFF" }}>
+      <section id="careers-apply" className="sec" style={{ background: "var(--bg-primary)" }}>
         <div className="sec-wide careers-panel">
           <Reveal>
             <div>
               <span className="label">CAREERS</span>
               <h2 className="sec-h2">Apply to Join 3Cs Care Services</h2>
-              <p style={{ color: "#5a6a7e", marginTop: 14, lineHeight: 1.78 }}>
+              <p style={{ color: "var(--text-secondary)", marginTop: 14, lineHeight: 1.78 }}>
                 We are looking for kind, reliable carers who can support people with dignity at home. Tell us about your experience, availability, and right-to-work status.
               </p>
               <div className="career-list">
@@ -2153,7 +2283,7 @@ export default function App() {
           </Reveal>
           <Reveal delay={2}>
             <div className="form-box">
-              <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: "1.15rem", color: "#0B1D3A", marginBottom: 18 }}>
+              <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: "1.15rem", color: "var(--text-primary)", marginBottom: 18 }}>
                 Care Worker Application
               </h3>
               <ApplicationForm/>
@@ -2189,21 +2319,31 @@ export default function App() {
       </div>
 
       <a
-        className="whatsapp-fab"
-        href="https://wa.me/441162766600"
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Chat with us on WhatsApp"
+        className="call-fab"
+        href="tel:+441162766600"
+        aria-label="Call us now"
       >
-        <span className="whatsapp-fab-icon" aria-hidden="true">
-          <svg viewBox="0 0 32 32" role="img" focusable="false">
-            <path fill="#FFFFFF" d="M16.03 4.5c-6.24 0-11.32 5.02-11.32 11.2 0 2.12.6 4.16 1.74 5.94L4.5 27.5l6.08-1.9a11.45 11.45 0 0 0 5.45 1.39c6.24 0 11.32-5.02 11.32-11.2S22.27 4.5 16.03 4.5Zm0 20.55c-1.72 0-3.4-.47-4.87-1.36l-.35-.21-3.58 1.12 1.15-3.45-.23-.36a9.2 9.2 0 0 1-1.5-5.09c0-5.1 4.21-9.25 9.38-9.25s9.38 4.15 9.38 9.25-4.21 9.35-9.38 9.35Zm5.15-6.98c-.28-.14-1.66-.81-1.92-.9-.26-.09-.45-.14-.64.14-.19.28-.74.9-.9 1.08-.17.19-.33.21-.61.07-.28-.14-1.18-.43-2.25-1.37-.83-.73-1.39-1.64-1.55-1.92-.16-.28-.02-.43.12-.57.13-.13.28-.33.42-.49.14-.16.19-.28.28-.47.09-.19.05-.35-.02-.49-.07-.14-.64-1.53-.88-2.1-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.49.07-.75.35-.26.28-.99.96-.99 2.33s1.01 2.7 1.15 2.89c.14.19 1.98 3 4.8 4.2.67.29 1.2.46 1.61.59.68.21 1.29.18 1.78.11.54-.08 1.66-.67 1.9-1.32.23-.65.23-1.2.16-1.32-.07-.12-.26-.19-.54-.33Z"/>
+        <span className="call-fab-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" focusable="false">
+            <path fill="#FFFFFF" d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.57 3.58a1 1 0 0 1-.25 1.01l-2.2 2.2Z"/>
           </svg>
         </span>
       </a>
 
+      {showStickyCta && (
+        <div className="sticky-cta-bar" role="region" aria-label="Quick contact options">
+          <a href="tel:+441162766600" className="sticky-cta-btn sticky-cta-call">
+            <span aria-hidden="true">📞</span> Call Now
+          </a>
+          <button type="button" className="sticky-cta-btn sticky-cta-book" onClick={() => go("contact-form")}>
+            Book Assessment
+          </button>
+        </div>
+      )}
+
+
       {/* ── CONTACT ── */}
-      <section id="contact" className="sec" style={{ background: "#F5F7FA" }}>
+      <section id="contact" className="sec" style={{ background: "var(--bg-secondary)" }}>
         <div className="sec-wide">
           <Reveal>
             <div className="text-center" style={{ marginBottom: 44 }}>
@@ -2225,7 +2365,7 @@ export default function App() {
                     <div>
                       <div className="ci-label">{label}</div>
                       {href
-                        ? <a href={href} className="ci-val" style={{ textDecoration: "none", color: "#0B1D3A" }}>{val}</a>
+                        ? <a href={href} className="ci-val" style={{ textDecoration: "none", color: "var(--text-primary)" }}>{val}</a>
                         : <div className="ci-val">{val}</div>}
                     </div>
                   </div>
@@ -2244,7 +2384,7 @@ export default function App() {
             </Reveal>
             <Reveal delay={2}>
               <div id="contact-form" className="form-box">
-                <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: "1.15rem", color: "#0B1D3A", marginBottom: 22 }}>
+                <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: "1.15rem", color: "var(--text-primary)", marginBottom: 22 }}>
                   Send Us a Message
                 </h3>
                 <ContactForm initialPostcode={postcode}/>
@@ -2255,7 +2395,7 @@ export default function App() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ background: "#060f1e", padding: "56px 20px 28px" }}>
+      <footer className="site-footer" style={{ background: "#060f1e", padding: "56px 20px 28px" }}>
         <div className="sec-wide">
           <div className="foot-grid">
             <div>
