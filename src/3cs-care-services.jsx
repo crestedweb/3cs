@@ -9,14 +9,14 @@ import careImageE from "./assets/optimized/e.jpg";
 
 /* ─── DATA ─── */
 const SERVICES = [
-  { icon: "🏠", name: "Personal Care", desc: "Gentle daily support with bathing, dressing, and personal routines." },
-  { icon: "🧠", name: "Dementia Care", desc: "Calm, familiar care that supports memory, safety, and dignity." },
-  { icon: "🛏️", name: "Live-in Care", desc: "Round-the-clock support from a dedicated carer at home." },
-  { icon: "🤝", name: "Companionship", desc: "Warm company and conversation to reduce loneliness." },
-  { icon: "💊", name: "Medication Support", desc: "Reliable reminders and help with safe medication routines." },
-  { icon: "🌙", name: "Respite Care", desc: "Short-term relief for families who need a well-earned break." },
-  { icon: "🏡", name: "Domestic Support", desc: "Help with meals, light cleaning, laundry, and errands." },
-  { icon: "🏥", name: "Hospital Discharge", desc: "Smooth support at home after a hospital stay." },
+  { icon: "🏠", name: "Personal Care", desc: "Find CQC-registered providers for bathing, dressing, and daily personal routines." },
+  { icon: "🧠", name: "Dementia Care", desc: "Connect with providers experienced in calm, familiar dementia support." },
+  { icon: "🛏️", name: "Live-in Care", desc: "Explore introductions to providers offering round-the-clock care at home." },
+  { icon: "🤝", name: "Companionship", desc: "Find suitable support for friendly visits, conversation, and confidence at home." },
+  { icon: "💊", name: "Medication Support", desc: "Connect with providers who can assess medication support needs safely." },
+  { icon: "🌙", name: "Respite Care", desc: "Find short-term care options that give family carers time to rest." },
+  { icon: "🏡", name: "Domestic Support", desc: "Explore help with meals, light cleaning, laundry, and everyday tasks." },
+  { icon: "🏥", name: "Hospital Discharge", desc: "Find suitable providers for a smoother return home after hospital." },
 ];
 
 const CAREER_ROLES = [
@@ -28,38 +28,36 @@ const CAREER_ROLES = [
 ];
 
 const WHY = [
-  { icon: "💙", title: "Person-Centred", body: "Every care plan is built around the individual — their preferences, routines, and life story." },
-  { icon: "✅", title: "Quality Care Commitment", body: "Delivering care that supports independence and well-being" },
-  { icon: "🌟", title: "Trained Staff", body: "All carers complete rigorous training, DBS checks, and ongoing professional development." },
-  { icon: "📋", title: "Bespoke Plans", body: "Flexible care plans that adapt as needs change over time." },
-  { icon: "🕐", title: "24/7 Support", body: "Our team is available round the clock — families always have someone to call." },
-  { icon: "❤️", title: "Family Values", body: "We treat every client as family — with warmth, patience, and respect." },
+  { icon: "💙", title: "Needs-Led Matching", body: "We listen first, then help you find providers suited to your location and care requirements." },
+  { icon: "✅", title: "CQC-Registered Providers", body: "Introductions are focused on suitable providers registered with the Care Quality Commission." },
+  { icon: "🌟", title: "Privacy First", body: "We do not publish individual carer or provider profiles for visitors to browse online." },
+  { icon: "📋", title: "Clear Next Steps", body: "Your chosen provider completes the formal assessment, agrees the care plan, and delivers care directly." },
+  { icon: "🕐", title: "Responsive Support", body: "Our team is here to guide families through the search and introduction process." },
+  { icon: "❤️", title: "Independent Guidance", body: "We make the search for care simpler while keeping the final care arrangement with the provider." },
 ];
 
 const TESTIMONIALS = [
-  { name: "Margaret T.", role: "Daughter of client", stars: 5, text: "The carers from 3Cs have been absolutely wonderful with my mother. They treat her with so much dignity and warmth. I finally have peace of mind knowing she's in safe hands." },
-  { name: "James O.", role: "Son of client", stars: 5, text: "From the very first assessment, the team was professional, caring, and thorough. The live-in care service has transformed my father's quality of life completely." },
-  { name: "Patricia W.", role: "Client", stars: 5, text: "I was nervous about having carers come in, but they made me feel completely at ease. They respect my routine and always go the extra mile. Couldn't be happier." },
+  { name: "Margaret T.", role: "Daughter of client", stars: 5, text: "3Cs helped us understand our options and introduced us to a suitable provider for my mother. The process felt clear, kind, and much less stressful." },
+  { name: "James O.", role: "Son of client", stars: 5, text: "The team listened carefully to what my father needed and pointed us toward a provider who could assess him properly. It saved us a lot of time." },
+  { name: "Patricia W.", role: "Client", stars: 5, text: "I did not know where to start with finding care. 3Cs made the first step easier and helped me speak with the right people." },
 ];
 
 const POSTS = [
-  { bg: "#0B1D3A", text: "We are here to care for your loved ones like family.", tag: "#3CsCares" },
-  { bg: "#28A745", text: "Compassion is at the heart of everything we do.", tag: "Compassion · Care · Commitment" },
-  { bg: "#0B1D3A", text: "Dementia Care — specialist support with patience, dignity, and understanding.", tag: "#DementiaCare" },
-  { bg: "#28A745", text: "Quality care you can trust, delivered with kindness.", tag: "Compassion · Care · Commitment" },
+  { bg: "#0B1D3A", text: "Finding suitable care starts with a calm conversation about what your family needs.", tag: "#3CsCareConnect" },
+  { bg: "#28A745", text: "We help families connect with trusted CQC-registered care providers.", tag: "Compassion · Care · Commitment" },
+  { bg: "#0B1D3A", text: "Dementia care, live-in care, respite care, and more: we help you find suitable provider options.", tag: "#FindCare" },
+  { bg: "#28A745", text: "No public carer catalogue. Just careful introductions handled by our team.", tag: "Privacy · Trust · Care" },
 ];
 
 const TEAM = [
-  { name: "Precious Awe", role: "Managing Director", initials: "PA" },
-  { name: "Mary Johnson", role: "Care Assistant", initials: "MJ" },
-  { name: "Samuel Obi", role: "Senior Care Manager", initials: "SO" },
+  { name: "3Cs Referral Team", role: "Care Introduction Support", initials: "3C" },
 ];
 
 const STATS = [
-  { icon: "👥", target: 500, suffix: "+", label: "Clients Supported" },
+  { icon: "👥", target: 500, suffix: "+", label: "Families Guided" },
   { icon: "📅", target: 10, suffix: "+", label: "Years Experience" },
-  { icon: "🤝", target: 50, suffix: "+", label: "Dedicated Carers" },
-  { icon: "💚", target: 98, suffix: "%", label: "Client Satisfaction" },
+  { icon: "🤝", target: 50, suffix: "+", label: "Provider Links" },
+  { icon: "💚", target: 98, suffix: "%", label: "Positive Feedback" },
 ];
 
 const NAV = ["Home", "About Us", "Our Services", "Why Choose Us", "Testimonials", "Contact"];
@@ -71,25 +69,25 @@ const IMAGES = {
 };
 
 const GALLERY = [
-  { src: careImageA, alt: "3Cs carer providing companionship at home", focus: "center" },
-  { src: careImageB, alt: "3Cs carer supporting a client with a meal", focus: "center" },
-  { src: careImageC, alt: "3Cs carer helping a client with mobility at home", focus: "center" },
-  { src: careImageD, alt: "3Cs carer preparing a comfortable bedroom", focus: "center" },
+  { src: careImageA, alt: "Care provider offering companionship at home", focus: "center" },
+  { src: careImageB, alt: "Care provider supporting a client with a meal", focus: "center" },
+  { src: careImageC, alt: "Care provider helping a client with mobility at home", focus: "center" },
+  { src: careImageD, alt: "Care provider preparing a comfortable bedroom", focus: "center" },
   { src: careImageE, alt: "3Cs care service moment at home", focus: "center" },
 ];
 
 const CARE_ACTION_NOTES = [
   {
     title: "Familiar routines, gentle pacing",
-    body: "We keep the day steady and reassuring so each person can settle into care without feeling rushed or overwhelmed.",
+    body: "The right provider helps keep the day steady and reassuring so care feels calm from the start.",
   },
   {
     title: "Small moments that matter",
-    body: "A warm meal, a made bed, or a calm conversation can do more than fill time. They help people feel seen and safe.",
+    body: "A warm meal, a made bed, or a calm conversation can help people feel seen, safe, and respected.",
   },
   {
     title: "Support shaped around home",
-    body: "Every visit should feel like a natural part of the home, not a disruption to it. That is where trust starts to grow.",
+    body: "Good care should fit the rhythm of the home. We help you find providers who understand that.",
   },
 ];
 
@@ -97,26 +95,26 @@ const CARE_ACTION_FEATURES = [
    {
     ...GALLERY[2],
     title: "Mobility support with confidence",
-    body: "A steady hand and patient guidance for safer movement around the home.",
+    body: "Introductions to providers who can assess mobility support needs at home.",
   },
   {
     ...GALLERY[1],
     title: "Mealtimes with dignity",
-    body: "Practical help that keeps nutrition calm, respectful, and unhurried.",
+    body: "Provider options for practical support that keeps mealtimes calm and respectful.",
   },
    {
     src: careImageA,
-    alt: "3Cs carer offering friendly companionship at home",
+    alt: "Care provider offering friendly companionship at home",
     focus: "center",
     title: "Companionship that feels personal",
-    body: "Friendly support that keeps conversation, confidence, and comfort close at hand.",
+    body: "Friendly provider-led support for conversation, confidence, and comfort at home.",
   },
   {
     src: careImageD,
     alt: "3Cs care support creating comfort at home",
     focus: "center",
     title: "Comfort in the details",
-    body: "A tidy room and thoughtful setup can make the whole day feel easier.",
+    body: "Suitable providers can help make the home feel safer, calmer, and easier to manage.",
   },
 ];
 
@@ -124,7 +122,7 @@ const FAQS = [
   {
     question: "What services does 3Cs Care Services provide?",
     answer:
-      "3Cs Care Services provides professional, person-centred home care services that help individuals live safely and comfortably in their own homes. We offer Personal Care, Live-in Care, Companionship, Dementia Care, Medication Support, Domestic Support, Respite Care, Hospital Discharge Support, and more. Every care plan is tailored to each client.",
+      "3Cs Care Services Ltd is an independent care referral and introduction service. We help individuals and families find suitable CQC-registered care providers for Personal Care, Live-in Care, Companionship, Dementia Care, Medication Support, Domestic Support, Respite Care, Hospital Discharge Support, and more.",
   },
   {
     question: "Can I contact someone outside normal business hours?",
@@ -134,7 +132,7 @@ const FAQS = [
   {
     question: "When should I consider full-time or live-in home care?",
     answer:
-      "Live-in or continuous care may be the right choice if someone frequently wakes during the night, has difficulty walking, is at risk of falling, has recently been discharged from hospital, is living with dementia, or needs regular help with bathing, dressing, meals, or medication.",
+      "Live-in or continuous care may be worth discussing with a suitable provider if someone frequently wakes during the night, has difficulty walking, is at risk of falling, has recently been discharged from hospital, is living with dementia, or needs regular help with bathing, dressing, meals, or medication.",
     points: [
       "Frequent night-time waking or assistance needs",
       "Difficulty walking or increased fall risk",
@@ -147,37 +145,37 @@ const FAQS = [
   {
     question: "How much do your home care services cost?",
     answer:
-      "The cost depends on the type of service required, the number of care hours needed, and the level of support involved. We provide transparent pricing with no hidden charges, and we can recommend a care plan that suits your needs and budget.",
+      "The cost depends on the provider, type of care required, number of care hours needed, and level of support involved. After an introduction, the provider will explain pricing, complete any required assessment, and agree the care plan directly with you.",
   },
   {
     question: "Do I have to sign a long-term contract?",
     answer:
-      "No. Our services are flexible and built around your needs. You are not tied into a long-term contract, whether you need short-term support after hospital discharge or ongoing care.",
+      "Any care agreement is made directly with your chosen provider. We can help you understand the next steps before you decide whether to proceed.",
   },
   {
     question: "Are your services only for older adults?",
     answer:
-      "No. While we specialise in supporting older adults, we also care for younger adults living with disabilities, people recovering from surgery, those with long-term health conditions, and anyone who needs extra support to stay independent at home.",
+      "No. We can help older adults, younger adults living with disabilities, people recovering from surgery, those with long-term health conditions, and anyone who needs extra support to find suitable provider options.",
   },
   {
-    question: "Will I have the same caregiver every time?",
+    question: "Can I view carers or care providers on the website?",
     answer:
-      "Consistency matters. Whenever possible, we assign the same caregiver or a small care team to each client. If your regular caregiver is unavailable, we provide another qualified caregiver who is fully briefed on the care plan.",
+      "No. For privacy, safeguarding, and quality assurance reasons, we do not publish individual carer or provider profiles online. Once you make an enquiry, our team reviews your needs and introduces you to suitable CQC-registered providers where appropriate.",
   },
   {
-    question: "Are your caregivers qualified and background checked?",
+    question: "Are the providers CQC-registered?",
     answer:
-      "Absolutely. Every member of our care team goes through a thorough recruitment process, including background checks, reference verification, and relevant training. We select carers for both skill and compassion.",
+      "Our referral and introduction service focuses on connecting families with suitable CQC-registered care providers. The provider is responsible for its own recruitment, checks, assessment process, care plan, and care delivery.",
   },
   {
-    question: "Why choose 3Cs Care Services instead of hiring a private caregiver?",
+    question: "Why choose 3Cs Care Services instead of searching alone?",
     answer:
-      "Choosing 3Cs Care Services gives you the confidence of working with a professional care provider. We carefully match clients with suitable caregivers, supervise quality, and provide responsive support so families can have peace of mind.",
+      "Searching for care can feel overwhelming. 3Cs helps you narrow the search by understanding your needs, location, and preferences, then introducing you to suitable CQC-registered providers.",
   },
   {
     question: "How do I get started?",
     answer:
-      "Getting started is simple. Contact us by phone, email, or through our website to arrange a free consultation. We’ll discuss your needs, answer your questions, and create a personalised care plan.",
+      "Getting started is simple. Contact us by phone, email, or through our website. We will discuss your needs, answer your questions, and explain suitable introduction options.",
   },
 ];
 
@@ -541,7 +539,7 @@ const CSS = `
   }
   .hero-cert-badge {
     position: absolute; top: 20px; left: 20px;
-    display: inline-flex; align-items: center; gap: 8px;
+    display: inline-flex; align-items: center; gap: 10px;
     background: #28A745; color: #fff;
     padding: 11px 16px; border-radius: 8px; font-size: 0.8rem; font-weight: 800;
     box-shadow: 0 10px 24px rgba(11,29,58,0.28), 0 4px 14px rgba(40,167,69,0.42);
@@ -557,6 +555,12 @@ const CSS = `
   .hero-cert-badge:focus-visible {
     outline: 3px solid #fff;
     outline-offset: 3px;
+  }
+  .hero-cert-copy {
+    display: flex; flex-direction: column; gap: 2px; text-align: left; line-height: 1.12;
+  }
+  .hero-cert-phone {
+    font-size: 0.76rem; font-weight: 700; color: rgba(255,255,255,0.9);
   }
   .hero-cert-arrow {
     display: inline-flex; align-items: center; justify-content: center;
@@ -1430,7 +1434,7 @@ function ContactForm({ initialPostcode = "" }) {
     <div style={{ textAlign: "center", padding: "40px 0" }}>
       <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(40,167,69,0.1)", border: "2px solid #28A745", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: "1.8rem" }}>✅</div>
       <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 700, color: "var(--text-primary)", marginBottom: 10 }}>Message Sent!</h3>
-      <p style={{ color: "var(--text-secondary)", marginBottom: 24, lineHeight: 1.7 }}>We'll be in touch within 24 hours to discuss your care needs.</p>
+      <p style={{ color: "var(--text-secondary)", marginBottom: 24, lineHeight: 1.7 }}>We'll be in touch within 24 hours to discuss your care needs and suitable provider options.</p>
       <button className="btn btn-ghost-green" onClick={() => { setSent(false); setForm({ name: "", email: "", phone: "", postcode: initialPostcode, service: "", message: "" }); }} style={{ width: "auto", padding: "12px 28px" }}>Send Another</button>
     </div>
   );
@@ -1446,13 +1450,13 @@ function ContactForm({ initialPostcode = "" }) {
         <input key={f.name} className="finput" name={f.name} type={f.type} placeholder={f.ph} value={form[f.name]} onChange={set} autoComplete={f.name}/>
       ))}
       <select className="finput" name="service" value={form.service} onChange={set} style={{ color: form.service ? "var(--text-primary)" : "#a0afc0" }}>
-        <option value="">Select a Service</option>
+        <option value="">Select care support needed</option>
         {SERVICES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
       </select>
       <textarea className="finput" name="message" placeholder="Tell us about your care needs…" rows={4} value={form.message} onChange={set} style={{ resize: "vertical", marginBottom: 20 }}/>
       {error && <div style={{ color: "#dc3545", marginBottom: 12, fontSize: "0.9rem" }}>{error}</div>}
       <button className="btn btn-green" onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: "15px" }}>
-        {loading ? "Sending..." : "Send Message →"}
+        {loading ? "Sending..." : "Find Care →"}
       </button>
     </div>
   );
@@ -1793,7 +1797,7 @@ export default function App() {
         <div className="nav-inner">
           <div style={{ cursor: "pointer" }} onClick={() => go("home")}><BrandName/></div>
           <button className="mobile-primary-cta" onClick={() => go("contact-form")}>
-            Enquire<br/>Now
+            Find<br/>Care
           </button>
           <div className="nav-desktop">
             {NAV.map(l => (
@@ -1803,7 +1807,7 @@ export default function App() {
               </a>
             ))}
             <button className="btn btn-green" style={{ padding: "9px 18px", fontSize: "0.82rem", width: "auto" }} onClick={() => go("contact-form")}>
-              Book Free Assessment
+              Speak to Our Team
             </button>
           </div>
 <button className="ham" onClick={() => setMenuOpen(o => !o)} aria-label="Toggle menu" aria-expanded={menuOpen}>
@@ -1851,7 +1855,7 @@ export default function App() {
               <a key={l} href="#" onClick={e => { e.preventDefault(); go(l.toLowerCase().replace(/\s+/g, "-")); }}>{l}</a>
             ))}
             <button className="btn btn-green" style={{ width: "100%", marginTop: 18, padding: "14px" }} onClick={() => go("contact-form")}>
-              Book a Free Assessment
+              Speak to Our Team
             </button>
           </div>
         )}
@@ -1862,39 +1866,42 @@ export default function App() {
       <section id="home" className="hero">
         <div className="sec-wide hero-layout">
           <div className="hero-text">
-            <div className="hero-badge">COMPASSION · CARE · COMMITMENT</div>
+            <div className="hero-badge">INDEPENDENT CARE REFERRAL SERVICE</div>
             <h1 className="hero-h1">
-              Compassionate Care<br/>
-              <span style={{ color: "#28A745" }}>in the Comfort</span><br/>
-              of Your Home
+              Helping You Find<br/>
+              <span style={{ color: "#28A745" }}>Trusted Care</span><br/>
+              That’s Right for You
             </h1>
-            <p className="hero-p">We deliver person-centred care that promotes independence, dignity, and quality of life — so your loved ones can thrive where they feel most at ease.</p>
+            <p className="hero-p">3Cs Care Services Ltd helps individuals and families find suitable CQC-registered care providers across the UK. We make the search for care simpler by connecting you with providers that match your location and care requirements.</p>
             <div className="hero-btns">
-              <button className="btn btn-green" onClick={() => go("our-services")} style={{ width: "auto", padding: "14px 32px" }}>Our Services</button>
-              <button className="btn btn-ghost-white" onClick={() => go("contact-form")} style={{ width: "auto", padding: "14px 32px" }}>Book Free Assessment</button>
+              <button className="btn btn-green" onClick={() => go("contact-form")} style={{ width: "auto", padding: "14px 32px" }}>Find Care</button>
+              <button className="btn btn-ghost-white" onClick={() => go("contact-form")} style={{ width: "auto", padding: "14px 32px" }}>Speak to Our Team</button>
             </div>
             <div className="hero-trust">
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <div style={{ display: "flex", gap: 6 }}>
                   {[1,2,3].map(i => (
                     <div key={i} style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, #${["0B1D3A","1a3a5c","28A745"][i-1]}, #28A745)`, border: "2px solid #0B1D3A", display: "flex", alignItems: "center", justifyContent: "center", marginLeft: i > 1 ? -10 : 0, fontSize: "0.7rem", color: "#fff", fontWeight: 700 }}>
-                      {["PA","MJ","SO"][i-1]}
+                      {["1","2","3"][i-1]}
                     </div>
                   ))}
                 </div>
               </div>
               <div className="hero-trust-text">
-                <strong>500+ Families Trust Us</strong>
-                Care delivered in clients' own homes across Leicester and surrounding areas
+                <strong>500+ Families Guided</strong>
+                We do not publish individual carer or provider profiles online.
               </div>
             </div>
           </div>
           <div className="hero-visual">
             <div className="hero-img-wrap">
-              <img src={IMAGES.hero} alt="Compassionate carer with elderly client at home" loading="eager"/>
+              <img src={IMAGES.hero} alt="Care provider supporting an elderly client at home" loading="eager"/>
               <div className="hero-img-overlay"/>
-              <button className="hero-cert-badge" onClick={() => go("contact-form")} aria-label="Book a free care assessment">
-                <span>Book a Free Care Assessment</span>
+              <button className="hero-cert-badge" onClick={() => go("contact-form")} aria-label="Speak to our team on 0116 276 6600">
+                <span className="hero-cert-copy">
+                  <span>Speak to Our Team</span>
+                  <span className="hero-cert-phone">0116 276 6600</span>
+                </span>
                 <span className="hero-cert-arrow" aria-hidden="true">&rarr;</span>
               </button>
             </div>
@@ -1923,9 +1930,9 @@ export default function App() {
           <Reveal>
             <div className="text-center" style={{ marginBottom: 44 }}>
               <span className="label">WHAT WE OFFER</span>
-              <h2 className="sec-h2">Our Services</h2>
+              <h2 className="sec-h2">Care Services We Can Help You Access</h2>
               <p style={{ color: "var(--text-secondary)", marginTop: 12, maxWidth: 520, marginInline: "auto", lineHeight: 1.7 }}>
-                Practical care, tailored support, and a calmer day-to-day life for you and your family.
+                Tell us what support you need and we will help connect you with suitable CQC-registered providers.
               </p>
             </div>
           </Reveal>
@@ -1943,15 +1950,15 @@ export default function App() {
           </div>
           <Reveal>
             <div className="service-proof" aria-label="Care quality highlights">
-              <span>Quality Care Commitment</span>
-              <span>DBS checked carers</span>
-              <span>24-hour response aim</span>
+              <span>CQC-registered provider focus</span>
+              <span>No public carer catalogue</span>
+              <span>Careful introductions</span>
             </div>
           </Reveal>
           <Reveal>
             <div className="text-center" style={{ marginTop: 40 }}>
             <button className="btn btn-green" onClick={() => go("contact-form")} style={{ width: "auto", padding: "14px 36px" }}>
-              Book a Free Assessment
+              Find Care
             </button>
             </div>
           </Reveal>
@@ -1964,9 +1971,9 @@ export default function App() {
           <Reveal>
             <div className="text-center" style={{ marginBottom: 36 }}>
               <span className="label">CARE IN ACTION</span>
-              <h2 className="sec-h2">Support That Feels Familiar</h2>
+              <h2 className="sec-h2">Finding Support That Feels Familiar</h2>
               <p style={{ color: "var(--text-secondary)", marginTop: 12, maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
-                Everyday care moments delivered with patience, dignity, and a personal touch.
+                The provider you choose is responsible for assessment, care planning, and delivering care directly.
               </p>
             </div>
           </Reveal>
@@ -1974,10 +1981,10 @@ export default function App() {
             <Reveal>
               <div className="care-story">
                 <span className="label">WHY THIS MATTERS</span>
-                <h3>Care should feel lived-in, not staged.</h3>
+                <h3>Care should fit real life.</h3>
                 <p>
-                  The right support doesn’t try to impress from a distance. It blends into the rhythm
-                  of the home, brings calm to ordinary tasks, and leaves people feeling respected.
+                  The search for care can feel heavy. We help make the first step simpler by listening,
+                  narrowing the options, and introducing suitable providers where appropriate.
                 </p>
                 <ul className="care-mobile-bullets" aria-label="Care highlights">
                   {CARE_ACTION_NOTES.map((note) => (
@@ -2036,7 +2043,7 @@ export default function App() {
             <div className="text-center" style={{ marginBottom: 44 }}>
               <span className="label">WHY 3Cs</span>
               <h2 className="sec-h2 sec-h2-white">
-                Caring with Compassion,<br/>Confidence and Commitment
+                Care Introductions with<br/>Compassion and Clarity
               </h2>
             </div>
           </Reveal>
@@ -2059,7 +2066,7 @@ export default function App() {
         <div className="sec-wide about-inner">
           <Reveal>
             <div className="about-img-wrap">
-              <img src={IMAGES.about} alt="Professional carer providing home care" loading="lazy"/>
+              <img src={IMAGES.about} alt="Care provider supporting a client at home" loading="lazy"/>
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(11,29,58,0.3) 0%, transparent 50%)" }}/>
               <div className="about-badge">
                 <span>10+</span>Years of Trusted Care
@@ -2070,30 +2077,30 @@ export default function App() {
             <div>
               <span className="label">ABOUT US</span>
               <h2 className="sec-h2" style={{ marginTop: 8, marginBottom: 18 }}>
-                High Quality Care<br/>in the Comfort of Your Home
+                Helping Families Find<br/>the Right Care Provider
               </h2>
               <p style={{ color: "var(--text-secondary)", lineHeight: 1.78, marginBottom: 14 }}>
-                3Cs Care Services Limited was founded on a simple belief: everyone deserves to live well, with dignity, in the place they call home. Based in Stoneygate, Leicester, we serve individuals and families across the region with a full range of domiciliary care services.
+                3Cs Care Services Limited is an independent care referral and introduction service based in Stoneygate, Leicester. We help individuals and families find suitable CQC-registered care providers across the UK.
               </p>
               <div className="about-more" id="about-more-copy" aria-live="polite">
                 <div className={`about-detail${aboutRevealLevel >= 1 ? " active" : ""}`}>
                   <div className="about-mission">
                     <span className="about-mission-label">OUR MISSION</span>
                     <p>
-                      To provide compassionate, safe and person-centered home care that enables people to live independently with dignity and confidence in the comfort of their own homes.
+                      To make the search for care simpler, clearer, and more supportive by connecting families with providers that match their location and care requirements.
                     </p>
                   </div>
                 </div>
                 <div className={`about-detail${aboutRevealLevel >= 2 ? " active" : ""}`}>
                   <p className="about-extra-copy">
-                    Our carefully selected, fully trained carers work alongside clients and their families to craft care plans that genuinely fit — not just what's easiest, but what's right for each person.
+                    3Cs Care Connect acts as an independent referral and introduction service. The provider carries out the formal assessment, agrees the care plan, and delivers care directly.
                   </p>
                 </div>
               </div>
               {[
-                "Compassion at the heart of everything we do",
-                "Commitment to the highest care standards",
-                "Consistency your family can truly rely on",
+                "Independent introductions to suitable providers",
+                "No public carer or provider profiles online",
+                "Clear guidance before you choose a provider",
               ].map(v => (
                 <div key={v} className="check-row">
                   <div className="check-dot">✓</div>
@@ -2101,7 +2108,7 @@ export default function App() {
                 </div>
               ))}
               <div style={{ marginTop: 32, display: "flex", gap: 14, flexWrap: "wrap" }}>
-                <button className="btn btn-navy" onClick={() => go("contact-form")} style={{ width: "auto", padding: "13px 28px" }}>Learn More</button>
+                <button className="btn btn-navy" onClick={() => go("contact-form")} style={{ width: "auto", padding: "13px 28px" }}>Find Care</button>
                 <a href="tel:+441162766600" style={{ textDecoration: "none" }}>
                   <button className="btn btn-ghost-green" style={{ width: "auto", padding: "13px 28px" }}>📞 Call Us Now</button>
                 </a>
@@ -2278,15 +2285,15 @@ export default function App() {
               Ready to Talk About Care?
             </h2>
             <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "1rem", lineHeight: 1.75, marginTop: 14, maxWidth: 520, marginInline: "auto" }}>
-              Book a free, no-obligation home assessment today. Our team will visit at a time that suits you and your family.
+              Speak to our team about your care needs. We will help you understand suitable CQC-registered provider options, without publishing individual carers online.
             </p>
             <div className="cta-btns">
               <button className="btn btn-green" onClick={() => go("contact-form")} style={{ width: "auto", padding: "15px 36px", fontSize: "1rem" }}>
-                Book Free Assessment
+                Find Care
               </button>
               <a href="tel:+441162766600" style={{ textDecoration: "none" }}>
                 <button className="btn btn-ghost-white" style={{ width: "auto", padding: "15px 36px", fontSize: "1rem" }}>
-                  📞 +44 116 276 6600
+                  Speak to Our Team: 0116 276 6600
                 </button>
               </a>
             </div>
@@ -2338,8 +2345,8 @@ export default function App() {
                   </div>
                 ))}
                 <div style={{ marginTop: 28, padding: "18px 20px", background: "#0B1D3A", borderRadius: 12 }}>
-                  <div style={{ color: "#4cde6e", fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.08em", marginBottom: 8 }}>COMPASSION · CARE · COMMITMENT</div>
-                  <p style={{ color: "#b3c6e0", fontSize: "0.86rem", lineHeight: 1.7 }}>Caring with Compassion, Confidence and Commitment. Registered with the Care Quality Commission.</p>
+                  <div style={{ color: "#4cde6e", fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.08em", marginBottom: 8 }}>INDEPENDENT REFERRAL SERVICE</div>
+                  <p style={{ color: "#b3c6e0", fontSize: "0.86rem", lineHeight: 1.7 }}>3Cs Care Connect introduces families to suitable CQC-registered care providers. The provider completes the assessment, care plan, and care delivery directly.</p>
                   {/* Social links */}
                   <div className="social-links">
                     {[["f","Facebook"],["in","LinkedIn"],["tw","Twitter"],["yt","YouTube"]].map(([s, label]) => (
@@ -2368,10 +2375,10 @@ export default function App() {
             <div>
               <div style={{ marginBottom: 18 }}><BrandName variant="light"/></div>
               <p style={{ color: "#7a9bbf", fontSize: "0.875rem", lineHeight: 1.75, maxWidth: 290 }}>
-                Caring with Compassion, Confidence and Commitment. Domiciliary care services that promote independence, dignity, and wellbeing.
+                Independent care referral and introduction support, helping families connect with suitable CQC-registered care providers.
               </p>
               <div style={{ marginTop: 20, padding: "12px 16px", background: "rgba(40,167,69,0.1)", borderLeft: "3px solid #28A745", borderRadius: "0 6px 6px 0" }}>
-                <div style={{ color: "#4cde6e", fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.08em" }}>COMPASSION · CARE · COMMITMENT</div>
+                <div style={{ color: "#4cde6e", fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.08em" }}>INDEPENDENT REFERRAL SERVICE</div>
               </div>
               <div className="social-links">
                 {[["f","Facebook"],["in","LinkedIn"],["tw","Twitter"],["yt","YouTube"]].map(([s, label]) => (
@@ -2380,7 +2387,7 @@ export default function App() {
               </div>
             </div>
             <div>
-              <h4 style={{ color: "#fff", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: "0.88rem", marginBottom: 18, letterSpacing: "0.05em" }}>Our Services</h4>
+              <h4 style={{ color: "#fff", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: "0.88rem", marginBottom: 18, letterSpacing: "0.05em" }}>Find Care</h4>
               {["Personal Care","Dementia Care","Live-in Care","Companionship","Medication Support","Respite Care","Domestic Support"].map(l => (
                 <a key={l} className="foot-link" href="#" onClick={e => { e.preventDefault(); go("our-services"); }}>{l}</a>
               ))}
