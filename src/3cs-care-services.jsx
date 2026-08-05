@@ -512,10 +512,11 @@ const CSS = `
   }
   .hero-badge {
     display: inline-block;
-    background: rgba(40,167,69,0.14); color: #4cde6e;
-    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
-    padding: 5px 14px; border-radius: 100px;
-    border: 1px solid rgba(40,167,69,0.28); margin-bottom: 20px;
+    background: rgba(40,167,69,0.18);
+    color: #0B1D3A;
+    font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em;
+    padding: 6px 14px; border-radius: 100px;
+    border: 1px solid rgba(40,167,69,0.48); margin-bottom: 20px;
   }
   .hero-h1 {
     font-family: 'Montserrat', sans-serif; font-weight: 900;
