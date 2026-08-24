@@ -1,71 +1,43 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import Counter from './components/Counter.jsx';
+import Reveal from './components/Reveal.jsx';
+import ProviderLoginPage from './components/ProviderLoginPage.jsx';
+import ProviderSignupPage from './components/ProviderSignupPage.jsx';
+import ProviderDashboardPage from './components/ProviderDashboardPage.jsx';
+import AdminLoginPage from './components/AdminLoginPage.jsx';
+import AdminDashboardPage from './components/AdminDashboardPage.jsx';
+import {
+  SERVICES,
+  WHY,
+  TESTIMONIALS,
+  POSTS,
+  STATS,
+  NAV,
+  AUTH_KEYS,
+  FAQS,
+  CARE_ACTION_NOTES,
+  CAREER_ROLES,
+  PROVIDER_LIST,
+  LEAD_DATA,
+  IMAGES,
+} from './data/siteData';
 import logoImage from "./assets/logo.png";
-import heroImage from "./assets/hero.png";
 import careImageA from "./assets/optimized/a.png";
 import careImageB from "./assets/optimized/b.png";
 import careImageC from "./assets/optimized/c.png";
 import careImageD from "./assets/optimized/d.png";
 import careImageE from "./assets/optimized/e.jpg";
 
-/* ─── DATA ─── */
-const SERVICES = [
-  { icon: "🏠", name: "Personal Care", desc: "Find CQC-registered providers for bathing, dressing, and daily personal routines." },
-  { icon: "🧠", name: "Dementia Care", desc: "Connect with providers experienced in calm, familiar dementia support." },
-  { icon: "🛏️", name: "Live-in Care", desc: "Explore introductions to providers offering round-the-clock care at home." },
-  { icon: "🤝", name: "Companionship", desc: "Find suitable support for friendly visits, conversation, and confidence at home." },
-  { icon: "💊", name: "Medication Support", desc: "Connect with providers who can assess medication support needs safely." },
-  { icon: "🌙", name: "Respite Care", desc: "Find short-term care options that give family carers time to rest." },
-  { icon: "🏡", name: "Domestic Support", desc: "Explore help with meals, light cleaning, laundry, and everyday tasks." },
-  { icon: "🏥", name: "Hospital Discharge", desc: "Find suitable providers for a smoother return home after hospital." },
-];
-
-const CAREER_ROLES = [
-  "Care Assistant",
-  "Senior Care Assistant",
-  "Live-in Carer",
-  "Support Worker",
-  "Weekend / Evening Carer",
-];
-
-const WHY = [
-  { icon: "💙", title: "Needs-Led Matching", body: "We listen first, then help you find providers suited to your location and care requirements." },
-  { icon: "✅", title: "CQC-Registered Providers", body: "Introductions are focused on suitable providers registered with the Care Quality Commission." },
-  { icon: "🌟", title: "Privacy First", body: "We do not publish individual carer or provider profiles for visitors to browse online." },
-  { icon: "📋", title: "Clear Next Steps", body: "Your chosen provider completes the formal assessment, agrees the care plan, and delivers care directly." },
-  { icon: "🕐", title: "Responsive Support", body: "Our team is here to guide families through the search and introduction process." },
-  { icon: "❤️", title: "Independent Guidance", body: "We make the search for care simpler while keeping the final care arrangement with the provider." },
-];
-
-const TESTIMONIALS = [
-  { name: "Margaret T.", role: "Daughter of client", stars: 5, text: "3Cs helped us understand our options and introduced us to a suitable provider for my mother. The process felt clear, kind, and much less stressful." },
-  { name: "James O.", role: "Son of client", stars: 5, text: "The team listened carefully to what my father needed and pointed us toward a provider who could assess him properly. It saved us a lot of time." },
-  { name: "Patricia W.", role: "Client", stars: 5, text: "I did not know where to start with finding care. 3Cs made the first step easier and helped me speak with the right people." },
-];
-
-const POSTS = [
-  { bg: "#0B1D3A", text: "Finding suitable care starts with a calm conversation about what your family needs.", tag: "#3CsCareConnect" },
-  { bg: "#28A745", text: "We help families connect with trusted CQC-registered care providers.", tag: "Compassion · Care · Commitment" },
-  { bg: "#0B1D3A", text: "Dementia care, live-in care, respite care, and more: we help you find suitable provider options.", tag: "#FindCare" },
-  { bg: "#28A745", text: "No public carer catalogue. Just careful introductions handled by our team.", tag: "Privacy · Trust · Care" },
-];
-
-const TEAM = [
-  { name: "3Cs Referral Team", role: "Care Introduction Support", initials: "3C" },
-];
-
-const STATS = [
-  { icon: "👥", target: 500, suffix: "+", label: "Families Guided" },
-  { icon: "📅", target: 10, suffix: "+", label: "Years Experience" },
-  { icon: "🤝", target: 50, suffix: "+", label: "Provider Links" },
-  { icon: "💚", target: 98, suffix: "%", label: "Positive Feedback" },
-];
-
-const NAV = ["Home", "About Us", "Our Services", "Why Choose Us", "Testimonials", "Contact"];
-
-const IMAGES = {
+const IMAGES_BY_KEY = {
   hero: careImageE,
   about: careImageA,
   cta: careImageD,
+};
+
+const IMAGES_FOR_SITE = {
+  ...IMAGES_BY_KEY,
+  ...(IMAGES || {}),
 };
 
 const GALLERY = [
@@ -76,106 +48,63 @@ const GALLERY = [
   { src: careImageE, alt: "3Cs care service moment at home", focus: "center" },
 ];
 
-const CARE_ACTION_NOTES = [
-  {
-    title: "Familiar routines, gentle pacing",
-    body: "The right provider helps keep the day steady and reassuring so care feels calm from the start.",
-  },
-  {
-    title: "Small moments that matter",
-    body: "A warm meal, a made bed, or a calm conversation can help people feel seen, safe, and respected.",
-  },
-  {
-    title: "Support shaped around home",
-    body: "Good care should fit the rhythm of the home. We help you find providers who understand that.",
-  },
+const GUIDED_CARE_AREAS = [
+  "Leicester",
+  "Leicestershire",
+  "Coventry",
+  "Northamptonshire",
+  "Rutland",
+  "Nottingham",
+  "Birmingham",
+  "I need a different area",
+];
+
+const GUIDED_CARE_OPTIONS = SERVICES.map((service) => service.name);
+
+const GUIDED_BUDGET_OPTIONS = [
+  "£20 - £30 per hour",
+  "£30 - £40 per hour",
+  "£40 - £60 per hour",
+  "£60+ per hour",
+  "I need help deciding",
+];
+
+const GUIDED_URGENCY_OPTIONS = [
+  "Immediate",
+  "Within 1 week",
+  "Within 2 weeks",
+  "This month",
+  "I’m just exploring",
 ];
 
 const CARE_ACTION_FEATURES = [
-   {
-    ...GALLERY[2],
-    title: "Mobility support with confidence",
-    body: "Introductions to providers who can assess mobility support needs at home.",
+  {
+    src: careImageA,
+    alt: 'Care provider offering friendly companionship at home',
+    focus: 'center',
+    title: 'Mobility support with confidence',
+    body: 'Introductions to providers who can assess mobility support needs at home.',
   },
   {
-    ...GALLERY[1],
-    title: "Mealtimes with dignity",
-    body: "Provider options for practical support that keeps mealtimes calm and respectful.",
+    src: careImageB,
+    alt: 'Care provider supporting a client with a meal',
+    focus: 'center',
+    title: 'Mealtimes with dignity',
+    body: 'Provider options for practical support that keeps mealtimes calm and respectful.',
   },
-   {
+  {
     src: careImageA,
-    alt: "Care provider offering friendly companionship at home",
-    focus: "center",
-    title: "Companionship that feels personal",
-    body: "Friendly provider-led support for conversation, confidence, and comfort at home.",
+    alt: 'Care provider offering friendly companionship at home',
+    focus: 'center',
+    title: 'Companionship that feels personal',
+    body: 'Friendly provider-led support for conversation, confidence, and comfort at home.',
   },
   {
     src: careImageD,
-    alt: "3Cs care support creating comfort at home",
-    focus: "center",
-    title: "Comfort in the details",
-    body: "Suitable providers can help make the home feel safer, calmer, and easier to manage.",
-  },
-];
-
-const FAQS = [
-  {
-    question: "What services does 3Cs Care Services provide?",
-    answer:
-      "3Cs Care Services Ltd is an independent care referral and introduction service. We help individuals and families find suitable CQC-registered care providers for Personal Care, Live-in Care, Companionship, Dementia Care, Medication Support, Domestic Support, Respite Care, Hospital Discharge Support, and more.",
-  },
-  {
-    question: "Can I contact someone outside normal business hours?",
-    answer:
-      "Yes. Our support team is available 24 hours a day, 7 days a week. Whether you have an urgent question or need immediate assistance, you can contact us at any time and one of our friendly team members will help.",
-  },
-  {
-    question: "When should I consider full-time or live-in home care?",
-    answer:
-      "Live-in or continuous care may be worth discussing with a suitable provider if someone frequently wakes during the night, has difficulty walking, is at risk of falling, has recently been discharged from hospital, is living with dementia, or needs regular help with bathing, dressing, meals, or medication.",
-    points: [
-      "Frequent night-time waking or assistance needs",
-      "Difficulty walking or increased fall risk",
-      "Recent hospital discharge or recovery at home",
-      "Dementia or another condition requiring regular supervision",
-      "A family caregiver becoming physically or emotionally exhausted",
-      "Help with bathing, dressing, meals, or medication",
-    ],
-  },
-  {
-    question: "How much do your home care services cost?",
-    answer:
-      "The cost depends on the provider, type of care required, number of care hours needed, and level of support involved. After an introduction, the provider will explain pricing, complete any required assessment, and agree the care plan directly with you.",
-  },
-  {
-    question: "Do I have to sign a long-term contract?",
-    answer:
-      "Any care agreement is made directly with your chosen provider. We can help you understand the next steps before you decide whether to proceed.",
-  },
-  {
-    question: "Are your services only for older adults?",
-    answer:
-      "No. We can help older adults, younger adults living with disabilities, people recovering from surgery, those with long-term health conditions, and anyone who needs extra support to find suitable provider options.",
-  },
-  {
-    question: "Can I view carers or care providers on the website?",
-    answer:
-      "No. For privacy, safeguarding, and quality assurance reasons, we do not publish individual carer or provider profiles online. Once you make an enquiry, our team reviews your needs and introduces you to suitable CQC-registered providers where appropriate.",
-  },
-  {
-    question: "Are the providers CQC-registered?",
-    answer:
-      "Our referral and introduction service focuses on connecting families with suitable CQC-registered care providers. The provider is responsible for its own recruitment, checks, assessment process, care plan, and care delivery.",
-  },
-  {
-    question: "Why choose 3Cs Care Services instead of searching alone?",
-    answer:
-      "Searching for care can feel overwhelming. 3Cs helps you narrow the search by understanding your needs, location, and preferences, then introducing you to suitable CQC-registered providers.",
-  },
-  {
-    question: "How do I get started?",
-    answer:
-      "Getting started is simple. Contact us by phone, email, or through our website. We will discuss your needs, answer your questions, and explain suitable introduction options.",
+    alt: '3Cs care support creating comfort at home',
+    focus: 'center',
+    title: 'Comfort in the details',
+    body: 'Suitable providers can help make the home feel safer, calmer, and easier to manage.',
   },
 ];
 
@@ -516,7 +445,8 @@ const CSS = `
     color: #0B1D3A;
     font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em;
     padding: 6px 14px; border-radius: 100px;
-    border: 1px solid rgba(40,167,69,0.48); margin-bottom: 20px;
+    border: 1px solid rgba(40,167,69,0.48);
+    position: relative; top: 52px; margin-bottom: 28px;
   }
   .hero-h1 {
     font-family: 'Montserrat', sans-serif; font-weight: 900;
@@ -524,10 +454,52 @@ const CSS = `
     line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 20px;
   }
   .hero-p { color: #42526a; font-size: 1rem; line-height: 1.78; margin-bottom: 32px; max-width: 500px; }
-  .hero-btns { display: flex; flex-direction: column; gap: 12px; margin-bottom: 44px; }
-  .hero-trust { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
-  .hero-trust-text { color: #5a6a7e; font-size: 0.8rem; line-height: 1.4; }
-  .hero-trust-text strong { color: #0B1D3A; display: block; }
+  .hero-copy-row {
+    display: inline; width: auto; max-width: 100%; margin: 0 0 26px; color: #42526a; font-size: 1rem; line-height: 1.78;
+  }
+  .hero-copy-text {
+    display: inline; color: inherit; font: inherit; line-height: inherit;
+  }
+  .hero-copy-short, .hero-copy-full { display: inline; }
+  .hero-readmore {
+    display: none; border: none; background: transparent; color: #28A745;
+    font: inherit; font-weight: 700; padding: 0; margin: 0; cursor: pointer;
+    vertical-align: baseline; white-space: nowrap;
+  }
+  .hero-btns {
+    display: flex; flex-direction: row; gap: 8px; align-items: stretch;
+    position: absolute; left: 14px; right: 14px; bottom: 12px; z-index: 2;
+    width: auto; padding: 6px; border-radius: 12px;
+    background: rgba(255,255,255,0.86); border: 1px solid rgba(11,29,58,0.08);
+    box-shadow: 0 14px 24px rgba(11,29,58,0.10), 0 4px 12px rgba(11,29,58,0.05);
+    backdrop-filter: blur(4px);
+  }
+  .hero-btns .btn {
+    flex: 1 1 0; width: 100%; min-height: 46px; border-radius: 9px; font-size: 0.82rem;
+    font-weight: 800; letter-spacing: 0.01em; padding: 10px 8px;
+    box-shadow: inset 0 0 0 1px rgba(11,29,58,0.04);
+  }
+  .hero-btns .btn:hover { transform: translateY(-1px); }
+  .hero-btns .btn-green { background: #0B1D3A; color: #fff; }
+  .hero-btns .btn-green:hover { background: #102955; box-shadow: 0 10px 22px rgba(11,29,58,0.18); }
+  .hero-btns .btn-ghost-white {
+    background: #fff; color: #0B1D3A; border: 1px solid rgba(11,29,58,0.12);
+    box-shadow: inset 0 0 0 1px rgba(11,29,58,0.03);
+  }
+  .hero-btns .btn-ghost-white:hover { background: #f4f7fb; color: #0B1D3A; }
+  .hero-btns .btn-ghost-green {
+    background: #fff; color: #28A745; border: 1px solid rgba(40,167,69,0.8);
+    box-shadow: inset 0 0 0 1px rgba(40,167,69,0.12);
+  }
+  .hero-btns .btn-ghost-green:hover { background: #28A745; color: #fff; }
+  .hero-trust { display: flex; align-items: center; gap: 14px; margin-top: 10px; margin-bottom: 40px; }
+  .hero-trust-text {
+    color: #5a6a7e; font-size: 0.8rem; line-height: 1.5; display: flex;
+    flex-direction: column; gap: 10px; max-width: 420px;
+  }
+  .hero-trust-text strong {
+    color: #0B1D3A; display: block; font-size: 1.05rem; line-height: 1.3; margin: 0;
+  }
   .hero-img-wrap {
     position: relative; border-radius: 16px 16px 0 0; overflow: hidden;
     max-width: 520px; margin-inline: auto;
@@ -626,6 +598,557 @@ const CSS = `
     background: #FFFFFF; color: #0B1D3A; border: 1px solid #e8edf4;
     border-left: 3px solid #28A745; border-radius: 8px;
     padding: 10px 14px; font-weight: 800; font-size: 0.78rem;
+  }
+
+  .marketplace-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+    margin-top: 10px;
+  }
+  .marketplace-grid.second-row {
+    margin-top: 24px;
+  }
+  .market-card {
+    background: #fff;
+    border: 1px solid #e9eef6;
+    border-radius: 22px;
+    padding: 24px 20px;
+    box-shadow: 0 14px 32px rgba(11,29,58,0.04);
+  }
+  .market-hero {
+    min-height: 100%;
+  }
+  .provider-login-panel {
+    background: linear-gradient(180deg, rgba(11,29,58,0.98), rgba(17,33,57,0.96));
+    color: white;
+  }
+  .provider-login-panel .market-card-header h3,
+  .provider-login-panel .mini-pill {
+    color: white;
+  }
+  .provider-login-panel .mini-pill {
+    background: rgba(255,255,255,0.1);
+  }
+  .provider-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .provider-error {
+    color: #ffb4b4;
+    font-size: 0.82rem;
+    margin-top: -4px;
+  }
+  .provider-dashboard-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .provider-profile-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+  }
+  .provider-profile-card strong,
+  .provider-profile-card small {
+    display: block;
+    color: white;
+  }
+  .provider-profile-card small {
+    opacity: 0.8;
+  }
+  .provider-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #28A745, #0B1D3A);
+    font-weight: 900;
+    color: white;
+  }
+  .mini-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .mini-stat.compact {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.08);
+  }
+  .mini-stat.compact strong,
+  .mini-stat.compact span {
+    color: white;
+  }
+  .market-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .market-card-header h3 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.45rem;
+    color: #0B1D3A;
+    margin: 0;
+  }
+  .mini-pill {
+    display: inline-flex;
+    align-self: flex-start;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    background: rgba(40,167,69,0.1);
+    color: #0B1D3A;
+    padding: 0.45rem 0.75rem;
+  }
+  /* Refined provider portal */
+  .provider-access-shell { min-height: 100vh; padding: clamp(24px, 5vw, 72px) 20px; background: radial-gradient(circle at 8% 6%, rgba(76,222,110,.16), transparent 26%), linear-gradient(135deg, #eff5f3, #f8fafc 54%, #eaf1f7); }
+  .provider-access-shell .dashboard-inner { max-width: 1120px !important; padding: 0; background: transparent; box-shadow: none; border-radius: 0; }
+  .provider-access-grid { grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); gap: 28px; }
+  .provider-hero-panel { min-height: 590px; padding: clamp(30px, 5vw, 58px); border-radius: 30px; background: radial-gradient(circle at 100% 0, rgba(76,222,110,.22), transparent 30%), linear-gradient(145deg,#0b1d3a,#102b4b); }
+  .provider-hero-panel h2 { max-width: 570px; font-size: clamp(2.35rem, 4.4vw, 4rem); }
+  .provider-hero-panel p { max-width: 535px; font-size: 1.04rem; }
+  .provider-benefit-list { margin-top: 32px; }
+  .provider-benefit { padding: 14px 16px; background: rgba(255,255,255,.055); }
+  .provider-metric-grid { grid-template-columns: repeat(4, 1fr); margin-top: 34px; }
+  .provider-metric { padding: 15px 12px; }
+  .provider-auth-card { justify-content: center; border-radius: 30px; padding: clamp(30px, 4vw, 48px); box-shadow: 0 24px 60px rgba(11,29,58,.12); }
+  .provider-auth-header { align-items: flex-start; }
+  .provider-auth-header h3 { font-size: 2rem; }
+  .provider-login-form { display: flex; flex-direction: column; gap: 2px; }
+  .provider-login-form .finput { min-height: 52px; margin-bottom: 12px; border-radius: 10px; }
+  .provider-login-form .btn { min-height: 52px; margin-top: 4px; border-radius: 10px; }
+  .provider-cta-card { background: #f4faf6; border-color: #d9ebe0; padding: 20px; }
+  .provider-register-box { max-width: 1120px !important; margin: 32px auto 0; padding: clamp(26px,4vw,46px) !important; border-radius: 26px !important; }
+  .provider-register-box .provider-auth-header { padding-bottom: 18px; border-bottom: 1px solid #e5edf3; }
+  @media (max-width: 768px) { .provider-access-shell { padding: 12px; } .provider-access-grid { grid-template-columns: 1fr; gap: 16px; } .provider-hero-panel { min-height: auto; padding: 30px 22px; border-radius: 22px; } .provider-hero-panel h2 { font-size: 2.25rem; } .provider-metric-grid { grid-template-columns: repeat(2,1fr); } .provider-auth-card { padding: 28px 20px; border-radius: 22px; } .provider-register-box { margin-top: 16px; } }
+
+  .provider-access-shell {
+    background: linear-gradient(180deg, #f5f7fa 0%, #ecf2f7 100%);
+  }
+  .provider-access-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+    align-items: stretch;
+  }
+  .provider-hero-panel {
+    background: linear-gradient(160deg, #0B1D3A 0%, #142d4d 100%);
+    border-radius: 26px;
+    padding: 28px 24px;
+    color: #fff;
+    box-shadow: 0 18px 42px rgba(11,29,58,0.12);
+  }
+  .provider-hero-panel h2 {
+    margin: 8px 0 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    color: #fff;
+  }
+  .provider-hero-panel p {
+    color: rgba(255,255,255,0.78);
+    font-size: 1rem;
+    line-height: 1.75;
+    margin: 0;
+  }
+  .provider-benefit-list {
+    display: grid;
+    gap: 14px;
+    margin-top: 24px;
+  }
+  .provider-benefit {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 12px 14px;
+  }
+  .provider-benefit span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(76,222,110,0.14);
+    color: #4cde6e;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .provider-benefit strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #fff;
+    font-size: 0.96rem;
+  }
+  .provider-benefit small {
+    display: block;
+    color: rgba(255,255,255,0.7);
+    line-height: 1.5;
+  }
+  .provider-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 26px;
+  }
+  .provider-metric {
+    border-radius: 18px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 16px 14px;
+  }
+  .provider-metric strong {
+    display: block;
+    color: #fff;
+    font-size: 1.4rem;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .provider-metric span {
+    color: rgba(255,255,255,0.72);
+    font-size: 0.76rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .provider-auth-card {
+    background: #fff;
+    border-radius: 26px;
+    border: 1px solid #e6edf5;
+    box-shadow: 0 16px 34px rgba(11,29,58,0.06);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .provider-auth-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .provider-auth-header h3 {
+    margin: 6px 0 0;
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    color: #0B1D3A;
+  }
+  .provider-auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #6d7d90;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+  }
+  .provider-auth-divider::before,
+  .provider-auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e8edf4;
+  }
+  .provider-cta-card {
+    border: 1px solid #e6edf5;
+    border-radius: 18px;
+    background: #f7fafc;
+    padding: 18px 16px;
+  }
+  .provider-cta-card h4 {
+    margin: 0 0 8px;
+    font-size: 1.04rem;
+    color: #0B1D3A;
+  }
+  .provider-cta-card p {
+    margin: 0 0 14px;
+    color: #586d84;
+    line-height: 1.6;
+  }
+  .provider-register-box {
+    margin-top: 24px;
+  }
+  .provider-form-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .provider-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .stats-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .mini-stat {
+    background: #f7fafc;
+    border: 1px solid #e9eef6;
+    border-radius: 14px;
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mini-stat strong {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.6rem;
+    color: #0B1D3A;
+  }
+  .mini-stat span {
+    color: #52677e;
+    font-size: 0.8rem;
+  }
+  .lead-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .filter-chip {
+    appearance: none;
+    border: 1px solid #d9e3ef;
+    background: #f6f9fc;
+    color: #0B1D3A;
+    border-radius: 999px;
+    padding: 0.5rem 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .filter-chip.active {
+    background: #0B1D3A;
+    border-color: #0B1D3A;
+    color: white;
+  }
+  .lead-table-wrap {
+    overflow-x: auto;
+  }
+  .lead-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 540px;
+  }
+  .lead-table th,
+  .lead-table td {
+    text-align: left;
+    padding: 12px 10px;
+    border-bottom: 1px solid #edf2f8;
+    vertical-align: top;
+  }
+  .lead-table th {
+    color: #4d6078;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 800;
+  }
+  .lead-name {
+    font-weight: 800;
+    color: #0B1D3A;
+  }
+  .lead-table small {
+    color: #5d6f86;
+  }
+  .lead-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.42rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+  .lead-status.new { background: rgba(29,78,216,0.1); color: #1d4ed8; }
+  .lead-status.qualified { background: rgba(40,167,69,0.12); color: #0b7d3d; }
+  .lead-status.replied { background: rgba(234,179,8,0.14); color: #9a6a00; }
+  .lead-status.booked { background: rgba(22,163,74,0.12); color: #0f766e; }
+  .matching-steps {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .match-step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 10px;
+    background: #f7fafc;
+    border: 1px solid #edf3f8;
+    border-radius: 14px;
+  }
+  .match-step span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #0B1D3A;
+    color: white;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .match-step strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #0B1D3A;
+  }
+  .match-step p {
+    margin: 0;
+    color: #597086;
+    line-height: 1.5;
+    font-size: 0.83rem;
+  }
+  .provider-match-list {
+    display: grid;
+    gap: 10px;
+  }
+  .match-provider-row {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 0.8fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 12px 10px;
+    border: 1px solid #edf2f8;
+    border-radius: 12px;
+    background: #fafcff;
+  }
+  .dashboard-shell {
+    min-height: 100vh;
+    background: #f5f7fa;
+    padding: 20px 14px 28px;
+  }
+  .dashboard-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(11,29,58,0.08);
+    padding: 20px 16px;
+  }
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dashboard-panel-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 20px;
+  }
+  .dashboard-panel {
+    border: 1px solid #e4ecf6;
+    border-radius: 18px;
+    padding: 18px 16px;
+    background: #fff;
+  }
+  .dashboard-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #edf2f7;
+    padding-bottom: 10px;
+  }
+  .dashboard-profile {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .dashboard-profile-avatar {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0B1D3A, #28A745);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+  }
+
+  @media (max-width: 768px) {
+    .marketplace-grid {
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+    .market-card {
+      padding: 18px 14px;
+      border-radius: 18px;
+    }
+    .market-card-header h3 {
+      font-size: 1.2rem;
+    }
+    .provider-form-grid,
+    .mini-stat-grid,
+    .dashboard-panel-grid,
+    .dashboard-stats {
+      grid-template-columns: 1fr;
+    }
+    .lead-table {
+      min-width: 420px;
+    }
+    .match-provider-row {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 10px;
+    }
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .dashboard-inner {
+      padding: 16px 14px;
+    }
+    .dashboard-shell {
+      padding: 14px 10px 24px;
+    }
+    .dashboard-list-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+  .match-provider-row strong {
+    display: block;
+    color: #0B1D3A;
+    font-size: 0.92rem;
+  }
+  .match-provider-row small {
+    color: #5d6f86;
+  }
+  .score-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    border-radius: 999px;
+    padding: 0.5rem 0.6rem;
+    background: rgba(40,167,69,0.1);
+    color: #0d7d3b;
+    font-weight: 800;
   }
 
   /* ── Care gallery ── */
@@ -1052,7 +1575,8 @@ const CSS = `
     .topbar-duplicate { display: none; }
     .sec { padding: 72px 32px; }
     .btn { width: auto; }
-    .hero-btns { flex-direction: row; flex-wrap: wrap; }
+    .hero-btns { flex-direction: row; flex-wrap: nowrap; align-items: stretch; }
+    .hero-btns .btn { flex: 1 1 0; }
     .cta-btns { flex-direction: row; justify-content: center; }
     .stats-grid { grid-template-columns: repeat(4, 1fr); }
     .srv-grid  { grid-template-columns: repeat(2, 1fr); }
@@ -1135,12 +1659,28 @@ const CSS = `
     .hero-text {
       padding: 26px 20px 38px; background: transparent;
     }
-    .hero-badge { margin-bottom: 14px; }
+    .hero-badge { position: relative; top: 18px; margin-bottom: 18px; }
     .hero-h1 { font-size: clamp(1.78rem, 8vw, 2.35rem); margin-bottom: 14px; }
-    .hero-p { font-size: 0.94rem; line-height: 1.65; margin-bottom: 22px; }
-    .hero-btns { margin-bottom: 24px; }
+    .hero-p { font-size: 0.94rem; line-height: 1.65; margin: 0 0 12px; }
+    .hero-copy-text { font-size: 0.94rem; line-height: 1.65; display: inline; }
+    .hero-copy-full { display: none; }
+    .hero-copy-text.expanded .hero-copy-short { display: none; }
+    .hero-copy-text.expanded .hero-copy-full { display: inline; }
+    .hero-copy-row { display: inline; width: auto; max-width: 100%; margin: 0; color: #42526a; font-size: 0.94rem; line-height: 1.65; }
+    .hero-readmore { display: inline; white-space: nowrap; margin-left: 4px; font-size: 0.92rem; line-height: 1.65; }
+    .hero-btns {
+      position: absolute;
+      left: 12px; right: 12px; bottom: -24px;
+      display: flex; align-items: stretch; gap: 6px;
+      padding: 6px; z-index: 4;
+      background: rgba(255,255,255,0.96);
+      border: 1px solid rgba(11,29,58,0.08);
+      border-radius: 14px;
+      box-shadow: 0 16px 28px rgba(11,29,58,0.12), 0 6px 16px rgba(11,29,58,0.06);
+    }
+    .hero-btns .btn { min-height: 42px; font-size: 0.72rem; }
     .hero-img-wrap {
-      width: 100%; max-width: none; border-radius: 0; box-shadow: none; margin: 0;
+      width: 100%; max-width: none; border-radius: 0; box-shadow: none; margin: 0; overflow: visible;
     }
     .hero-img-wrap img { height: 250px; object-position: center; }
     .about-img-wrap img { object-position: center; }
@@ -1228,8 +1768,19 @@ const CSS = `
     .hero-layout { display: flex; align-items: center; gap: 56px; }
     .hero-text { flex: 1 1 480px; }
     .hero-visual { flex: 1 1 400px; }
+    .hero-badge { position: relative; top: 0; margin-bottom: 24px; }
+    .hero-btns {
+      left: 18px; right: 18px; bottom: 18px; padding: 7px; gap: 8px;
+    }
+    .hero-btns .btn { min-height: 48px; font-size: 0.9rem; }
+    .hero-img-wrap {
+      position: relative;
+      max-width: 100%;
+      margin-inline: 0;
+      border-radius: 18px;
+      box-shadow: 0 10px 28px rgba(11,29,58,0.12);
+    }
     .hero-img-wrap img { height: 440px; }
-    .hero-cert-badge { display: none; }
     .srv-grid { grid-template-columns: repeat(4, 1fr); }
     .care-layout { grid-template-columns: 0.9fr 1.1fr; gap: 28px; }
     .care-gallery {
@@ -1262,6 +1813,56 @@ const CSS = `
     }
   }
 
+  /* Provider portal: mobile-first refinements */
+  @media (max-width: 680px) {
+    .provider-access-shell { padding: 12px; }
+    .provider-access-shell .dashboard-inner { width: 100%; }
+    .provider-access-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .provider-hero-panel { min-height: 0; padding: 28px 20px 22px; border-radius: 22px; }
+    .provider-hero-panel h2 { font-size: clamp(2rem, 10vw, 2.6rem); line-height: 1.12; margin: 7px 0 10px; }
+    .provider-hero-panel p { font-size: .92rem; line-height: 1.6; }
+    .provider-benefit-list { margin-top: 22px; gap: 9px; }
+    .provider-benefit { padding: 10px 11px; border-radius: 13px; gap: 10px; }
+    .provider-benefit small { font-size: .76rem; }
+    .provider-benefit span { width: 22px; height: 22px; }
+    .provider-metric-grid { display: none; }
+    .provider-auth-card { padding: 26px 18px; border-radius: 22px; gap: 16px; }
+    .provider-auth-header h3 { font-size: 1.65rem; }
+    .provider-login-form .finput { min-height: 50px; font-size: 16px; }
+    .provider-cta-card { padding: 16px 14px; }
+    .provider-register-box { margin-top: 14px; padding: 24px 18px !important; border-radius: 22px !important; }
+    .provider-register-box .provider-auth-header h3 { font-size: 1.55rem; }
+    .provider-form-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* Provider portal navigation */
+  .provider-page { min-height: 100vh; background: #f5f7fa; }
+  .provider-site-nav { min-height: 78px; padding: 12px clamp(18px, 5vw, 72px); display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #fff; border-bottom: 1px solid #e5edf3; }
+  .provider-brand-link { display: inline-flex; align-items: center; gap: 10px; padding: 0; border: 0; background: transparent; color: #0B1D3A; text-align: left; }
+  .provider-brand-link img { width: 43px; height: 43px; object-fit: contain; }
+  .provider-brand-link strong { display: block; font: 900 1.18rem/1 'Montserrat', sans-serif; letter-spacing: -.04em; }
+  .provider-brand-link strong span { color: #28A745; }
+  .provider-brand-link small { display: block; margin-top: 4px; color: #5a6a7e; font-size: .58rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .provider-nav-actions { display: flex; align-items: center; gap: 8px; }
+  .provider-nav-actions button { border: 0; background: transparent; padding: 10px 12px; color: #31435c; font: 700 .85rem 'Open Sans', sans-serif; }
+  .provider-nav-actions button:hover { color: #28A745; }
+  .provider-nav-actions .provider-nav-cta { border-radius: 8px; padding: 11px 16px; background: #28A745; color: #fff; box-shadow: 0 6px 16px rgba(40,167,69,.2); }
+  .provider-nav-actions .provider-nav-cta:hover { background: #1e8c38; color: #fff; }
+  @media (max-width: 680px) { .provider-site-nav { min-height: 66px; padding: 10px 14px; } .provider-brand-link img { width: 38px; height: 38px; } .provider-brand-link strong { font-size: 1.05rem; } .provider-nav-actions button:not(.provider-nav-cta) { display: none; } .provider-nav-actions .provider-nav-cta { padding: 10px 12px; font-size: .76rem; } }
+
+  /* Dedicated provider registration */
+  .provider-registration-page { min-height: calc(100vh - 78px); padding: clamp(28px, 6vw, 72px) 20px; background: radial-gradient(circle at 10% 0, rgba(76,222,110,.14), transparent 24%), linear-gradient(135deg, #eff5f3, #f8fafc 58%, #eaf1f7); }
+  .provider-registration-card { max-width: 820px; margin: 0 auto; padding: clamp(26px, 5vw, 54px); border: 1px solid #e4ecf3; border-radius: 30px; background: #fff; box-shadow: 0 24px 60px rgba(11,29,58,.1); }
+  .provider-registration-heading { max-width: 600px; margin-bottom: 30px; }
+  .provider-registration-heading h1 { margin: 7px 0 10px; color: #0B1D3A; font: 800 clamp(2rem, 4vw, 2.8rem)/1.12 'Montserrat', sans-serif; letter-spacing: -.035em; }
+  .provider-registration-heading p { margin: 0; color: #5a6a7e; line-height: 1.7; }
+  .provider-registration-card .provider-form-wrap { gap: 16px; }
+  .provider-registration-card .finput { min-height: 51px; margin-bottom: 0; }
+  .provider-registration-card textarea.finput { min-height: 116px; resize: vertical; }
+  .provider-login-prompt { margin: 24px 0 0; color: #5a6a7e; text-align: center; font-size: .9rem; }
+  .provider-login-prompt button { padding: 0; border: 0; background: transparent; color: #28A745; font: inherit; font-weight: 800; }
+  @media (max-width: 680px) { .provider-registration-page { min-height: calc(100vh - 66px); padding: 14px 12px 28px; } .provider-registration-card { padding: 28px 18px; border-radius: 22px; } .provider-registration-heading { margin-bottom: 24px; } .provider-registration-heading h1 { font-size: 1.9rem; } .provider-registration-card .finput { font-size: 16px; } }
+
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1 !important; transform: none !important; } * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 `;
@@ -1290,35 +1891,6 @@ function BrandName({ variant = "dark" }) {
   );
 }
 
-/* ─── ANIMATED COUNTER ─── */
-function Counter({ icon, target, suffix, label, visible }) {
-  const [count, setCount] = useState(0);
-  const started = useRef(false);
-
-  useEffect(() => {
-    if (!visible || started.current) return;
-    started.current = true;
-    const duration = 1800;
-    const steps = 60;
-    const inc = target / steps;
-    let current = 0;
-    const timer = setInterval(() => {
-      current += inc;
-      if (current >= target) { setCount(target); clearInterval(timer); }
-      else setCount(Math.floor(current));
-    }, duration / steps);
-    return () => clearInterval(timer);
-  }, [visible, target]);
-
-  return (
-    <div style={{ textAlign: "center" }}>
-      {icon && <div className="stat-icon" aria-hidden="true">{icon}</div>}
-      <div className="stat-n">{count}{suffix}</div>
-      <div className="stat-l">{label}</div>
-    </div>
-  );
-}
-
 /* ─── REVEAL HOOK ─── */
 function useReveal() {
   const ref = useRef(null);
@@ -1333,32 +1905,264 @@ function useReveal() {
   return [ref, visible];
 }
 
-/* ─── REVEAL WRAPPER ─── */
-function Reveal({ children, delay = 0, style }) {
-  const [ref, visible] = useReveal();
+/* ─── GUIDED FIND CARE MODAL ─── */
+function GuidedCareModal({ open, onClose }) {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [form, setForm] = useState({
+    name: "",
+    area: "",
+    service: "",
+    budget: "",
+    urgency: "",
+    email: "",
+    phone: "",
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setStepIndex(0);
+      setForm({ name: "", area: "", service: "", budget: "", urgency: "", email: "", phone: "" });
+      setError("");
+      setLoading(false);
+      setSubmitted(false);
+    }
+  }, [open]);
+
+  const steps = [
+    { key: "name", title: "Hi, what is your name?", kind: "text", placeholder: "Your full name" },
+    { key: "area", title: `Thanks, ${form.name || "there"}. Which area are you looking for care in?`, kind: "select", options: GUIDED_CARE_AREAS },
+    { key: "service", title: "What type of care do you need?", kind: "select", options: GUIDED_CARE_OPTIONS },
+    { key: "budget", title: "What budget range are you considering?", kind: "select", options: GUIDED_BUDGET_OPTIONS },
+    { key: "urgency", title: "How soon do you need support?", kind: "select", options: GUIDED_URGENCY_OPTIONS },
+    { key: "contact", title: "How can we contact you?", kind: "contact" },
+    { key: "review", title: "Thanks — your request is ready to send", kind: "review" },
+  ];
+
+  const currentStep = steps[stepIndex];
+
+  const updateForm = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setError("");
+  };
+
+  const canContinue = () => {
+    if (currentStep.key === "name") return !!form.name.trim();
+    if (currentStep.key === "area") return !!form.area;
+    if (currentStep.key === "service") return !!form.service;
+    if (currentStep.key === "budget") return !!form.budget;
+    if (currentStep.key === "urgency") return !!form.urgency;
+    if (currentStep.key === "contact") return !!form.email.trim() || !!form.phone.trim();
+    return true;
+  };
+
+  const nextStep = () => {
+    if (!canContinue()) {
+      setError("Please complete this step before continuing.");
+      return;
+    }
+    setError("");
+    setStepIndex((prev) => Math.min(prev + 1, steps.length - 1));
+  };
+
+  const previousStep = () => {
+    setError("");
+    setStepIndex((prev) => Math.max(prev - 1, 0));
+  };
+
+  const submitEnquiry = async () => {
+    if (!form.name.trim()) {
+      setStepIndex(0);
+      setError("Please enter your name.");
+      return;
+    }
+
+    const payload = {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      postcode: form.area || "Not provided",
+      service: form.service,
+      urgency: form.urgency || "Soon",
+      budget: form.budget || "TBC",
+      message: [
+        `Care enquiry for ${form.service || "care support"}`,
+        `Area: ${form.area || "Not provided"}`,
+        `Budget: ${form.budget || "TBC"}`,
+        `Urgency: ${form.urgency || "Soon"}`,
+        `Preferred contact: ${form.email || form.phone || "Not provided"}`,
+      ].join(" | "),
+    };
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/send-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+      const data = contentType.includes("application/json") ? await response.json() : { error: await response.text() };
+
+      if (!response.ok && !(response.status === 500 && data?.lead)) {
+        throw new Error(data?.error || "Unable to submit your enquiry right now.");
+      }
+
+      setSubmitted(true);
+      setTimeout(() => {
+        onClose();
+      }, 1800);
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
   return (
-    <div ref={ref} className={`reveal${visible ? " visible" : ""}${delay ? ` reveal-delay-${delay}` : ""}`} style={style}>
-      {children}
+    <div style={{ position: "fixed", inset: 0, background: "rgba(11,29,58,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 2000 }}>
+      <div style={{ width: "min(560px, 100%)", background: "#fff", borderRadius: 20, boxShadow: "0 30px 80px rgba(11,29,58,0.28)", border: "1px solid #e4ecf6", overflow: "hidden" }}>
+        <div style={{ background: "linear-gradient(135deg, #0B1D3A 0%, #1d3d6c 100%)", padding: "18px 20px", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800, letterSpacing: "0.05em", fontSize: "0.74rem", textTransform: "uppercase" }}>Find Care</div>
+          <button type="button" onClick={onClose} aria-label="Close guided care form" style={{ background: "transparent", border: "none", color: "#fff", fontSize: 26, cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ padding: 24 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 22 }}>
+            {steps.map((_, index) => (
+              <div key={index} style={{ flex: 1, height: 6, borderRadius: 999, background: index <= stepIndex ? "#28A745" : "#e4ecf6" }} />
+            ))}
+          </div>
+
+          {submitted ? (
+            <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
+              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(40,167,69,0.12)", border: "2px solid #28A745", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", margin: "0 auto 18px" }}>✓</div>
+              <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, color: "#0B1D3A", marginBottom: 12 }}>Your request is on its way</h3>
+              <p style={{ color: "#5a6a7e", lineHeight: 1.7 }}>Thanks, {form.name}. Our team will review your care needs and get back to you soon.</p>
+            </div>
+          ) : (
+            <>
+              <h3 style={{ fontFamily: "'Montserrat',sans-serif", fontWeight: 800, color: "#0B1D3A", fontSize: "1.35rem", marginBottom: 18, lineHeight: 1.4 }}>
+                {currentStep.title}
+              </h3>
+
+              {currentStep.kind === "text" && (
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => updateForm("name", e.target.value)}
+                  placeholder={currentStep.placeholder}
+                  autoFocus
+                  style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", outline: "none" }}
+                />
+              )}
+
+              {currentStep.kind === "select" && (
+                <select
+                  value={form[currentStep.key]}
+                  onChange={(e) => updateForm(currentStep.key, e.target.value)}
+                  autoFocus
+                  style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", background: "#fff", outline: "none" }}
+                >
+                  <option value="">Please select</option>
+                  {currentStep.options.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              )}
+
+              {currentStep.kind === "contact" && (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => updateForm("email", e.target.value)}
+                    placeholder="Email address"
+                    autoFocus
+                    style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", outline: "none" }}
+                  />
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => updateForm("phone", e.target.value)}
+                    placeholder="Phone number"
+                    style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", outline: "none" }}
+                  />
+                </div>
+              )}
+
+              {currentStep.kind === "review" && (
+                <div style={{ background: "#f5f7fa", border: "1px solid #e4ecf6", borderRadius: 14, padding: 18, display: "grid", gap: 12 }}>
+                  <div><strong>Name:</strong> {form.name}</div>
+                  <div><strong>Area:</strong> {form.area}</div>
+                  <div><strong>Care type:</strong> {form.service}</div>
+                  <div><strong>Budget:</strong> {form.budget}</div>
+                  <div><strong>Urgency:</strong> {form.urgency}</div>
+                  <div><strong>Contact:</strong> {form.email || form.phone}</div>
+                </div>
+              )}
+
+              {error && <div style={{ marginTop: 16, color: "#d93025", fontSize: "0.92rem" }}>{error}</div>}
+
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 26 }}>
+                <button
+                  type="button"
+                  onClick={previousStep}
+                  disabled={stepIndex === 0 || loading}
+                  style={{ flex: 1, padding: "14px 18px", borderRadius: 10, background: "#eef4f8", color: "#0B1D3A", border: "none", fontWeight: 700, cursor: stepIndex === 0 || loading ? "not-allowed" : "pointer", opacity: stepIndex === 0 || loading ? 0.6 : 1 }}
+                >
+                  Back
+                </button>
+
+                {currentStep.kind === "review" ? (
+                  <button
+                    type="button"
+                    onClick={submitEnquiry}
+                    disabled={loading}
+                    style={{ flex: 1, padding: "14px 18px", borderRadius: 10, background: "#28A745", color: "#fff", border: "none", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}
+                  >
+                    {loading ? "Sending..." : "Send request"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={loading}
+                    style={{ flex: 1, padding: "14px 18px", borderRadius: 10, background: "#28A745", color: "#fff", border: "none", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}
+                  >
+                    Next
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 /* ─── CONTACT FORM ─── */
 function ContactForm({ initialPostcode = "" }) {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", postcode: initialPostcode, service: "", message: "" });
+  const [form, setForm] = useState(() => ({
+    name: "",
+    email: "",
+    phone: "",
+    postcode: initialPostcode,
+    service: "",
+    message: initialPostcode ? `Postcode: ${initialPostcode}\nCare needs: ` : "",
+  }));
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const set = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
-
-  useEffect(() => {
-    if (!initialPostcode) return;
-    setForm(f => ({
-      ...f,
-      postcode: initialPostcode,
-      message: f.message || `Postcode: ${initialPostcode}\nCare needs: `,
-    }));
-  }, [initialPostcode]);
 
   const buildMailtoHref = () => {
     const subject = encodeURIComponent(`New care enquiry from ${form.name || "Website visitor"}`);
@@ -1675,17 +2479,178 @@ function Testimonials() {
   );
 }
 
+function ProviderSignupForm({ setProviderSession, onOpenProviderDashboard, setDashboardLeads }) {
+  const [form, setForm] = useState({
+    name: "",
+    business: "",
+    email: "",
+    phone: "",
+    cqc: "",
+    service: "Domiciliary care",
+    area: "",
+    password: "",
+    confirmPassword: "",
+    message: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState({ type: '', message: '' });
+
+  const update = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!form.name || !form.business || !form.email || !form.area) {
+      setStatus({ type: 'error', message: 'Please complete your name, business name, email, and service area.' });
+      return;
+    }
+
+    if (!form.password || form.password.length < 6) {
+      setStatus({ type: 'error', message: 'Create a password with at least 6 characters.' });
+      return;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      setStatus({ type: 'error', message: 'Passwords do not match.' });
+      return;
+    }
+
+    setSubmitting(true);
+    setStatus({ type: '', message: '' });
+
+    try {
+      const response = await fetch('/api/providers/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          businessName: form.business,
+          email: form.email,
+          phone: form.phone,
+          cqcRegistration: form.cqc,
+          serviceType: form.service,
+          area: form.area,
+          password: form.password,
+          message: form.message,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Provider registration failed.');
+      }
+
+      const loginResponse = await fetch('/api/providers/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+        }),
+      });
+
+      const loginPayload = await loginResponse.json();
+      if (!loginResponse.ok) {
+        throw new Error(loginPayload.error || 'Automatic provider login failed.');
+      }
+
+      const providerSessionData = { ...loginPayload.provider, token: loginPayload.token };
+      setProviderSession(providerSessionData);
+      localStorage.setItem(AUTH_KEYS.provider, JSON.stringify(providerSessionData));
+      onOpenProviderDashboard();
+
+      const dashboardResponse = await fetch(`/api/provider/dashboard/${loginPayload.provider.id}`, {
+        headers: { Authorization: `Bearer ${loginPayload.token}` },
+      });
+      const dashboardPayload = await dashboardResponse.json();
+      if (dashboardResponse.ok) {
+        setDashboardLeads(dashboardPayload.dashboard.leads || []);
+      }
+
+      setStatus({
+        type: 'success',
+        message: `Registration successful. You are now logged in as ${loginPayload.provider.businessName}.`,
+      });
+      setForm({
+        name: "",
+        business: "",
+        email: "",
+        phone: "",
+        cqc: "",
+        service: "Domiciliary care",
+        area: "",
+        password: "",
+        confirmPassword: "",
+        message: "",
+      });
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message || 'Something went wrong.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form className="provider-form-wrap" onSubmit={handleSubmit}>
+      <div className="provider-form-grid">
+        <input className="finput" name="name" type="text" value={form.name} placeholder="Contact name" onChange={update} />
+        <input className="finput" name="business" type="text" value={form.business} placeholder="Provider business name" onChange={update} />
+        <input className="finput" name="email" type="email" value={form.email} placeholder="Email address" onChange={update} />
+        <input className="finput" name="phone" type="tel" value={form.phone} placeholder="Phone number" onChange={update} />
+        <input className="finput" name="cqc" type="text" value={form.cqc} placeholder="CQC registration number" onChange={update} />
+        <select className="finput" name="service" value={form.service} onChange={update}>
+          <option value="Domiciliary care">Domiciliary care</option>
+          <option value="Dementia care">Dementia care</option>
+          <option value="Live-in care">Live-in care</option>
+          <option value="Respite care">Respite care</option>
+          <option value="Supported living">Supported living</option>
+        </select>
+        <input className="finput" name="area" type="text" value={form.area} placeholder="Primary service area" onChange={update} />
+        <input className="finput" name="password" type="password" value={form.password} placeholder="Create password" onChange={update} />
+        <input className="finput" name="confirmPassword" type="password" value={form.confirmPassword} placeholder="Confirm password" onChange={update} />
+      </div>
+      <textarea className="finput" name="message" rows="4" value={form.message} placeholder="Tell us about your service and care specialisms" onChange={update} />
+      {status.message && (
+        <div style={{ marginBottom: 12, fontSize: '0.9rem', color: status.type === 'error' ? '#d32f2f' : '#1e7d3d' }}>
+          {status.message}
+        </div>
+      )}
+      <button className="btn btn-green" type="submit" disabled={submitting} style={{ width: '100%', padding: '15px' }}>
+        {submitting ? 'Registering...' : 'Register as provider'}
+      </button>
+    </form>
+  );
+}
+
 /* ─── APP ─── */
 export default function App() {
+  const navigate = useNavigate();
+  const [providerSession, setProviderSession] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem(AUTH_KEYS.provider);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [dashboardLeads, setDashboardLeads] = useState([]);
+  const [adminSession, setAdminSession] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem(AUTH_KEYS.admin);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState("Home");
-  const [darkMode, setDarkMode] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("darkMode");
-    if (saved === "true") setDarkMode(true);
-  }, []);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
@@ -1696,6 +2661,8 @@ export default function App() {
   const [postcode, setPostcode] = useState("");
   const [postcodeMsg, setPostcodeMsg] = useState("");
   const [postcodeError, setPostcodeError] = useState(false);
+  const [heroExpanded, setHeroExpanded] = useState(false);
+  const [guidedCareOpen, setGuidedCareOpen] = useState(false);
   const [statsRef, statsVisible] = useReveal();
   const [openFaqs, setOpenFaqs] = useState(() => new Set([0]));
   const toggleFaq = useCallback((i) => {
@@ -1725,6 +2692,11 @@ export default function App() {
 
   const go = useCallback((id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    setMenuOpen(false);
+  }, []);
+
+  const openGuidedCare = useCallback(() => {
+    setGuidedCareOpen(true);
     setMenuOpen(false);
   }, []);
 
@@ -1776,11 +2748,49 @@ export default function App() {
     };
   }, []);
 
-  return (
-    <>
-      <style>{CSS}</style>
+  const persistProviderSession = useCallback((nextSession) => {
+    const sanitizedSession = nextSession ? { ...nextSession } : null;
+    if (sanitizedSession && (sanitizedSession.reviewCount ?? 0) <= 0) {
+      delete sanitizedSession.rating;
+    }
+    setProviderSession(sanitizedSession);
+    if (sanitizedSession) {
+      localStorage.setItem(AUTH_KEYS.provider, JSON.stringify(sanitizedSession));
+    } else {
+      localStorage.removeItem(AUTH_KEYS.provider);
+    }
+  }, []);
 
-      {/* ── Top bar ── */}
+  const persistAdminSession = useCallback((nextSession) => {
+    setAdminSession(nextSession);
+    if (nextSession) {
+      localStorage.setItem(AUTH_KEYS.admin, JSON.stringify(nextSession));
+    } else {
+      localStorage.removeItem(AUTH_KEYS.admin);
+    }
+  }, []);
+
+  const goToSite = useCallback(() => navigate('/'), [navigate]);
+  const goToProviderLogin = useCallback(() => navigate('/provider/login'), [navigate]);
+  const goToProviderRegister = useCallback(() => navigate('/provider/register'), [navigate]);
+  const goToAdminLogin = useCallback(() => navigate('/admin/login'), [navigate]);
+  const goToProviderDashboard = useCallback(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    navigate('/provider/dashboard');
+  }, [navigate]);
+  const goToAdminDashboard = useCallback(() => navigate('/admin/dashboard'), [navigate]);
+  const handleProviderLogout = useCallback(() => {
+    persistProviderSession(null);
+    goToProviderLogin();
+  }, [persistProviderSession, goToProviderLogin]);
+  const handleAdminLogout = useCallback(() => {
+    persistAdminSession(null);
+    goToAdminLogin();
+  }, [persistAdminSession, goToAdminLogin]);
+
+  const siteView = (
+    <>
+{/* ── Top bar ── */}
       <div className="topbar-wrap">
         <div className="topbar">
           <div className="topbar-track">
@@ -1797,7 +2807,7 @@ export default function App() {
         <nav className={`nav-wrap${scrolled ? " scrolled" : ""}`}>
         <div className="nav-inner">
           <div style={{ cursor: "pointer" }} onClick={() => go("home")}><BrandName/></div>
-          <button className="mobile-primary-cta" onClick={() => go("contact-form")}>
+          <button className="mobile-primary-cta" onClick={openGuidedCare}>
             Find<br/>Care
           </button>
           <div className="nav-desktop">
@@ -1807,6 +2817,9 @@ export default function App() {
                 {l}
               </a>
             ))}
+            <button className="btn btn-ghost-green" style={{ padding: "9px 18px", fontSize: "0.82rem", width: "auto", marginRight: 8 }} onClick={goToProviderLogin}>
+              Join as a Provider
+            </button>
             <button className="btn btn-green" style={{ padding: "9px 18px", fontSize: "0.82rem", width: "auto" }} onClick={() => go("contact-form")}>
               Speak to Our Team
             </button>
@@ -1873,11 +2886,15 @@ export default function App() {
               <span style={{ color: "#28A745" }}>Trusted Care</span><br/>
               That’s Right for You
             </h1>
-            <p className="hero-p">3Cs Care Services Ltd helps individuals and families find suitable CQC-registered care providers across the UK. We make the search for care simpler by connecting you with providers that match your location and care requirements.</p>
-            <div className="hero-btns">
-              <button className="btn btn-green" onClick={() => go("contact-form")} style={{ width: "auto", padding: "14px 32px" }}>Find Care</button>
-              <button className="btn btn-ghost-white" onClick={() => go("contact-form")} style={{ width: "auto", padding: "14px 32px" }}>Speak to Our Team</button>
-            </div>
+            <p className="hero-copy-row">
+              <span className={`hero-copy-text${heroExpanded ? " expanded" : ""}`}>
+                <span className="hero-copy-short">We make the search for care simpler by connecting you with providers that match your location and care requirements.</span>
+                <span className="hero-copy-full">3Cs Care Services Ltd helps individuals and families find suitable CQC-registered care providers across the UK. We make the search for care simpler by connecting you with providers that match your location and care requirements.</span>
+              </span>
+              <button type="button" className="hero-readmore" onClick={() => setHeroExpanded(v => !v)}>
+                {heroExpanded ? "Collapse" : "Read more"}
+              </button>
+            </p>
             <div className="hero-trust">
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -1898,13 +2915,11 @@ export default function App() {
             <div className="hero-img-wrap">
               <img src={IMAGES.hero} alt="Care provider supporting an elderly client at home" loading="eager"/>
               <div className="hero-img-overlay"/>
-              <button className="hero-cert-badge" onClick={() => go("contact-form")} aria-label="Speak to our team on 0116 276 6600">
-                <span className="hero-cert-copy">
-                  <span>Speak to Our Team</span>
-                  <span className="hero-cert-phone">0116 276 6600</span>
-                </span>
-                <span className="hero-cert-arrow" aria-hidden="true">&rarr;</span>
-              </button>
+              <div className="hero-btns">
+                <button className="btn btn-green" onClick={openGuidedCare}>Find Care</button>
+                <button className="btn btn-ghost-white" onClick={() => go("contact-form")}>Speak to Our Team</button>
+                <button className="btn btn-ghost-green" onClick={goToProviderLogin}>Join as a Provider</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1958,7 +2973,7 @@ export default function App() {
           </Reveal>
           <Reveal>
             <div className="text-center" style={{ marginTop: 40 }}>
-            <button className="btn btn-green" onClick={() => go("contact-form")} style={{ width: "auto", padding: "14px 36px" }}>
+            <button className="btn btn-green" onClick={openGuidedCare} style={{ width: "auto", padding: "14px 36px" }}>
               Find Care
             </button>
             </div>
@@ -2109,7 +3124,7 @@ export default function App() {
                 </div>
               ))}
               <div style={{ marginTop: 32, display: "flex", gap: 14, flexWrap: "wrap" }}>
-                <button className="btn btn-navy" onClick={() => go("contact-form")} style={{ width: "auto", padding: "13px 28px" }}>Find Care</button>
+                <button className="btn btn-navy" onClick={openGuidedCare} style={{ width: "auto", padding: "13px 28px" }}>Find Care</button>
                 <a href="tel:+441162766600" style={{ textDecoration: "none" }}>
                   <button className="btn btn-ghost-green" style={{ width: "auto", padding: "13px 28px" }}>📞 Call Us Now</button>
                 </a>
@@ -2289,7 +3304,7 @@ export default function App() {
               Speak to our team about your care needs. We will help you understand suitable CQC-registered provider options, without publishing individual carers online.
             </p>
             <div className="cta-btns">
-              <button className="btn btn-green" onClick={() => go("contact-form")} style={{ width: "auto", padding: "15px 36px", fontSize: "1rem" }}>
+              <button className="btn btn-green" onClick={openGuidedCare} style={{ width: "auto", padding: "15px 36px", fontSize: "1rem" }}>
                 Find Care
               </button>
               <a href="tel:+441162766600" style={{ textDecoration: "none" }}>
@@ -2318,6 +3333,8 @@ export default function App() {
 
 
       {/* ── CONTACT ── */}
+      <GuidedCareModal open={guidedCareOpen} onClose={() => setGuidedCareOpen(false)} />
+
       <section id="contact" className="sec" style={{ background: "var(--bg-secondary)" }}>
         <div className="sec-wide">
           <Reveal>
@@ -2407,6 +3424,99 @@ export default function App() {
         </div>
       </footer>
 
+    </>
+  );
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <Routes>
+      <Route path="/" element={siteView} />
+      <Route
+        path="/provider/login"
+        element={
+          providerSession ? (
+            <Navigate to="/provider/dashboard" replace />
+          ) : (
+            <ProviderLoginPage
+              onBack={goToSite}
+              onRegister={goToProviderRegister}
+              onSuccess={(session) => {
+                persistProviderSession(session);
+                goToProviderDashboard();
+              }}
+              onAdminSuccess={(session) => {
+                persistAdminSession(session);
+                goToAdminDashboard();
+              }}
+              setProviderSession={setProviderSession}
+              onOpenProviderDashboard={goToProviderDashboard}
+              setDashboardLeads={setDashboardLeads}
+            />
+          )
+        }
+      />
+      <Route
+        path="/provider/register"
+        element={
+          providerSession ? (
+            <Navigate to="/provider/dashboard" replace />
+          ) : (
+            <ProviderSignupPage
+              onBack={goToSite}
+              onLogin={goToProviderLogin}
+              setProviderSession={setProviderSession}
+              onOpenProviderDashboard={goToProviderDashboard}
+              setDashboardLeads={setDashboardLeads}
+            />
+          )
+        }
+      />
+      <Route
+        path="/admin/login"
+        element={
+          adminSession ? (
+            <Navigate to="/admin/dashboard" replace />
+          ) : (
+            <AdminLoginPage
+              onBack={goToSite}
+              onSuccess={(session) => {
+                persistAdminSession(session);
+                goToAdminDashboard();
+              }}
+            />
+          )
+        }
+      />
+      <Route
+        path="/provider/dashboard"
+        element={
+          providerSession ? (
+            <ProviderDashboardPage
+              providerSession={providerSession}
+              onBack={goToSite}
+              onLogout={handleProviderLogout}
+            />
+          ) : (
+            <Navigate to="/provider/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          adminSession ? (
+            <AdminDashboardPage
+              adminSession={adminSession}
+              onBack={goToSite}
+              onLogout={handleAdminLogout}
+            />
+          ) : (
+            <Navigate to="/admin/login" replace />
+          )
+        }
+      />
+      </Routes>
     </>
   );
 }

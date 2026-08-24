@@ -12,12 +12,14 @@
     "server": "node server.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "multer": "^2.2.0",
     "nodemailer": "^7.0.13",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,9 +1,36 @@
 import nodemailer from "nodemailer";
+import { createClient } from "@supabase/supabase-js";
 
 const TO_EMAIL = process.env.CONTACT_TO_EMAIL || "info@3cscareservices.co.uk";
 
 function clean(value) {
   return String(value || "").trim();
+}
+
+function normalizeLead(row) {
+  const message = row.message || "";
+  const submittedUrgency = message.match(/(?:^|\|\s*)Urgency:\s*([^|]+)/i)?.[1]?.trim();
+  const submittedBudget = message.match(/(?:^|\|\s*)Budget:\s*([^|]+)/i)?.[1]?.trim();
+
+  return {
+    id: row.id,
+    family: row.family_name,
+    need: row.care_need,
+    area: row.area,
+    urgency: submittedUrgency || row.urgency || "Soon",
+    budget: submittedBudget || row.budget || "TBC",
+    status: row.status || "New",
+    providerName: row.provider_name || "Unassigned",
+    score: Number(row.score || 80),
+    matchStatus: row.match_status || "Awaiting triage",
+    followUpStage: row.follow_up_stage || "Pending",
+    adminRating: row.admin_rating || null,
+    adminNote: row.admin_note || "",
+    createdAt: row.created_at,
+    contactEmail: row.contact_email || "",
+    phone: row.phone || "",
+    message,
+  };
 }
 
 export default async function handler(req, res) {
@@ -29,10 +56,42 @@ export default async function handler(req, res) {
   const postcode = clean(body.postcode);
   const service = clean(body.service);
   const message = clean(body.message);
+  const urgency = clean(body.urgency || "Soon");
+  const budget = clean(body.budget || "TBC");
 
   if (!name || !email || !message) {
     return res.status(400).json({ error: "Name, email, and message are required." });
   }
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    return res.status(503).json({ error: "Lead storage is not configured." });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const { data: savedLeads, error: leadError } = await supabase.from("leads").insert([{
+    family_name: name,
+    care_need: service || "Care support",
+    area: postcode || "Not set",
+    urgency,
+    budget,
+    status: "new",
+    provider_name: "Unassigned",
+    score: 80,
+    contact_email: email,
+    phone,
+    message,
+  }]).select();
+
+  if (leadError || !savedLeads?.[0]) {
+    console.error("Lead save failed:", leadError?.message);
+    return res.status(500).json({ error: "Your enquiry could not be saved. Please try again." });
+  }
+
+  const lead = normalizeLead(savedLeads[0]);
 
   const subject = `New care enquiry from ${name}`;
   const text = [
@@ -92,8 +151,9 @@ export default async function handler(req, res) {
       attachments,
     });
   } catch (error) {
-    return res.status(502).json({ error: "Email could not be sent.", details: error.message });
+    console.error("Email delivery failed after lead was saved:", error.message);
+    return res.status(502).json({ error: "Email could not be sent.", details: error.message, lead });
   }
 
-  return res.status(200).json({ ok: true });
+  return res.status(200).json({ ok: true, lead });
 }

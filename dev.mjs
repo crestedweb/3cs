@@ -18,7 +18,7 @@ function start(command, args, label) {
   return child;
 }
 
-const api = start("node", ["server.js"], "API server");
+const api = start("node", ["--watch", "server.js"], "API server");
 const vite = start("npx.cmd", ["vite"], "Vite");
 
 function shutdown() {
