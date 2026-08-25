@@ -846,23 +846,32 @@ app.put('/api/admin/leads/:id/rating', async (req, res) => {
   }
 
   const leadId = String(req.params.id);
-  const rating = Number(req.body?.rating || 0);
+  const hasRating = req.body?.rating !== null && req.body?.rating !== undefined && req.body?.rating !== '';
+  const rating = hasRating ? Number(req.body.rating) : null;
   const adminNote = clean(req.body?.adminNote || '');
 
-  if (rating < 1 || rating > 5) {
+  if (hasRating && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
     return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
   }
 
   try {
     const lead = await updateLeadRecord(
       leadId,
-      { adminRating: rating, status: 'Closed', ...(adminNote ? { adminNote } : {}) },
-      { admin_rating: rating, status: 'closed', ...(adminNote ? { admin_note: adminNote } : {}) },
+      {
+        adminRating: rating,
+        ...(hasRating ? { status: 'Closed' } : {}),
+        ...(adminNote ? { adminNote } : {}),
+      },
+      {
+        admin_rating: rating,
+        ...(hasRating ? { status: 'closed' } : {}),
+        ...(adminNote ? { admin_note: adminNote } : {}),
+      },
     );
     if (!lead) {
       return res.status(404).json({ error: 'Lead not found.' });
     }
-    return res.json({ message: `Final rating recorded for ${lead.family}.`, lead });
+    return res.json({ message: hasRating ? `Final rating recorded for ${lead.family}.` : `Final rating removed for ${lead.family}.`, lead });
   } catch (error) {
     console.error('Lead rating update failed:', error.message);
     return res.status(500).json({ error: 'Unable to record final rating.' });

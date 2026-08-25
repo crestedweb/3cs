@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-function getLatestSubmittedLead() {
-  try {
-    const update = JSON.parse(localStorage.getItem('3cs:lead-updated') || 'null');
-    return update?.lead || null;
-  } catch {
-    return null;
-  }
-}
-
 export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -78,13 +69,6 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         const nextProviders = Array.isArray(payload.dashboard.providers) ? payload.dashboard.providers : [];
         const nextLeads = Array.isArray(payload.dashboard.leads) ? payload.dashboard.leads : [];
         const nextEnquiries = Array.isArray(payload.dashboard.enquiries) ? payload.dashboard.enquiries : [];
-        const submittedLead = getLatestSubmittedLead();
-        const hasServerCopyOfSubmittedLead = submittedLead && nextLeads.some(
-          (lead) => String(lead.id) === String(submittedLead.id),
-        );
-        const syncedLeads = submittedLead && !hasServerCopyOfSubmittedLead
-          ? [submittedLead, ...nextLeads]
-          : nextLeads;
         setSummary(payload.dashboard.summary || summary);
         setOverview(payload.dashboard.overview || [
           ['New enquiries', String(payload.dashboard.summary?.newLeads || 0)],
@@ -93,7 +77,10 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           ['Booked', String(payload.dashboard.summary?.bookedLeads || 0)],
         ]);
         setProviders(nextProviders);
-        setLeads(syncedLeads);
+        // Only show records returned by the API. A locally cached submission can
+        // have an ID the server cannot update, which makes editable controls
+        // appear to reset after every selection.
+        setLeads(nextLeads);
         setEnquiries(nextEnquiries);
       }
     } catch (error) {
@@ -271,28 +258,6 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     }
   };
 
-  const handleLeadAssignment = async (leadId, providerName) => {
-    try {
-      const response = await fetch(`/api/admin/leads/${leadId}/assign`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminSession?.token || ''}`,
-        },
-        body: JSON.stringify({ providerName }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Unable to assign lead.');
-      }
-
-      await refreshDashboard();
-    } catch (error) {
-      console.error('Lead assignment failed', error);
-    }
-  };
-
   const handleLeadMatch = async (leadId, providerName, matchStatus = 'Matched') => {
     try {
       const response = await fetch(`/api/admin/leads/${leadId}/match`, {
@@ -304,13 +269,18 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         body: JSON.stringify({ providerName, matchStatus }),
       });
 
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || 'Unable to match lead.');
       }
 
-      await refreshDashboard();
+      if (payload.lead) {
+        setLeads((currentLeads) => currentLeads.map((lead) => (
+          String(lead.id) === String(leadId) ? { ...lead, ...payload.lead } : lead
+        )));
+      }
       setActionFeedback(`Matched to ${providerName}.`);
+      void refreshDashboard();
     } catch (error) {
       console.error('Lead match failed', error);
       setActionFeedback(error.message || 'Unable to match this enquiry.');
@@ -328,13 +298,18 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         body: JSON.stringify({ followUpStage, adminNote }),
       });
 
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || 'Unable to update follow-up.');
       }
 
-      await refreshDashboard();
+      if (payload.lead) {
+        setLeads((currentLeads) => currentLeads.map((lead) => (
+          String(lead.id) === String(leadId) ? { ...lead, ...payload.lead } : lead
+        )));
+      }
       setActionFeedback(`Follow-up set to ${followUpStage.toLowerCase()}.`);
+      void refreshDashboard();
     } catch (error) {
       console.error('Lead follow-up update failed', error);
       setActionFeedback(error.message || 'Unable to update follow-up.');
@@ -352,14 +327,21 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         body: JSON.stringify({ rating, adminNote }),
       });
 
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || 'Unable to record rating.');
       }
 
-      await refreshDashboard();
+      if (payload.lead) {
+        setLeads((currentLeads) => currentLeads.map((lead) => (
+          String(lead.id) === String(leadId) ? { ...lead, ...payload.lead } : lead
+        )));
+      }
+      setActionFeedback(rating ? `Final rating set to ${rating}/5.` : 'Final rating removed.');
+      void refreshDashboard();
     } catch (error) {
       console.error('Lead rating update failed', error);
+      setActionFeedback(error.message || 'Unable to record final rating.');
     }
   };
 
@@ -753,7 +735,6 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 value={selectedLead.providerName || 'Unassigned'}
                 onChange={(event) => {
                   const nextProvider = event.target.value;
-                  handleLeadAssignment(selectedLead.id, nextProvider);
                   handleLeadMatch(selectedLead.id, nextProvider, 'Matched');
                 }}
                 style={{ width: '100%', border: '1px solid #dfeaf8', borderRadius: 10, padding: '10px 12px', fontSize: '0.9rem', background: '#fff' }}
@@ -791,8 +772,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Final provider rating</label>
               <select
-                defaultValue={selectedLead.adminRating || ''}
-                onChange={(event) => handleLeadRating(selectedLead.id, Number(event.target.value), selectedLead.adminNote || '')}
+                value={selectedLead.adminRating ?? ''}
+                onChange={(event) => handleLeadRating(selectedLead.id, event.target.value ? Number(event.target.value) : null, selectedLead.adminNote || '')}
                 style={{ width: '100%', border: '1px solid #dfeaf8', borderRadius: 10, padding: '10px 12px', fontSize: '0.9rem', background: '#fff' }}
               >
                 <option value="">Not rated yet</option>
@@ -906,8 +887,13 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
 
   const renderEnquiryDetail = () => {
     const requestedLeadId = new URLSearchParams(location.search || '').get('leadId');
+    // A case can be opened from Recent leads as well as Latest Enquiry. Search
+    // the complete lead list first so ordinary leads do not produce a false
+    // "not found" result.
     const enquiryLead = requestedLeadId
-      ? enquiries.find((enquiry) => String(enquiry.id) === String(requestedLeadId)) || null
+      ? leads.find((lead) => String(lead.id) === String(requestedLeadId))
+        || enquiries.find((enquiry) => String(enquiry.id) === String(requestedLeadId))
+        || null
       : newestEnquiry;
 
     if (!enquiryLead) {

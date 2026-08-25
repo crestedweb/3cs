@@ -21,13 +21,14 @@ export default function ProviderSignupForm({ setProviderSession, onOpenProviderD
     minimumPackage: '',
     capacity: '',
     specialisms: '',
+    termsAccepted: false,
   });
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
 
   const update = (event) => {
-    const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    const { name, value, type, checked } = event.target;
+    setForm((current) => ({ ...current, [name]: type === 'checkbox' ? checked : value }));
   };
 
   const handleSubmit = async (event) => {
@@ -45,6 +46,11 @@ export default function ProviderSignupForm({ setProviderSession, onOpenProviderD
 
     if (form.password !== form.confirmPassword) {
       setStatus({ type: 'error', message: 'Passwords do not match.' });
+      return;
+    }
+
+    if (!form.termsAccepted) {
+      setStatus({ type: 'error', message: 'Please read and accept the Provider Terms and Conditions before registering.' });
       return;
     }
 
@@ -125,7 +131,7 @@ export default function ProviderSignupForm({ setProviderSession, onOpenProviderD
         password: '',
         confirmPassword: '',
         message: '',
-        website: '', cqcRating: '', liveInCare: '', overnightCare: '', twentyFourHourCare: '', minimumPackage: '', capacity: '', specialisms: '',
+        website: '', cqcRating: '', liveInCare: '', overnightCare: '', twentyFourHourCare: '', minimumPackage: '', capacity: '', specialisms: '', termsAccepted: false,
       });
     } catch (error) {
       setStatus({ type: 'error', message: error.message || 'Something went wrong.' });
@@ -143,7 +149,7 @@ export default function ProviderSignupForm({ setProviderSession, onOpenProviderD
         <input className="finput" name="phone" type="tel" value={form.phone} placeholder="Phone number" onChange={update} autoComplete="off" />
         <input className="finput" name="cqc" type="text" value={form.cqc} placeholder="CQC registration number" onChange={update} autoComplete="off" />
         <input className="finput" name="cqcRating" type="text" value={form.cqcRating} placeholder="CQC rating/status" onChange={update} autoComplete="off" />
-        <input className="finput" name="website" type="url" value={form.website} placeholder="Website" onChange={update} autoComplete="off" />
+        <input className="finput" name="website" type="text" inputMode="url" value={form.website} placeholder="Website (e.g. careprovider.co.uk)" onChange={update} autoComplete="off" autoCapitalize="off" spellCheck={false} />
         <select className="finput" name="service" value={form.service} onChange={update}>
           <option value="" disabled>Select service type</option>
           <option value="Domiciliary care">Domiciliary care</option>
@@ -163,6 +169,20 @@ export default function ProviderSignupForm({ setProviderSession, onOpenProviderD
       </div>
       <textarea className="finput" name="message" rows="4" value={form.message} placeholder="Tell us about your service and care specialisms" onChange={update} />
       <textarea className="finput" name="specialisms" rows="3" value={form.specialisms} placeholder="Any specialisms" onChange={update} />
+      <details style={{ margin: '2px 0 14px', padding: '12px 14px', border: '1px solid #dfeaf8', borderRadius: 10, background: '#f9fbff', color: '#0B1D3A', fontSize: '0.82rem', lineHeight: 1.6 }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Provider Terms and Conditions</summary>
+        <ul style={{ margin: '10px 0 0', paddingLeft: 18 }}>
+          <li>You confirm that the registration information is accurate and that you are authorised to register this service.</li>
+          <li>You remain responsible for all applicable registrations, insurance, safeguarding, and regulatory obligations.</li>
+          <li>Registration does not guarantee enquiries, placements, or work.</li>
+          <li>Referral fees and commercial terms must be agreed before client-identifying information is released.</li>
+          <li>You will handle any information received through the service lawfully and confidentially.</li>
+        </ul>
+      </details>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14, color: '#0B1D3A', fontSize: '0.84rem', lineHeight: 1.5, cursor: 'pointer' }}>
+        <input name="termsAccepted" type="checkbox" checked={form.termsAccepted} onChange={update} required style={{ marginTop: 3, accentColor: '#28A745' }} />
+        <span>I have read and agree to the Provider Terms and Conditions.</span>
+      </label>
       <p style={{ color: '#5a6a7e', fontSize: '0.82rem', lineHeight: 1.6, marginBottom: 14 }}>Referral fees are based on the size of the successful care package. Full commercial terms and our current fee schedule are provided during onboarding.</p>
       {status.message && (
         <div style={{ marginBottom: 12, fontSize: '0.9rem', color: status.type === 'error' ? '#d32f2f' : '#1e7d3d' }}>

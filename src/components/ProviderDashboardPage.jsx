@@ -24,12 +24,35 @@ export default function ProviderDashboardPage({ providerSession, onBack, onLogou
   return (
     <div className="provider-dashboard-shell" style={{ minHeight: '100vh', background: '#f5f7fa', padding: 20 }}>
       <style>{`
+        .provider-dashboard-shell,
+        .provider-dashboard-shell * {
+          box-sizing: border-box;
+        }
+        .provider-dashboard-panel,
+        .provider-dashboard-card,
+        .provider-dashboard-item,
+        .provider-dashboard-profile-copy {
+          min-width: 0;
+        }
+        .provider-dashboard-title,
+        .provider-dashboard-item small,
+        .provider-dashboard-profile-copy strong,
+        .provider-dashboard-profile-copy small {
+          overflow-wrap: anywhere;
+        }
         @media (max-width: 768px) {
           .provider-dashboard-shell {
             padding: 12px !important;
           }
+          .provider-dashboard-shell .provider-dashboard-panel {
+            padding: 14px !important;
+            border-radius: 16px !important;
+          }
           .provider-dashboard-shell .provider-dashboard-main {
             grid-template-columns: 1fr !important;
+          }
+          .provider-dashboard-shell .provider-dashboard-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
           }
           .provider-dashboard-shell .provider-dashboard-item {
             flex-direction: column !important;
@@ -49,13 +72,31 @@ export default function ProviderDashboardPage({ providerSession, onBack, onLogou
             flex: 1 1 auto;
           }
         }
+        @media (max-width: 420px) {
+          .provider-dashboard-shell {
+            padding: 8px !important;
+          }
+          .provider-dashboard-shell .provider-dashboard-panel {
+            padding: 12px !important;
+          }
+          .provider-dashboard-shell .provider-dashboard-topbar-actions {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+          }
+          .provider-dashboard-shell .provider-dashboard-card {
+            padding: 12px !important;
+          }
+          .provider-dashboard-shell .provider-dashboard-profile {
+            align-items: flex-start !important;
+          }
+        }
       `}</style>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', background: '#fff', borderRadius: 20, boxShadow: '0 16px 40px rgba(11,29,58,0.08)', padding: 18 }}>
+      <div className="provider-dashboard-panel" style={{ width: '100%', maxWidth: 1100, margin: '0 auto', background: '#fff', borderRadius: 20, boxShadow: '0 16px 40px rgba(11,29,58,0.08)', padding: 18 }}>
         <div className="provider-dashboard-topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 12, letterSpacing: 1.5, color: '#28A745', fontWeight: 800, textTransform: 'uppercase' }}>Provider dashboard</div>
-            <h2 style={{ margin: '8px 0 0', color: '#0B1D3A', fontSize: 'clamp(1.5rem, 5vw, 2rem)' }}>{providerName}</h2>
+            <h2 className="provider-dashboard-title" style={{ margin: '8px 0 0', color: '#0B1D3A', fontSize: 'clamp(1.5rem, 5vw, 2rem)' }}>{providerName}</h2>
           </div>
           <div className="provider-dashboard-topbar-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-ghost-green" onClick={onBack} style={{ width: 'auto', padding: '10px 16px', fontSize: '0.82rem' }}>Back to site</button>
@@ -65,7 +106,7 @@ export default function ProviderDashboardPage({ providerSession, onBack, onLogou
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
+        <div className="provider-dashboard-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
           {stats.map((stat) => (
             <div key={stat.label} style={{ background: stat.label === 'Rating' ? '#eaf7ff' : stat.label === 'Booked' ? '#f2f6fb' : stat.label === 'Qualified' ? '#eefaf2' : '#0B1D3A', color: stat.label === 'Rating' || stat.label === 'Booked' || stat.label === 'Qualified' ? '#0B1D3A' : '#fff', borderRadius: 16, padding: 16 }}>
               <div style={{ fontSize: 11, opacity: 0.8 }}>{stat.label}</div>
@@ -97,9 +138,9 @@ export default function ProviderDashboardPage({ providerSession, onBack, onLogou
 
           <div className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
             <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>Provider profile</h3>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+            <div className="provider-dashboard-profile" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
               <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #0B1D3A, #28A745)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.85rem' }}>{providerName.slice(0, 2).toUpperCase() || 'PC'}</div>
-              <div>
+              <div className="provider-dashboard-profile-copy">
                 <strong style={{ display: 'block', color: '#0B1D3A', fontSize: '0.95rem' }}>{providerName}</strong>
                 <small style={{ color: '#5a6a7e' }}>{serviceArea}</small>
               </div>

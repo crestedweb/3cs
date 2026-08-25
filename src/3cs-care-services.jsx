@@ -1610,6 +1610,16 @@ const CSS = `
   }
 
   @media (max-width: 599px) {
+    .foot-grid { gap: 22px; margin-bottom: 26px; }
+    .foot-grid > div:first-child { text-align: center; padding-bottom: 22px; border-bottom: 1px solid rgba(255,255,255,0.10); }
+    .foot-grid > div:first-child .brand-lockup { justify-content: center; }
+    .foot-grid > div:first-child p { margin-inline: auto; }
+    .foot-grid > div:first-child > div[style*="marginTop"] { text-align: left; }
+    .foot-grid > div:not(:first-child) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; align-items: center; }
+    .foot-grid > div:not(:first-child) h4 { grid-column: 1 / -1; margin-bottom: 10px !important; padding-top: 4px; }
+    .foot-link { margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.04); font-size: 0.8rem; }
+    .foot-link:hover { padding-left: 10px; background: rgba(40,167,69,0.14); }
+    .foot-grid + div { flex-direction: column; text-align: center; gap: 8px !important; }
     .nav-wrap { background: var(--bg-primary); }
     .nav-inner {
       height: auto; min-height: 82px; padding: 16px 14px 14px; gap: 10px;
@@ -1659,7 +1669,7 @@ const CSS = `
     .hero-text {
       padding: 26px 20px 38px; background: transparent;
     }
-    .hero-badge { position: relative; top: 18px; margin-bottom: 18px; }
+    .hero-badge { position: relative; top: 18px; margin: 0 0 42px; }
     .hero-h1 { font-size: clamp(1.78rem, 8vw, 2.35rem); margin-bottom: 14px; }
     .hero-p { font-size: 0.94rem; line-height: 1.65; margin: 0 0 12px; }
     .hero-copy-text { font-size: 0.94rem; line-height: 1.65; display: inline; }
@@ -1758,6 +1768,51 @@ const CSS = `
 
 
   /* ── Desktop 900px+ ── */
+  /* Tablet uses the same image-first storytelling order as mobile. */
+  @media (min-width: 560px) and (max-width: 899px) {
+    .hero {
+      padding: 0;
+    }
+    .hero-layout {
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0;
+      max-width: none;
+    }
+    .hero-text {
+      width: min(100%, 760px);
+      padding: 34px 32px 52px;
+      margin-inline: auto;
+    }
+    .hero-badge {
+      top: 0;
+      margin-bottom: 18px;
+    }
+    .hero-h1 {
+      font-size: clamp(2.1rem, 5vw, 2.85rem);
+      margin-bottom: 16px;
+    }
+    .hero-p,
+    .hero-copy-row {
+      font-size: 0.94rem;
+      line-height: 1.65;
+    }
+    .hero-img-wrap {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .hero-img-wrap img {
+      height: clamp(320px, 54vw, 440px);
+    }
+    .hero-cert-badge {
+      top: 16px;
+      left: 16px;
+    }
+  }
+
   @media (min-width: 900px) {
     .sec { padding: 88px 40px; }
     .topbar { padding: 8px 40px; }
@@ -2882,14 +2937,13 @@ export default function App() {
           <div className="hero-text">
             <div className="hero-badge">INDEPENDENT CARE REFERRAL SERVICE</div>
             <h1 className="hero-h1">
-              Helping You Find<br/>
-              <span style={{ color: "#28A745" }}>Trusted Care</span><br/>
-              That’s Right for You
+              Find the Right Care Provider,<br/>
+              <span style={{ color: "#28A745" }}>Without the Stress</span>
             </h1>
             <p className="hero-copy-row">
               <span className={`hero-copy-text${heroExpanded ? " expanded" : ""}`}>
-                <span className="hero-copy-short">We make the search for care simpler by connecting you with providers that match your location and care requirements.</span>
-                <span className="hero-copy-full">3Cs Care Services Ltd helps individuals and families find suitable CQC-registered care providers across the UK. We make the search for care simpler by connecting you with providers that match your location and care requirements.</span>
+                <span className="hero-copy-short">Tell us what care you need and we’ll help match you with suitable CQC-registered care providers in your area.</span>
+                <span className="hero-copy-full">3CS Care Services is an independent care-matching and referral service. We help individuals and families find suitable registered care providers based on location, care needs and provider availability. We do not provide or manage regulated personal care.</span>
               </span>
               <button type="button" className="hero-readmore" onClick={() => setHeroExpanded(v => !v)}>
                 {heroExpanded ? "Collapse" : "Read more"}
@@ -2918,7 +2972,7 @@ export default function App() {
               <div className="hero-btns">
                 <button className="btn btn-green" onClick={openGuidedCare}>Find Care</button>
                 <button className="btn btn-ghost-white" onClick={() => go("contact-form")}>Speak to Our Team</button>
-                <button className="btn btn-ghost-green" onClick={goToProviderLogin}>Join as a Provider</button>
+                <button className="btn btn-ghost-green" onClick={goToProviderLogin}>Join Our Provider Network</button>
               </div>
             </div>
           </div>
@@ -3096,20 +3150,20 @@ export default function App() {
                 Helping Families Find<br/>the Right Care Provider
               </h2>
               <p style={{ color: "var(--text-secondary)", lineHeight: 1.78, marginBottom: 14 }}>
-                3Cs Care Services Limited is an independent care referral and introduction service based in Stoneygate, Leicester. We help individuals and families find suitable CQC-registered care providers across the UK.
+                3CS Care Services was created to make finding suitable care easier for individuals and families. Rather than contacting numerous providers individually, clients can tell us what they need and we help identify suitable CQC-registered providers in their area.
               </p>
               <div className="about-more" id="about-more-copy" aria-live="polite">
                 <div className={`about-detail${aboutRevealLevel >= 1 ? " active" : ""}`}>
                   <div className="about-mission">
                     <span className="about-mission-label">OUR MISSION</span>
                     <p>
-                      To make the search for care simpler, clearer, and more supportive by connecting families with providers that match their location and care requirements.
+                      We are building a network of trusted providers across the UK so families have access to appropriate choices based on location, services and current availability.
                     </p>
                   </div>
                 </div>
                 <div className={`about-detail${aboutRevealLevel >= 2 ? " active" : ""}`}>
                   <p className="about-extra-copy">
-                    3Cs Care Connect acts as an independent referral and introduction service. The provider carries out the formal assessment, agrees the care plan, and delivers care directly.
+                    3CS Care Services is an independent referral and matching service. We do not provide or manage regulated personal care. The registered provider carries out the formal assessment, agrees the care plan and delivers care directly.
                   </p>
                 </div>
               </div>
@@ -3364,7 +3418,7 @@ export default function App() {
                 ))}
                 <div style={{ marginTop: 28, padding: "18px 20px", background: "#0B1D3A", borderRadius: 12 }}>
                   <div style={{ color: "#4cde6e", fontWeight: 700, fontSize: "0.78rem", letterSpacing: "0.08em", marginBottom: 8 }}>INDEPENDENT REFERRAL SERVICE</div>
-                  <p style={{ color: "#b3c6e0", fontSize: "0.86rem", lineHeight: 1.7 }}>3Cs Care Connect introduces families to suitable CQC-registered care providers. The provider completes the assessment, care plan, and care delivery directly.</p>
+                  <p style={{ color: "#b3c6e0", fontSize: "0.86rem", lineHeight: 1.7 }}>3CS Care Services is an independent referral and matching service. We do not provide or manage regulated personal care. Care is delivered and managed by independent CQC-registered providers.</p>
                   {/* Social links */}
                   <div className="social-links">
                     {[["f","Facebook"],["in","LinkedIn"],["tw","Twitter"],["yt","YouTube"]].map(([s, label]) => (
@@ -3393,7 +3447,7 @@ export default function App() {
             <div>
               <div style={{ marginBottom: 18 }}><BrandName variant="light"/></div>
               <p style={{ color: "#7a9bbf", fontSize: "0.875rem", lineHeight: 1.75, maxWidth: 290 }}>
-                Independent care referral and introduction support, helping families connect with suitable CQC-registered care providers.
+                3CS Care Services Ltd is an independent care referral and matching service. We do not provide or manage regulated personal care. Care services are delivered by independent CQC-registered providers.
               </p>
               <div style={{ marginTop: 20, padding: "12px 16px", background: "rgba(40,167,69,0.1)", borderLeft: "3px solid #28A745", borderRadius: "0 6px 6px 0" }}>
                 <div style={{ color: "#4cde6e", fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.08em" }}>INDEPENDENT REFERRAL SERVICE</div>

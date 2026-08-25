@@ -79,45 +79,40 @@ export const AUTH_KEYS = {
 
 export const FAQS = [
   {
-    question: 'What services does 3Cs Care Services provide?',
-    answer: '3Cs Care Services Ltd is an independent care referral and introduction service. We help individuals and families find suitable CQC-registered care providers for Personal Care, Live-in Care, Companionship, Dementia Care, Medication Support, Domestic Support, Respite Care, Hospital Discharge Support, and more.',
+    question: 'Are you a care provider?',
+    answer: 'No. 3CS Care Services is an independent care-matching and referral service. We do not provide or manage regulated personal care.',
   },
   {
-    question: 'Can I contact someone outside normal business hours?',
-    answer: 'Yes. Our support team is available 24 hours a day, 7 days a week. Whether you have an urgent question or need immediate assistance, you can contact us at any time and one of our friendly team members will help.',
+    question: 'Are the providers CQC registered?',
+    answer: 'We aim to refer clients only to providers whose relevant service is registered with the Care Quality Commission.',
   },
   {
-    question: 'When should I consider full-time or live-in home care?',
-    answer: 'Live-in or continuous care may be worth discussing with a suitable provider if someone frequently wakes during the night, has difficulty walking, is at risk of falling, has recently been discharged from hospital, is living with dementia, or needs regular help with bathing, dressing, meals, or medication.',
-    points: ['Frequent night-time waking or assistance needs', 'Difficulty walking or increased fall risk', 'Recent hospital discharge or recovery at home', 'Dementia or another condition requiring regular supervision', 'A family caregiver becoming physically or emotionally exhausted', 'Help with bathing, dressing, meals, or medication'],
+    question: 'Who decides how much care I need?',
+    answer: 'The selected care provider carries out the formal care assessment with you.',
   },
   {
-    question: 'How much do your home care services cost?',
-    answer: 'The cost depends on the provider, type of care required, number of care hours needed, and level of support involved. After an introduction, the provider will explain pricing, complete any required assessment, and agree the care plan directly with you.',
+    question: 'Who sets the price of my care?',
+    answer: 'The care provider. 3CS Care Services does not determine the provider’s care charges.',
   },
   {
-    question: 'Do I have to sign a long-term contract?',
-    answer: 'Any care agreement is made directly with your chosen provider. We can help you understand the next steps before you decide whether to proceed.',
+    question: 'Do I have to use the provider you introduce?',
+    answer: 'No. The final decision remains with the client or family.',
   },
   {
-    question: 'Are your services only for older adults?',
-    answer: 'No. We can help older adults, younger adults living with disabilities, people recovering from surgery, those with long-term health conditions, and anyone who needs extra support to find suitable provider options.',
+    question: 'Can you help me compare providers?',
+    answer: 'Yes. Clients can tell us their needs and we can identify suitable providers from our network.',
   },
   {
-    question: 'Can I view carers or care providers on the website?',
-    answer: 'No. For privacy, safeguarding, and quality assurance reasons, we do not publish individual carer or provider profiles online. Once you make an enquiry, our team reviews your needs and introduces you to suitable CQC-registered providers where appropriate.',
+    question: 'How quickly can care start?',
+    answer: 'This depends on the provider’s availability and the completion of the formal assessment.',
   },
   {
-    question: 'Are the providers CQC-registered?',
-    answer: 'Our referral and introduction service focuses on connecting families with suitable CQC-registered care providers. The provider is responsible for its own recruitment, checks, assessment process, care plan, and care delivery.',
+    question: 'Can you help with live-in or 24-hour care?',
+    answer: 'Yes. Where available, we can match clients with providers offering live-in, overnight and 24-hour support.',
   },
   {
-    question: 'Why choose 3Cs Care Services instead of searching alone?',
-    answer: 'Searching for care can feel overwhelming. 3Cs helps you narrow the search by understanding your needs, location, and preferences, then introducing you to suitable CQC-registered providers.',
-  },
-  {
-    question: 'How do I get started?',
-    answer: 'Getting started is simple. Contact us by phone, email, or through our website. We will discuss your needs, answer your questions, and explain suitable introduction options.',
+    question: 'Is there a charge for using 3CS Care Services?',
+    answer: 'There is currently no charge to individuals or families for our care-matching service. Where a client successfully starts care with a provider introduced through 3CS, the care provider may pay 3CS a referral fee.',
   },
 ];
 
