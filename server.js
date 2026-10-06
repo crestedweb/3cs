@@ -1018,8 +1018,8 @@ app.post('/api/send-message', upload.single('cv'), async (req, res) => {
     const budget = clean(body.budget || 'TBC');
     const recordType = clean(body.recordType).toLowerCase() === 'enquiry' ? 'enquiry' : 'lead';
 
-    if (!name || !email || !message) {
-      return res.status(400).json({ error: "Name, email, and message are required." });
+    if (!name || !message || (!email && !phone)) {
+      return res.status(400).json({ error: "Name, message, and at least one contact method are required." });
     }
 
     leadRecord = await persistLeadFromEnquiry({
@@ -1277,7 +1277,7 @@ Received on:
     transporter.sendMail({
       from: fromEmail,
       to: TO_EMAIL,
-      replyTo: email,
+      replyTo: email || undefined,
       subject,
       text,
       html,

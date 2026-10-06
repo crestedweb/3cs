@@ -59,8 +59,8 @@ export default async function handler(req, res) {
   const urgency = clean(body.urgency || "Soon");
   const budget = clean(body.budget || "TBC");
 
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: "Name, email, and message are required." });
+  if (!name || !message || (!email && !phone)) {
+    return res.status(400).json({ error: "Name, message, and at least one contact method are required." });
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -144,7 +144,7 @@ export default async function handler(req, res) {
     await transporter.sendMail({
       from: fromEmail,
       to: TO_EMAIL,
-      replyTo: email,
+      replyTo: email || undefined,
       subject,
       text,
       html,

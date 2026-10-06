@@ -48,32 +48,52 @@ const GALLERY = [
   { src: careImageE, alt: "3Cs care service moment at home", focus: "center" },
 ];
 
-const GUIDED_CARE_AREAS = [
-  "Leicester",
-  "Leicestershire",
-  "Coventry",
-  "Northamptonshire",
-  "Rutland",
-  "Nottingham",
-  "Birmingham",
-  "I need a different area",
+const GUIDED_CARE_OPTIONS = [
+  "Personal care",
+  "Dementia support",
+  "Complex care",
+  "Learning disability and autism support",
+  "Companionship",
+  "Medication support",
+  "Domestic support",
+  "Respite care",
+  "Hospital discharge and rehabilitation",
+  "Other care support",
 ];
 
-const GUIDED_CARE_OPTIONS = SERVICES.map((service) => service.name);
+const GUIDED_CARE_ARRANGEMENTS = [
+  "Visiting care",
+  "Overnight care",
+  "Live-in care",
+  "24-hour care",
+  "Not sure yet",
+];
 
-const GUIDED_BUDGET_OPTIONS = [
-  "£20 - £30 per hour",
-  "£30 - £40 per hour",
-  "£40 - £60 per hour",
-  "£60+ per hour",
-  "I need help deciding",
+const GUIDED_SCHEDULE_OPTIONS = [
+  "One-off / one day or night",
+  "1 day or night each week",
+  "2 days or nights each week",
+  "3 days or nights each week",
+  "4 days or nights each week",
+  "5 days or nights each week",
+  "6 days or nights each week",
+  "7 days or nights each week",
+  "Flexible / not sure yet",
+];
+
+const GUIDED_FUNDING_OPTIONS = [
+  "Private / self-funded",
+  "Local authority or direct payment",
+  "NHS / Continuing Healthcare",
+  "Other funding",
+  "Not sure yet",
 ];
 
 const GUIDED_URGENCY_OPTIONS = [
-  "Immediate",
+  "As soon as possible",
   "Within 1 week",
   "Within 2 weeks",
-  "This month",
+  "Within 1 month",
   "I’m just exploring",
 ];
 
@@ -1967,6 +1987,11 @@ function GuidedCareModal({ open, onClose }) {
     name: "",
     area: "",
     service: "",
+    arrangement: "",
+    frequency: "",
+    hours: "",
+    details: "",
+    funding: "",
     budget: "",
     urgency: "",
     email: "",
@@ -1979,7 +2004,7 @@ function GuidedCareModal({ open, onClose }) {
   useEffect(() => {
     if (!open) {
       setStepIndex(0);
-      setForm({ name: "", area: "", service: "", budget: "", urgency: "", email: "", phone: "" });
+      setForm({ name: "", area: "", service: "", arrangement: "", frequency: "", hours: "", details: "", funding: "", budget: "", urgency: "", email: "", phone: "" });
       setError("");
       setLoading(false);
       setSubmitted(false);
@@ -1988,10 +2013,13 @@ function GuidedCareModal({ open, onClose }) {
 
   const steps = [
     { key: "name", title: "Hi, what is your name?", kind: "text", placeholder: "Your full name" },
-    { key: "area", title: `Thanks, ${form.name || "there"}. Which area are you looking for care in?`, kind: "select", options: GUIDED_CARE_AREAS },
+    { key: "area", title: `Thanks, ${form.name || "there"}. Where do you need care?`, kind: "text", placeholder: "Town, city or UK postcode" },
     { key: "service", title: "What type of care do you need?", kind: "select", options: GUIDED_CARE_OPTIONS },
-    { key: "budget", title: "What budget range are you considering?", kind: "select", options: GUIDED_BUDGET_OPTIONS },
+    { key: "arrangement", title: "What kind of care arrangement are you looking for?", kind: "select", options: GUIDED_CARE_ARRANGEMENTS },
+    { key: "schedule", title: "How often and what hours is care needed?", kind: "schedule" },
+    { key: "details", title: "What support would be helpful?", kind: "details" },
     { key: "urgency", title: "How soon do you need support?", kind: "select", options: GUIDED_URGENCY_OPTIONS },
+    { key: "funding", title: "How do you expect the care to be funded?", kind: "funding" },
     { key: "contact", title: "How can we contact you?", kind: "contact" },
     { key: "review", title: "Thanks — your request is ready to send", kind: "review" },
   ];
@@ -2005,10 +2033,12 @@ function GuidedCareModal({ open, onClose }) {
 
   const canContinue = () => {
     if (currentStep.key === "name") return !!form.name.trim();
-    if (currentStep.key === "area") return !!form.area;
+    if (currentStep.key === "area") return !!form.area.trim();
     if (currentStep.key === "service") return !!form.service;
-    if (currentStep.key === "budget") return !!form.budget;
+    if (currentStep.key === "arrangement") return !!form.arrangement;
+    if (currentStep.key === "schedule") return !!form.frequency;
     if (currentStep.key === "urgency") return !!form.urgency;
+    if (currentStep.key === "funding") return !!form.funding;
     if (currentStep.key === "contact") return !!form.email.trim() || !!form.phone.trim();
     return true;
   };
@@ -2038,15 +2068,21 @@ function GuidedCareModal({ open, onClose }) {
       name: form.name.trim(),
       email: form.email.trim(),
       phone: form.phone.trim(),
-      postcode: form.area || "Not provided",
+      postcode: form.area.trim() || "Not provided",
       service: form.service,
       urgency: form.urgency || "Soon",
-      budget: form.budget || "TBC",
+      budget: form.budget.trim() || "TBC",
+      recordType: "enquiry",
       message: [
         `Care enquiry for ${form.service || "care support"}`,
-        `Area: ${form.area || "Not provided"}`,
-        `Budget: ${form.budget || "TBC"}`,
+        `Arrangement: ${form.arrangement || "Not specified"}`,
+        `Frequency: ${form.frequency || "Not specified"}`,
+        `Hours: ${form.hours.trim() || "Not specified"}`,
+        `Area: ${form.area.trim() || "Not provided"}`,
+        `Funding: ${form.funding || "Not specified"}`,
+        `Budget: ${form.budget.trim() || "TBC"}`,
         `Urgency: ${form.urgency || "Soon"}`,
+        `Additional details: ${form.details.trim() || "None provided"}`,
         `Preferred contact: ${form.email || form.phone || "Not provided"}`,
       ].join(" | "),
     };
@@ -2083,7 +2119,7 @@ function GuidedCareModal({ open, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(11,29,58,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 2000 }}>
-      <div style={{ width: "min(560px, 100%)", background: "#fff", borderRadius: 20, boxShadow: "0 30px 80px rgba(11,29,58,0.28)", border: "1px solid #e4ecf6", overflow: "hidden" }}>
+      <div style={{ width: "min(560px, 100%)", maxHeight: "calc(100vh - 40px)", background: "#fff", borderRadius: 20, boxShadow: "0 30px 80px rgba(11,29,58,0.28)", border: "1px solid #e4ecf6", overflowY: "auto" }}>
         <div style={{ background: "linear-gradient(135deg, #0B1D3A 0%, #1d3d6c 100%)", padding: "18px 20px", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800, letterSpacing: "0.05em", fontSize: "0.74rem", textTransform: "uppercase" }}>Find Care</div>
           <button type="button" onClick={onClose} aria-label="Close guided care form" style={{ background: "transparent", border: "none", color: "#fff", fontSize: 26, cursor: "pointer", lineHeight: 1 }}>×</button>
@@ -2111,8 +2147,8 @@ function GuidedCareModal({ open, onClose }) {
               {currentStep.kind === "text" && (
                 <input
                   type="text"
-                  value={form.name}
-                  onChange={(e) => updateForm("name", e.target.value)}
+                  value={form[currentStep.key]}
+                  onChange={(e) => updateForm(currentStep.key, e.target.value)}
                   placeholder={currentStep.placeholder}
                   autoFocus
                   style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", outline: "none" }}
@@ -2131,6 +2167,72 @@ function GuidedCareModal({ open, onClose }) {
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
+              )}
+
+              {currentStep.kind === "schedule" && (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <select
+                    value={form.frequency}
+                    onChange={(e) => updateForm("frequency", e.target.value)}
+                    autoFocus
+                    aria-label="How many days or nights of care are needed?"
+                    style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", background: "#fff", outline: "none" }}
+                  >
+                    <option value="">Select days or nights</option>
+                    {GUIDED_SCHEDULE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={form.hours}
+                    onChange={(e) => updateForm("hours", e.target.value)}
+                    placeholder="Hours or visit length, e.g. 10pm to 7am"
+                    aria-label="Care hours or visit length (optional)"
+                    style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", outline: "none" }}
+                  />
+                </div>
+              )}
+
+              {currentStep.kind === "details" && (
+                <div>
+                  <textarea
+                    value={form.details}
+                    onChange={(e) => updateForm("details", e.target.value)}
+                    placeholder="For example, help with personal care, meals, or getting ready for bed."
+                    rows={4}
+                    autoFocus
+                    style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", outline: "none", resize: "vertical" }}
+                  />
+                  <p style={{ color: "#5a6a7e", fontSize: "0.82rem", lineHeight: 1.5, margin: "8px 0 0" }}>
+                    Share only what is needed to understand the request. Please don’t include detailed medical records.
+                  </p>
+                </div>
+              )}
+
+              {currentStep.kind === "funding" && (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <select
+                    value={form.funding}
+                    onChange={(e) => updateForm("funding", e.target.value)}
+                    autoFocus
+                    aria-label="Funding type"
+                    style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", background: "#fff", outline: "none" }}
+                  >
+                    <option value="">Select funding type</option>
+                    {GUIDED_FUNDING_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={form.budget}
+                    onChange={(e) => updateForm("budget", e.target.value)}
+                    placeholder="Approximate budget (optional)"
+                    aria-label="Approximate care budget (optional)"
+                    style={{ width: "100%", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", outline: "none" }}
+                  />
+                </div>
               )}
 
               {currentStep.kind === "contact" && (
@@ -2158,8 +2260,13 @@ function GuidedCareModal({ open, onClose }) {
                   <div><strong>Name:</strong> {form.name}</div>
                   <div><strong>Area:</strong> {form.area}</div>
                   <div><strong>Care type:</strong> {form.service}</div>
-                  <div><strong>Budget:</strong> {form.budget}</div>
+                  <div><strong>Arrangement:</strong> {form.arrangement}</div>
+                  <div><strong>Frequency:</strong> {form.frequency}</div>
+                  <div><strong>Hours:</strong> {form.hours || "Not specified"}</div>
+                  <div><strong>Support details:</strong> {form.details || "Not provided"}</div>
                   <div><strong>Urgency:</strong> {form.urgency}</div>
+                  <div><strong>Funding:</strong> {form.funding}</div>
+                  <div><strong>Approximate budget:</strong> {form.budget || "Not provided"}</div>
                   <div><strong>Contact:</strong> {form.email || form.phone}</div>
                 </div>
               )}
