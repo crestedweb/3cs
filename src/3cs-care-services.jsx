@@ -1839,7 +1839,7 @@ const CSS = `
     .nav-inner { height: 72px; padding: 0 40px; }
     .ham { display: none; }
     .nav-desktop { display: flex; }
-    .hero { padding: 80px 40px 0; }
+    .hero { padding: 40px 40px 0; }
     .hero-layout { display: flex; align-items: center; gap: 56px; }
     .hero-text { flex: 1 1 480px; }
     .hero-visual { flex: 1 1 400px; }
