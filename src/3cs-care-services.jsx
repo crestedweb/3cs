@@ -2363,7 +2363,10 @@ function ContactForm({ initialPostcode = "" }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          recordType: "enquiry",
+        }),
       });
 
       const contentType = response.headers.get("content-type") || "";

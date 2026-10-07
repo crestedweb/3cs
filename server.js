@@ -925,10 +925,9 @@ app.get('/api/admin/dashboard', async (req, res) => {
   const providerList = await getProvidersFromDataSource();
   const leadList = await getLeadsFromDataSource();
 
-  // Website submissions are stored as enquiries. They are still leads and must
-  // be included in the dashboard totals and lead pipeline.
-  const leadRecords = leadList;
-  const enquiryRecords = leadList.filter((lead) => lead.recordType === 'enquiry');
+  const enquiryRecords = leadList.filter((lead) => String(lead.recordType || 'lead').toLowerCase() === 'enquiry');
+  const leadRecords = leadList.filter((lead) => String(lead.recordType || 'lead').toLowerCase() !== 'enquiry');
+
   const totalLeads = leadRecords.length;
   const newLeads = leadRecords.filter((lead) => String(lead.status).toLowerCase() === 'new').length;
   const qualifiedLeads = leadRecords.filter((lead) => String(lead.status).toLowerCase() === 'qualified').length;
