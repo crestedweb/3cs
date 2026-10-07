@@ -2319,6 +2319,8 @@ function ContactForm({ initialPostcode = "" }) {
     phone: "",
     postcode: initialPostcode,
     service: "",
+    urgency: "Soon",
+    budget: "TBC",
     message: initialPostcode ? `Postcode: ${initialPostcode}\nCare needs: ` : "",
   }));
   const [sent, setSent] = useState(false);
@@ -2334,6 +2336,8 @@ function ContactForm({ initialPostcode = "" }) {
       `Phone: ${form.phone || "Not provided"}`,
       `Postcode: ${form.postcode || "Not provided"}`,
       `Service: ${form.service || "Not selected"}`,
+      `Urgency: ${form.urgency || "Soon"}`,
+      `Budget: ${form.budget || "TBC"}`,
       "",
       "Message:",
       form.message,
@@ -2423,6 +2427,13 @@ function ContactForm({ initialPostcode = "" }) {
         <option value="">Select care support needed</option>
         {SERVICES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
       </select>
+      <select className="finput" name="urgency" value={form.urgency} onChange={set} style={{ color: "var(--text-primary)" }}>
+        <option value="Soon">Urgency: Soon</option>
+        <option value="This week">This week</option>
+        <option value="Within 2 weeks">Within 2 weeks</option>
+        <option value="This month">This month</option>
+      </select>
+      <input className="finput" name="budget" type="text" placeholder="Approximate budget (optional)" value={form.budget} onChange={set} />
       <textarea className="finput" name="message" placeholder="Tell us about your care needs…" rows={4} value={form.message} onChange={set} style={{ resize: "vertical", marginBottom: 20 }}/>
       {error && <div style={{ color: "#dc3545", marginBottom: 12, fontSize: "0.9rem" }}>{error}</div>}
       <button className="btn btn-green" onClick={handleSubmit} disabled={loading} style={{ width: "100%", padding: "15px" }}>
