@@ -1,0 +1,88 @@
+{
+  "providers": [
+    {
+      "id": 1,
+      "name": "Aisha Rahman",
+      "businessName": "Oakwell Care Ltd",
+      "email": "provider@oakwellcare.com",
+      "phone": "07700900011",
+      "cqcRegistration": "1-234567890",
+      "serviceType": "Domiciliary care",
+      "area": "Leicester",
+      "verified": true,
+      "rating": 4.9,
+      "responseTime": "< 30 mins",
+      "capacity": "2 new enquiries",
+      "status": "active",
+      "password": "demo123",
+      "createdAt": "2026-08-01T09:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "name": "Daniel Holt",
+      "businessName": "Grace House Support",
+      "email": "hello@gracehousecare.com",
+      "phone": "07700900012",
+      "cqcRegistration": "1-234567891",
+      "serviceType": "Dementia care",
+      "area": "Coventry",
+      "verified": true,
+      "rating": 4.8,
+      "responseTime": "< 1 hour",
+      "capacity": "4 new enquiries",
+      "status": "active",
+      "password": "demo123",
+      "createdAt": "2026-08-10T09:00:00.000Z"
+    }
+  ],
+  "leads": [
+    {
+      "id": "L-1042",
+      "family": "M. Ahmed",
+      "need": "Dementia care",
+      "area": "Leicester LE2",
+      "urgency": "Urgent",
+      "budget": "£35/hr",
+      "status": "New",
+      "providerName": "Oakwell Care Ltd",
+      "score": 92,
+      "createdAt": "2026-08-20T17:30:00.000Z"
+    },
+    {
+      "id": "L-1048",
+      "family": "S. Patel",
+      "need": "Respite care",
+      "area": "Coventry CV1",
+      "urgency": "This week",
+      "budget": "£28/hr",
+      "status": "Qualified",
+      "providerName": "Grace House Support",
+      "score": 86,
+      "createdAt": "2026-08-20T15:00:00.000Z"
+    },
+    {
+      "id": "L-1052",
+      "family": "K. Morgan",
+      "need": "Live-in care",
+      "area": "Nottingham NG1",
+      "urgency": "Soon",
+      "budget": "£40/hr",
+      "status": "Replied",
+      "providerName": "The Hearth Collective",
+      "score": 89,
+      "createdAt": "2026-08-19T12:15:00.000Z"
+    },
+    {
+      "id": "L-1059",
+      "family": "T. Benson",
+      "need": "Personal care",
+      "area": "Birmingham B16",
+      "urgency": "This month",
+      "budget": "£30/hr",
+      "status": "Booked",
+      "providerName": "Sunrise Health & Care",
+      "score": 80,
+      "createdAt": "2026-08-18T10:20:00.000Z"
+    }
+  ]
+}

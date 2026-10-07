@@ -86,8 +86,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('dist'));
 
 const TO_EMAIL = process.env.CONTACT_TO_EMAIL || "info@3cscareservices.co.uk";
+const DATA_FILE = path.join(__dirname, 'data', 'app-data.json');
 
-const providers = [
+const defaultProviders = [
   {
     id: 1,
     name: 'Aisha Rahman',
@@ -124,7 +125,7 @@ const providers = [
   },
 ];
 
-const leads = [
+const defaultLeads = [
   {
     id: 'L-1042',
     family: 'M. Ahmed',
@@ -174,7 +175,46 @@ const leads = [
     createdAt: '2026-08-18T10:20:00.000Z',
   },
 ];
+
+function ensureDataStore() {
+  const dir = path.dirname(DATA_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ providers: defaultProviders, leads: defaultLeads }, null, 2));
+  }
+}
+
+function loadPersistedData() {
+  ensureDataStore();
+  try {
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const parsed = JSON.parse(raw || '{}');
+    return {
+      providers: Array.isArray(parsed.providers) ? parsed.providers : defaultProviders,
+      leads: Array.isArray(parsed.leads) ? parsed.leads : defaultLeads,
+    };
+  } catch (error) {
+    console.error('Failed to read persisted app data:', error.message);
+    return { providers: defaultProviders, leads: defaultLeads };
+  }
+}
+
+const persistedData = loadPersistedData();
+let providers = [...persistedData.providers];
+let leads = [...persistedData.leads];
 const fallbackLeads = [];
+
+function persistAppData() {
+  try {
+    ensureDataStore();
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ providers, leads }, null, 2));
+  } catch (error) {
+    console.error('Failed to persist app data:', error.message);
+  }
+}
 
 function clean(value) {
   return String(value || "").trim();
@@ -306,6 +346,7 @@ async function persistLeadFromEnquiry(body = {}) {
     if (!error && data && data[0]) {
       const normalizedLead = normalizeLead(data[0]);
       leads.unshift(normalizedLead);
+      persistAppData();
       return normalizedLead;
     }
 
@@ -316,6 +357,7 @@ async function persistLeadFromEnquiry(body = {}) {
 
   leads.unshift(nextLead);
   fallbackLeads.unshift(nextLead);
+  persistAppData();
   return nextLead;
 }
 
@@ -367,6 +409,7 @@ async function updateLeadRecord(leadId, localUpdates, databaseUpdates) {
       } else {
         leads[leadIndex] = updatedLead;
       }
+      persistAppData();
       return updatedLead;
     }
   }
@@ -377,6 +420,7 @@ async function updateLeadRecord(leadId, localUpdates, databaseUpdates) {
   }
 
   Object.assign(leads[leadIndex], localUpdates);
+  persistAppData();
   return leads[leadIndex];
 }
 
@@ -393,6 +437,7 @@ async function deleteLeadRecord(leadId) {
   if (leadIndex !== -1) leads.splice(leadIndex, 1);
   const fallbackIndex = fallbackLeads.findIndex((lead) => String(lead.id) === String(leadId));
   if (fallbackIndex !== -1) fallbackLeads.splice(fallbackIndex, 1);
+  persistAppData();
   return true;
 }
 
@@ -407,6 +452,7 @@ async function deleteProviderRecord(providerId) {
   const providerIndex = providers.findIndex((provider) => String(provider.id) === String(providerId));
   if (providerIndex === -1 && !deletedFromDatabase) return false;
   if (providerIndex !== -1) providers.splice(providerIndex, 1);
+  persistAppData();
   return true;
 }
 
@@ -579,6 +625,7 @@ app.post('/api/providers/register', async (req, res) => {
   }
 
   providers.push(newProvider);
+  persistAppData();
   return res.status(201).json({
     message: hasSupabaseAuth
       ? `Provider registered successfully in fallback mode. Use email ${email} and your chosen password to sign in.`
@@ -682,11 +729,13 @@ app.post('/api/leads', async (req, res) => {
     } else if (data && data[0]) {
       const createdLead = normalizeLead(data[0]);
       leads.unshift(newLead);
+      persistAppData();
       return res.status(201).json({ message: 'Lead created successfully.', lead: createdLead });
     }
   }
 
   leads.unshift(newLead);
+  persistAppData();
   return res.status(201).json({ message: 'Lead created successfully.', lead: newLead });
 });
 
@@ -757,6 +806,7 @@ app.put('/api/admin/providers/:id/status', async (req, res) => {
   }
 
   providers[providerIndex].status = nextStatus;
+  persistAppData();
 
   return res.json({
     message: `Provider status updated to ${nextStatus}.`,
