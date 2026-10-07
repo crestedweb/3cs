@@ -286,7 +286,7 @@ function normalizeLead(row) {
 
 function buildLeadFromEnquiry(body = {}) {
   const family = clean(body.family || body.name || 'Unknown family');
-  const need = clean(body.need || body.service || 'Care support');
+  const need = clean(body.need || body.service || body.careNeed || 'Care support');
   const area = clean(body.area || body.postcode || 'Not set');
   const requestedRecordType = clean(body.recordType).toLowerCase();
   const recordType = requestedRecordType === 'lead' ? 'lead' : 'enquiry';
@@ -341,10 +341,15 @@ async function persistLeadFromEnquiry(body = {}) {
       contact_email: nextLead.contactEmail,
       phone: nextLead.phone,
       message: `[${nextLead.recordType}] ${nextLead.message}`,
+      record_type: nextLead.recordType,
     }]).select();
 
     if (!error && data && data[0]) {
-      const normalizedLead = normalizeLead(data[0]);
+      const normalizedLead = normalizeLead({
+        ...data[0],
+        recordType: nextLead.recordType,
+        message: `[${nextLead.recordType}] ${nextLead.message}`,
+      });
       leads.unshift(normalizedLead);
       persistAppData();
       return normalizedLead;
@@ -376,17 +381,25 @@ async function getProvidersFromDataSource() {
 }
 
 async function getLeadsFromDataSource() {
-  if (!supabase) {
-    return leads;
+  const databaseLeads = [];
+  if (supabase) {
+    const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('Supabase lead query failed:', error.message);
+    } else {
+      databaseLeads.push(...(data || []).map(normalizeLead));
+    }
   }
 
-  const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
-  if (error) {
-    console.error('Supabase lead query failed:', error.message);
-    return leads;
+  const combined = [...databaseLeads, ...leads, ...fallbackLeads];
+  const uniqueById = new Map();
+  for (const lead of combined) {
+    if (lead?.id && !uniqueById.has(String(lead.id))) {
+      uniqueById.set(String(lead.id), lead);
+    }
   }
 
-  return [...(data || []).map(normalizeLead), ...fallbackLeads]
+  return [...uniqueById.values()]
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
