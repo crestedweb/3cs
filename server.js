@@ -216,7 +216,8 @@ function normalizeProvider(row) {
 function normalizeLead(row) {
   const storedMessage = row.message || '';
   const sourceMatch = storedMessage.match(/^\[(lead|enquiry)\]\s*/i);
-  const recordType = sourceMatch?.[1]?.toLowerCase() || (/^Care enquiry for\b/i.test(storedMessage) ? 'enquiry' : 'lead');
+  const explicitRecordType = clean(row.record_type || row.recordType || '').toLowerCase();
+  const recordType = explicitRecordType || sourceMatch?.[1]?.toLowerCase() || (/^Care enquiry for\b/i.test(storedMessage) || /\benquiry\b/i.test(storedMessage) ? 'enquiry' : 'lead');
   const message = storedMessage.replace(/^\[(lead|enquiry)\]\s*/i, '');
   const submittedUrgency = message.match(/(?:^|\|\s*)Urgency:\s*([^|]+)/i)?.[1]?.trim();
   const submittedBudget = message.match(/(?:^|\|\s*)Budget:\s*([^|]+)/i)?.[1]?.trim();
@@ -248,6 +249,7 @@ function buildLeadFromEnquiry(body = {}) {
   const need = clean(body.need || body.service || 'Care support');
   const area = clean(body.area || body.postcode || 'Not set');
   const requestedRecordType = clean(body.recordType).toLowerCase();
+  const recordType = requestedRecordType === 'lead' ? 'lead' : 'enquiry';
 
   return {
     id: `L-${Date.now().toString().slice(-4)}`,
@@ -267,8 +269,20 @@ function buildLeadFromEnquiry(body = {}) {
     contactEmail: clean(body.email || ''),
     phone: clean(body.phone || ''),
     message: clean(body.message || ''),
-    recordType: requestedRecordType === 'lead' ? 'lead' : 'enquiry',
+    recordType,
   };
+}
+
+function isEnquiryRecord(lead) {
+  const explicitType = clean(lead?.recordType || lead?.record_type || '').toLowerCase();
+  if (explicitType === 'enquiry') return true;
+
+  const message = String(lead?.message || '').trim();
+  if (!message) return false;
+
+  return message.toLowerCase().startsWith('[enquiry]')
+    || /^care enquiry for\b/i.test(message)
+    || /\benquiry\b/i.test(message);
 }
 
 async function persistLeadFromEnquiry(body = {}) {
@@ -925,8 +939,8 @@ app.get('/api/admin/dashboard', async (req, res) => {
   const providerList = await getProvidersFromDataSource();
   const leadList = await getLeadsFromDataSource();
 
-  const enquiryRecords = leadList.filter((lead) => String(lead.recordType || 'lead').toLowerCase() === 'enquiry');
-  const leadRecords = leadList.filter((lead) => String(lead.recordType || 'lead').toLowerCase() !== 'enquiry');
+  const enquiryRecords = leadList.filter((lead) => isEnquiryRecord(lead));
+  const leadRecords = leadList.filter((lead) => !isEnquiryRecord(lead));
 
   const totalLeads = leadRecords.length;
   const newLeads = leadRecords.filter((lead) => String(lead.status).toLowerCase() === 'new').length;
