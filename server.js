@@ -1038,7 +1038,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
         followUpActive,
       },
       leads: leadRecords.slice(0, 8),
-      enquiries: enquiryRecords.slice(0, 8),
+      enquiries: enquiryRecords,
       providers: providerList.slice(0, 6),
       overview: [
         ['New enquiries', String(newLeads)],
