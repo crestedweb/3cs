@@ -342,6 +342,7 @@ async function persistLeadFromEnquiry(body = {}) {
       phone: nextLead.phone,
       message: `[${nextLead.recordType}] ${nextLead.message}`,
       record_type: nextLead.recordType,
+      created_at: nextLead.createdAt,
     }]).select();
 
     if (!error && data && data[0]) {
@@ -394,8 +395,13 @@ async function getLeadsFromDataSource() {
   const combined = [...databaseLeads, ...leads, ...fallbackLeads];
   const uniqueById = new Map();
   for (const lead of combined) {
-    if (lead?.id && !uniqueById.has(String(lead.id))) {
-      uniqueById.set(String(lead.id), lead);
+    if (!lead?.id) continue;
+    const key = String(lead.id);
+    const existing = uniqueById.get(key);
+    const existingDate = new Date(existing?.createdAt || 0).getTime();
+    const candidateDate = new Date(lead.createdAt || 0).getTime();
+    if (!existing || candidateDate > existingDate) {
+      uniqueById.set(key, lead);
     }
   }
 
@@ -1002,8 +1008,11 @@ app.get('/api/admin/dashboard', async (req, res) => {
   const providerList = await getProvidersFromDataSource();
   const leadList = await getLeadsFromDataSource();
 
-  const enquiryRecords = leadList.filter((lead) => isEnquiryRecord(lead));
-  const leadRecords = leadList.filter((lead) => !isEnquiryRecord(lead));
+  const sortByNewest = (records) => records
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const enquiryRecords = sortByNewest(leadList.filter((lead) => isEnquiryRecord(lead)));
+  const leadRecords = sortByNewest(leadList.filter((lead) => !isEnquiryRecord(lead)));
 
   const totalLeads = leadRecords.length;
   const newLeads = leadRecords.filter((lead) => String(lead.status).toLowerCase() === 'new').length;

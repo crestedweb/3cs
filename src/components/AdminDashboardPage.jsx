@@ -370,8 +370,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 18 }}>
         {[
           { label: 'Latest enquiry', detail: newestEnquiry ? `${newestEnquiry.family || 'Family'} · ${newestEnquiry.need || 'Care support'}` : 'No enquiry yet', action: () => updateView('enquiry', newestEnquiry?.id) },
-          { label: 'Recent leads', detail: `${summary.totalLeads} enquiries`, action: () => updateView('recent-leads') },
-          { label: 'Review leads', detail: `${summary.newLeads} new enquiries`, action: () => { setStatusFilter('New'); updateView('leads'); } },
+          { label: 'Recent leads', detail: `${summary.totalLeads} lead records`, action: () => updateView('recent-leads') },
+          { label: 'Review leads', detail: `${summary.newLeads} new leads`, action: () => { setStatusFilter('New'); updateView('leads'); } },
           { label: 'Approve providers', detail: `${pendingProviders.length} pending`, action: () => updateView('providers') },
           { label: 'Booked this week', detail: `${bookedLeads.length} bookings`, action: () => updateView('bookings') },
           { label: 'Reporting', detail: `${summary.providers} provider profiles`, action: () => updateView('reports') },
