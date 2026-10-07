@@ -77,7 +77,10 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          recordType: 'enquiry',
+        }),
       })
 
       const payload = await response.json().catch(() => ({ error: 'Request failed.' }))

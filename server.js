@@ -216,7 +216,7 @@ function normalizeProvider(row) {
 function normalizeLead(row) {
   const storedMessage = row.message || '';
   const sourceMatch = storedMessage.match(/^\[(lead|enquiry)\]\s*/i);
-  const recordType = sourceMatch?.[1]?.toLowerCase() || (/^Care enquiry for\b/i.test(storedMessage) ? 'lead' : 'enquiry');
+  const recordType = sourceMatch?.[1]?.toLowerCase() || (/^Care enquiry for\b/i.test(storedMessage) ? 'enquiry' : 'lead');
   const message = storedMessage.replace(/^\[(lead|enquiry)\]\s*/i, '');
   const submittedUrgency = message.match(/(?:^|\|\s*)Urgency:\s*([^|]+)/i)?.[1]?.trim();
   const submittedBudget = message.match(/(?:^|\|\s*)Budget:\s*([^|]+)/i)?.[1]?.trim();
@@ -247,6 +247,7 @@ function buildLeadFromEnquiry(body = {}) {
   const family = clean(body.family || body.name || 'Unknown family');
   const need = clean(body.need || body.service || 'Care support');
   const area = clean(body.area || body.postcode || 'Not set');
+  const requestedRecordType = clean(body.recordType).toLowerCase();
 
   return {
     id: `L-${Date.now().toString().slice(-4)}`,
@@ -266,7 +267,7 @@ function buildLeadFromEnquiry(body = {}) {
     contactEmail: clean(body.email || ''),
     phone: clean(body.phone || ''),
     message: clean(body.message || ''),
-    recordType: clean(body.recordType).toLowerCase() === 'enquiry' ? 'enquiry' : 'lead',
+    recordType: requestedRecordType === 'lead' ? 'lead' : 'enquiry',
   };
 }
 
