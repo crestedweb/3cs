@@ -3,12 +3,18 @@ import assert from 'node:assert/strict';
 import {
   createSubmissionId,
   getDestinationTable,
+  isEnquiryRecord,
   normalizeRecordType,
 } from '../record-routing.mjs';
 
 test('routes guided care submissions to the leads table', () => {
   assert.equal(normalizeRecordType('lead'), 'lead');
   assert.equal(getDestinationTable('lead'), 'leads');
+});
+
+test('preserves explicit lead classification even when message text mentions an enquiry', () => {
+  assert.equal(isEnquiryRecord({ recordType: 'lead', message: 'Care enquiry for a family' }), false);
+  assert.equal(isEnquiryRecord({ recordType: 'enquiry', message: 'A care request' }), true);
 });
 
 test('routes contact submissions to the schema-backed leads table', () => {
