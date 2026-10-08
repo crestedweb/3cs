@@ -44,16 +44,35 @@ export default function AdminLoginPage({ onSuccess, onBack }) {
   };
 
   return (
-    <div className="dashboard-shell" style={{ background: '#f5f7fa' }}>
-      <div className="dashboard-inner" style={{ maxWidth: 520 }}>
+    <div className="dashboard-shell" style={{ background: '#f5f7fa', minHeight: '100vh' }}>
+      <nav aria-label="Admin login navigation" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 16,
+        padding: '14px clamp(18px, 5vw, 72px)',
+        background: '#fff',
+        borderBottom: '1px solid #e5edf3',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#0B1D3A', fontWeight: 800 }}>
+          <span style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 10, background: '#28A745', color: '#fff', fontSize: 15 }}>3C</span>
+          <span style={{ fontSize: 15 }}>3Cs Care Services</span>
+        </div>
+        {onBack ? (
+          <button className="btn btn-ghost-green" type="button" onClick={onBack} style={{ width: 'auto', padding: '10px 16px', fontSize: '0.82rem' }}>
+            Return home
+          </button>
+        ) : (
+          <a href="/" style={{ color: '#0B1D3A', fontSize: '0.82rem', fontWeight: 700, textDecoration: 'none' }}>Return home</a>
+        )}
+      </nav>
+
+      <div className="dashboard-inner" style={{ maxWidth: 520, paddingTop: 36 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 18 }}>
           <div>
             <div style={{ fontSize: 12, letterSpacing: 1.5, color: '#28A745', fontWeight: 800, textTransform: 'uppercase' }}>Admin access</div>
             <h2 style={{ margin: '8px 0 0', color: '#0B1D3A', fontSize: 'clamp(1.5rem, 5vw, 2rem)' }}>Secure admin login</h2>
           </div>
-          {onBack && (
-            <button className="btn btn-ghost-green" onClick={onBack} style={{ width: 'auto', padding: '10px 16px', fontSize: '0.82rem' }}>Back</button>
-          )}
         </div>
 
         <form onSubmit={handleSubmit} className="provider-login-form" autoComplete="off" style={{ background: '#fff', border: '1px solid #e8edf4', borderRadius: 18, padding: 20 }}>
