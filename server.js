@@ -6,7 +6,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
-import { getDestinationTable, normalizeRecordType } from './record-routing.mjs';
+import {
+  createProviderId,
+  createSubmissionId,
+  getDestinationTable,
+  normalizeRecordType,
+} from './record-routing.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -293,7 +298,7 @@ function buildLeadFromEnquiry(body = {}) {
   const recordType = requestedRecordType === 'lead' ? 'lead' : 'enquiry';
 
   return {
-    id: `L-${Date.now().toString().slice(-4)}`,
+    id: createSubmissionId(),
     family,
     need,
     area,
@@ -636,7 +641,7 @@ app.post('/api/providers/register', async (req, res) => {
   }
 
   const newProvider = {
-    id: Date.now(),
+    id: createProviderId(),
     name,
     businessName,
     email,
@@ -734,7 +739,7 @@ app.post('/api/providers/login', async (req, res) => {
       const { data, error } = await supabaseAnon.auth.signInWithPassword({ email, password });
       if (!error && data?.user && data.user.user_metadata?.role === 'provider') {
         const provider = providers.find((item) => item.email.toLowerCase() === email);
-        const providerRecord = provider || { id: Date.now(), businessName: data.user.user_metadata?.business_name || 'Provider', email, area: data.user.user_metadata?.area || 'Not set' };
+        const providerRecord = provider || { id: createProviderId(), businessName: data.user.user_metadata?.business_name || 'Provider', email, area: data.user.user_metadata?.area || 'Not set' };
         return res.json({
           token: `provider-${providerRecord.id}-token`,
           provider: buildProviderSnapshot({
@@ -782,7 +787,7 @@ app.post('/api/leads', async (req, res) => {
   }
 
   const newLead = {
-    id: `L-${Date.now().toString().slice(-4)}`,
+    id: createSubmissionId(),
     family,
     need,
     area,

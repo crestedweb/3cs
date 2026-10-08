@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getDestinationTable, normalizeRecordType } from '../record-routing.mjs';
+import {
+  createSubmissionId,
+  getDestinationTable,
+  normalizeRecordType,
+} from '../record-routing.mjs';
 
 test('routes guided care submissions to the leads table', () => {
   assert.equal(normalizeRecordType('lead'), 'lead');
@@ -15,4 +19,12 @@ test('routes contact submissions to the enquiries table', () => {
 test('treats unrecognized values as enquiries for backward compatibility', () => {
   assert.equal(normalizeRecordType(''), 'enquiry');
   assert.equal(getDestinationTable(''), 'enquiries');
+});
+
+test('creates unique identifiers for submissions created in the same millisecond', () => {
+  const first = createSubmissionId();
+  const second = createSubmissionId();
+  assert.notEqual(first, second);
+  assert.match(first, /^L-/);
+  assert.match(second, /^L-/);
 });
