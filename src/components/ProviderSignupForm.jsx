@@ -76,7 +76,10 @@ export default function ProviderSignupForm({ setProviderSession, onOpenProviderD
 
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error || 'Provider registration failed.');
+        const detail = payload.details
+          ? ` ${payload.details}`
+          : '';
+        throw new Error(`${payload.error || 'Provider registration failed.'}${detail}`);
       }
 
       const loginResponse = await fetch('/api/providers/login', {

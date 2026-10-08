@@ -658,7 +658,7 @@ app.post('/api/providers/register', async (req, res) => {
   let source = 'local';
   if (supabaseAdmin) {
     try {
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      const { error: authError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
@@ -687,7 +687,6 @@ app.post('/api/providers/register', async (req, res) => {
         rating: 4.8,
         response_time: '< 1 hour',
         status: 'pending',
-        auth_user_id: authData?.user?.id || null,
       }]).select();
 
       if (error) {
