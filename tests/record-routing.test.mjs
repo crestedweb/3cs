@@ -21,6 +21,11 @@ test('treats unrecognized values as enquiries for backward compatibility', () =>
   assert.equal(getDestinationTable(''), 'enquiries');
 });
 
+test('uses the supplied fallback for legacy records without a record type', () => {
+  assert.equal(normalizeRecordType('', 'lead'), 'lead');
+  assert.equal(getDestinationTable(normalizeRecordType('', 'lead')), 'leads');
+});
+
 test('creates unique identifiers for submissions created in the same millisecond', () => {
   const first = createSubmissionId();
   const second = createSubmissionId();

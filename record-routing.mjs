@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
-export function normalizeRecordType(value) {
-  return String(value || '').trim().toLowerCase() === 'lead' ? 'lead' : 'enquiry';
+export function normalizeRecordType(value, fallback = 'enquiry') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'lead') return 'lead';
+  if (normalized === 'enquiry') return 'enquiry';
+  return fallback;
 }
 
 export function getDestinationTable(value) {

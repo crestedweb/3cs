@@ -263,7 +263,9 @@ function normalizeLead(row) {
   const storedMessage = row.message || '';
   const sourceMatch = storedMessage.match(/^\[(lead|enquiry)\]\s*/i);
   const explicitRecordType = clean(row.record_type || row.recordType || '').toLowerCase();
-  const recordType = explicitRecordType || sourceMatch?.[1]?.toLowerCase() || normalizeRecordType(row.record_type || row.recordType || '');
+  const recordType = explicitRecordType
+    || sourceMatch?.[1]?.toLowerCase()
+    || normalizeRecordType(row.record_type || row.recordType || '', 'lead');
   const message = storedMessage.replace(/^\[(lead|enquiry)\]\s*/i, '');
   const submittedUrgency = message.match(/(?:^|\|\s*)Urgency:\s*([^|]+)/i)?.[1]?.trim();
   const submittedBudget = message.match(/(?:^|\|\s*)Budget:\s*([^|]+)/i)?.[1]?.trim();
@@ -358,14 +360,16 @@ async function persistLeadFromEnquiry(body = {}) {
         recordType: nextLead.recordType,
         message: `[${nextLead.recordType}] ${nextLead.message}`,
       });
-      leads.unshift(normalizedLead);
-      persistAppData();
       return normalizedLead;
     }
 
     if (error) {
-      console.error('Supabase lead insert failed:', error.message);
+      throw new Error(`Supabase ${destinationTable} insert failed: ${error.message}`);
     }
+  }
+
+  if (supabase) {
+    throw new Error(`Supabase ${getDestinationTable(nextLead.recordType)} did not return a saved record.`);
   }
 
   leads.unshift(nextLead);
@@ -375,46 +379,38 @@ async function persistLeadFromEnquiry(body = {}) {
 }
 
 async function getProvidersFromDataSource() {
-  const sourceProviders = [];
   if (supabase) {
     const { data, error } = await supabase.from('providers').select('*').order('created_at', { ascending: false });
     if (error) {
-      console.error('Supabase provider query failed:', error.message);
-    } else {
-      sourceProviders.push(...(data || []).map(normalizeProvider));
+      throw new Error(`Supabase providers query failed: ${error.message}`);
     }
+
+    return (data || []).map(normalizeProvider).map(buildProviderSnapshot);
   }
 
-  const combined = [...sourceProviders, ...providers];
-  const uniqueByEmail = new Map();
-  for (const provider of combined) {
-    const email = String(provider.email || '').toLowerCase();
-    if (!email) continue;
-    uniqueByEmail.set(email, provider);
-  }
-
-  return [...uniqueByEmail.values()].map(buildProviderSnapshot);
+  return providers.map(buildProviderSnapshot);
 }
 
 async function getLeadsFromDataSource() {
-  const databaseLeads = [];
   if (supabase) {
+    const databaseLeads = [];
     const tableNames = ['leads', 'enquiries'];
     for (const tableName of tableNames) {
       const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false });
       if (error) {
-        console.error(`Supabase ${tableName} query failed:`, error.message);
-      } else {
-        const defaultRecordType = tableName === 'enquiries' ? 'enquiry' : 'lead';
-        databaseLeads.push(...(data || []).map((row) => normalizeLead({
-          ...row,
-          record_type: row.record_type || defaultRecordType,
-        })));
+        throw new Error(`Supabase ${tableName} query failed: ${error.message}`);
       }
+      const defaultRecordType = tableName === 'enquiries' ? 'enquiry' : 'lead';
+      databaseLeads.push(...(data || []).map((row) => normalizeLead({
+        ...row,
+        record_type: row.record_type || defaultRecordType,
+      })));
     }
+
+    return databaseLeads.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }
 
-  const combined = [...databaseLeads, ...leads, ...fallbackLeads];
+  const combined = [...leads, ...fallbackLeads];
   const uniqueById = new Map();
   for (const lead of combined) {
     if (!lead?.id) continue;
@@ -705,13 +701,17 @@ app.post('/api/providers/register', async (req, res) => {
       source = 'supabase';
     } catch (error) {
       console.error('Supabase provider registration failed:', error.message);
-      savedProvider = newProvider;
-      source = 'local';
+      return res.status(500).json({
+        error: 'Provider registration could not be saved to Supabase.',
+        details: error.message,
+      });
     }
   }
 
-  providers.push(newProvider);
-  persistAppData();
+  if (!supabaseAdmin) {
+    providers.push(newProvider);
+    persistAppData();
+  }
 
   try {
     await sendProviderRegistrationEmail(savedProvider);
@@ -770,7 +770,18 @@ app.post('/api/providers/login', async (req, res) => {
 
 app.get('/api/leads', async (req, res) => {
   const leadList = await getLeadsFromDataSource();
-  res.json({ leads: leadList });
+  res.json({
+    leads: leadList,
+    persistenceSource: supabase ? 'supabase' : 'local',
+  });
+});
+
+app.get('/api/persistence-status', (req, res) => {
+  res.json({
+    persistenceSource: supabase ? 'supabase' : 'local',
+    supabaseConfigured: Boolean(supabase),
+    smtpConfigured: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.CONTACT_FROM_EMAIL),
+  });
 });
 
 app.post('/api/leads', async (req, res) => {
