@@ -403,7 +403,9 @@ async function getLeadsFromDataSource() {
       const defaultRecordType = tableName === 'enquiries' ? 'enquiry' : 'lead';
       databaseLeads.push(...(data || []).map((row) => normalizeLead({
         ...row,
-        record_type: row.record_type || defaultRecordType,
+        // Prefer an explicit stored marker (including the message prefix) so
+        // legacy Contact Us enquiries in the shared leads table stay enquiries.
+        record_type: row.record_type || (row.message?.match(/^\[(lead|enquiry)\]/i)?.[1]) || defaultRecordType,
       })));
     }
 
@@ -1119,7 +1121,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
         matchedLeads,
         followUpActive,
       },
-      leads: leadRecords.slice(0, 8),
+      leads: leadRecords,
       enquiries: enquiryRecords,
       providers: providerList.slice(0, 6),
       overview: [

@@ -490,7 +490,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           <div style={{ color: '#5a6a7e' }}>No leads yet.</div>
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
-            {filteredLeads.slice(0, 5).map((lead) => {
+            {filteredLeads.map((lead) => {
               const expanded = String(expandedRecentLeadId) === String(lead.id);
               return (
                 <div key={lead.id || lead.family} style={{ border: expanded ? '1px solid #28A745' : '1px solid #edf2f7', borderRadius: 12, background: expanded ? '#f6fcf8' : '#fff', overflow: 'hidden' }}>
@@ -896,6 +896,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         || null
       : newestEnquiry;
 
+    const sortedEnquiries = [...enquiries].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
     if (!enquiryLead) {
       return (
         <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
@@ -914,6 +916,21 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     ];
 
     return (
+      <div style={{ display: 'grid', gap: 14 }}>
+      <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
+        <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>All enquiries ({sortedEnquiries.length})</h3>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {sortedEnquiries.map((item) => (
+            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 12px', border: String(item.id) === String(enquiryLead.id) ? '1px solid #28A745' : '1px solid #edf2f7', borderRadius: 10, background: '#fff' }}>
+              <button type="button" onClick={() => updateView('enquiry', item.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', border: 0, background: 'transparent', cursor: 'pointer', padding: 0, color: '#0B1D3A' }}>
+                <strong style={{ display: 'block' }}>{item.family || 'Unknown family'}</strong>
+                <small style={{ color: '#5a6a7e' }}>{item.need || 'Care support'} · {item.area || 'Not set'} · {item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently'}</small>
+              </button>
+              <button type="button" onClick={() => handleLeadDelete(item)} style={{ flex: '0 0 auto', border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '7px 10px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Delete</button>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="admin-dashboard-card admin-enquiry-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap' }}>
           <div>
@@ -994,6 +1011,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
             </div>
           </div>
         </div>
+      </div>
       </div>
     );
   };
