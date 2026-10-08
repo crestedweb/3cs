@@ -2072,7 +2072,7 @@ function GuidedCareModal({ open, onClose }) {
       service: form.service,
       urgency: form.urgency || "Soon",
       budget: form.budget.trim() || "TBC",
-      recordType: "enquiry",
+      recordType: "lead",
       message: [
         `Care enquiry for ${form.service || "care support"}`,
         `Arrangement: ${form.arrangement || "Not specified"}`,
