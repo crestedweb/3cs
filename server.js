@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
+import { getDestinationTable, normalizeRecordType } from './record-routing.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -257,7 +258,7 @@ function normalizeLead(row) {
   const storedMessage = row.message || '';
   const sourceMatch = storedMessage.match(/^\[(lead|enquiry)\]\s*/i);
   const explicitRecordType = clean(row.record_type || row.recordType || '').toLowerCase();
-  const recordType = explicitRecordType || sourceMatch?.[1]?.toLowerCase() || (/^Care enquiry for\b/i.test(storedMessage) || /\benquiry\b/i.test(storedMessage) ? 'enquiry' : 'lead');
+  const recordType = explicitRecordType || sourceMatch?.[1]?.toLowerCase() || normalizeRecordType(row.record_type || row.recordType || '');
   const message = storedMessage.replace(/^\[(lead|enquiry)\]\s*/i, '');
   const submittedUrgency = message.match(/(?:^|\|\s*)Urgency:\s*([^|]+)/i)?.[1]?.trim();
   const submittedBudget = message.match(/(?:^|\|\s*)Budget:\s*([^|]+)/i)?.[1]?.trim();
@@ -329,7 +330,8 @@ async function persistLeadFromEnquiry(body = {}) {
   const nextLead = buildLeadFromEnquiry(body);
 
   if (supabase) {
-    const { data, error } = await supabase.from('leads').insert([{
+    const destinationTable = getDestinationTable(nextLead.recordType);
+    const { data, error } = await supabase.from(destinationTable).insert([{
       family_name: nextLead.family,
       care_need: nextLead.need,
       area: nextLead.area,
@@ -368,27 +370,42 @@ async function persistLeadFromEnquiry(body = {}) {
 }
 
 async function getProvidersFromDataSource() {
-  if (!supabase) {
-    return providers.map(buildProviderSnapshot);
+  const sourceProviders = [];
+  if (supabase) {
+    const { data, error } = await supabase.from('providers').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('Supabase provider query failed:', error.message);
+    } else {
+      sourceProviders.push(...(data || []).map(normalizeProvider));
+    }
   }
 
-  const { data, error } = await supabase.from('providers').select('*').order('created_at', { ascending: false });
-  if (error) {
-    console.error('Supabase provider query failed:', error.message);
-    return providers.map(buildProviderSnapshot);
+  const combined = [...sourceProviders, ...providers];
+  const uniqueByEmail = new Map();
+  for (const provider of combined) {
+    const email = String(provider.email || '').toLowerCase();
+    if (!email) continue;
+    uniqueByEmail.set(email, provider);
   }
 
-  return (data || []).map(normalizeProvider);
+  return [...uniqueByEmail.values()].map(buildProviderSnapshot);
 }
 
 async function getLeadsFromDataSource() {
   const databaseLeads = [];
   if (supabase) {
-    const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
-    if (error) {
-      console.error('Supabase lead query failed:', error.message);
-    } else {
-      databaseLeads.push(...(data || []).map(normalizeLead));
+    const tableNames = ['leads', 'enquiries'];
+    for (const tableName of tableNames) {
+      const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false });
+      if (error) {
+        console.error(`Supabase ${tableName} query failed:`, error.message);
+      } else {
+        const defaultRecordType = tableName === 'enquiries' ? 'enquiry' : 'lead';
+        databaseLeads.push(...(data || []).map((row) => normalizeLead({
+          ...row,
+          record_type: row.record_type || defaultRecordType,
+        })));
+      }
     }
   }
 
@@ -515,6 +532,48 @@ function buildProviderSnapshot(provider) {
   };
 }
 
+async function sendProviderRegistrationEmail(provider) {
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const fromEmail = process.env.CONTACT_FROM_EMAIL;
+  const toEmail = process.env.CONTACT_TO_EMAIL || provider.email;
+
+  if (!smtpHost || !smtpUser || !smtpPass || !fromEmail) {
+    console.info('Provider registration email skipped: SMTP is not configured.');
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    requireTLS: smtpPort === 587,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+
+  const subject = `New provider registration received: ${provider.businessName}`;
+  const text = [
+    `Provider: ${provider.name}`,
+    `Business: ${provider.businessName}`,
+    `Email: ${provider.email}`,
+    `Phone: ${provider.phone || 'Not provided'}`,
+    `CQC registration: ${provider.cqcRegistration || 'Not provided'}`,
+    `Service type: ${provider.serviceType}`,
+    `Area: ${provider.area}`,
+    `Status: ${provider.status}`,
+  ].join('\n');
+
+  await transporter.sendMail({
+    from: fromEmail,
+    to: toEmail,
+    replyTo: provider.email,
+    subject,
+    text,
+  });
+}
+
 function buildMarketplaceSummary() {
   const activeProviders = providers.filter((provider) => provider.status === 'active').length;
   const newLeads = leads.filter((lead) => lead.status === 'New').length;
@@ -570,7 +629,8 @@ app.post('/api/providers/register', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
   }
 
-  const existingProvider = providers.find((provider) => provider.email.toLowerCase() === email.toLowerCase());
+  const providerList = await getProvidersFromDataSource();
+  const existingProvider = providerList.find((provider) => String(provider.email || '').toLowerCase() === email);
   if (existingProvider) {
     return res.status(409).json({ error: 'A provider with this email already exists.' });
   }
@@ -593,6 +653,8 @@ app.post('/api/providers/register', async (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
+  let savedProvider = newProvider;
+  let source = 'local';
   if (supabaseAdmin) {
     try {
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -609,7 +671,7 @@ app.post('/api/providers/register', async (req, res) => {
       });
 
       if (authError) {
-        console.error('Supabase provider auth create failed:', authError.message);
+        throw new Error(authError.message);
       }
 
       const { data, error } = await supabase.from('providers').insert([{
@@ -627,29 +689,34 @@ app.post('/api/providers/register', async (req, res) => {
         auth_user_id: authData?.user?.id || null,
       }]).select();
 
-      if (!error && data && data[0]) {
-        const provider = normalizeProvider(data[0]);
-        return res.status(201).json({
-          message: 'Provider registered successfully with Supabase auth.',
-          provider: buildProviderSnapshot(provider),
-        });
+      if (error) {
+        throw new Error(error.message);
+      }
+      if (!data?.[0]) {
+        throw new Error('Supabase did not return the saved provider record.');
       }
 
-      if (error) {
-        console.error('Supabase provider insert failed:', error.message);
-      }
+      savedProvider = normalizeProvider(data[0]);
+      source = 'supabase';
     } catch (error) {
-      console.error('Supabase provider registration fallback triggered:', error.message);
+      console.error('Supabase provider registration failed:', error.message);
+      savedProvider = newProvider;
+      source = 'local';
     }
   }
 
   providers.push(newProvider);
   persistAppData();
+
+  try {
+    await sendProviderRegistrationEmail(savedProvider);
+  } catch (error) {
+    console.error('Provider registration email failed:', error.message);
+  }
+
   return res.status(201).json({
-    message: hasSupabaseAuth
-      ? `Provider registered successfully in fallback mode. Use email ${email} and your chosen password to sign in.`
-      : `Provider registered successfully. Use email ${email} and your chosen password to sign in.`,
-    provider: buildProviderSnapshot(newProvider),
+    message: `Provider registered successfully in ${source}. ${source === 'supabase' ? 'The provider is available in the admin dashboard.' : 'The provider is available in the local fallback store.'}`,
+    provider: buildProviderSnapshot(savedProvider),
   });
 });
 

@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
+import { getDestinationTable, normalizeRecordType } from "../record-routing.mjs";
 
 const TO_EMAIL = process.env.CONTACT_TO_EMAIL || "info@3cscareservices.co.uk";
 
@@ -58,6 +59,7 @@ export default async function handler(req, res) {
   const message = clean(body.message);
   const urgency = clean(body.urgency || "Soon");
   const budget = clean(body.budget || "TBC");
+  const recordType = normalizeRecordType(body.recordType);
 
   if (!name || !message || (!email && !phone)) {
     return res.status(400).json({ error: "Name, message, and at least one contact method are required." });
@@ -72,7 +74,8 @@ export default async function handler(req, res) {
   const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const { data: savedLeads, error: leadError } = await supabase.from("leads").insert([{
+  const destinationTable = getDestinationTable(recordType);
+  const { data: savedRecords, error: saveError } = await supabase.from(destinationTable).insert([{
     family_name: name,
     care_need: service || "Care support",
     area: postcode || "Not set",
@@ -83,15 +86,16 @@ export default async function handler(req, res) {
     score: 80,
     contact_email: email,
     phone,
-    message,
+    message: `[${recordType}] ${message}`,
+    record_type: recordType,
   }]).select();
 
-  if (leadError || !savedLeads?.[0]) {
-    console.error("Lead save failed:", leadError?.message);
+  if (saveError || !savedRecords?.[0]) {
+    console.error("Submission save failed:", saveError?.message);
     return res.status(500).json({ error: "Your enquiry could not be saved. Please try again." });
   }
 
-  const lead = normalizeLead(savedLeads[0]);
+  const lead = normalizeLead({ ...savedRecords[0], recordType, message: `[${recordType}] ${message}` });
 
   const subject = `New care enquiry from ${name}`;
   const text = [
