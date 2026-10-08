@@ -324,6 +324,7 @@ function buildLeadFromEnquiry(body = {}) {
 function isEnquiryRecord(lead) {
   const explicitType = clean(lead?.recordType || lead?.record_type || '').toLowerCase();
   if (explicitType === 'enquiry') return true;
+  if (explicitType === 'lead') return false;
 
   const message = String(lead?.message || '').trim();
   if (!message) return false;
