@@ -2971,12 +2971,9 @@ export default function App() {
         <div className="topbar">
           <div className="topbar-track">
             <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
-            <span>📍 7A Francis Street, Stoneygate, Leicester LE2 2BE</span>
             <span className="topbar-duplicate" aria-hidden="true">📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
-            <span className="topbar-duplicate" aria-hidden="true">📍 7A Francis Street, Stoneygate, Leicester LE2 2BE</span>
           </div>
           <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
-          <span>📍 7A Francis Street, Stoneygate, Leicester LE2 2BE</span>
         </div>
 
         {/* ── Nav ── */}
@@ -3525,7 +3522,6 @@ export default function App() {
                   ["📞","PHONE","+44 116 276 6600","tel:+441162766600"],
                   ["✉","EMAIL","info@3cscareservices.co.uk","mailto:info@3cscareservices.co.uk"],
                   ["🌐","WEBSITE","www.3cscareservices.co.uk","https://www.3cscareservices.co.uk"],
-                  ["📍","ADDRESS","Administrative Office, 7A Francis street, Stoneygate, Leicester LE2 2BE", null],
                 ].map(([icon, label, val, href]) => (
                   <div key={label} className="ci-item">
                     <div className="ci-icon">{icon}</div>
@@ -3594,7 +3590,6 @@ export default function App() {
           </div>
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 24, display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ color: "#7a9bbf", fontSize: "0.78rem" }}>© {new Date().getFullYear()} 3Cs Care Services Limited. All rights reserved.</span>
-            <span style={{ color: "#7a9bbf", fontSize: "0.78rem" }}>7A Francis Street, Stoneygate, Leicester LE2 2BE</span>
           </div>
         </div>
       </footer>
