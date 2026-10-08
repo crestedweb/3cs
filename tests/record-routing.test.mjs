@@ -11,14 +11,14 @@ test('routes guided care submissions to the leads table', () => {
   assert.equal(getDestinationTable('lead'), 'leads');
 });
 
-test('routes contact submissions to the enquiries table', () => {
+test('routes contact submissions to the schema-backed leads table', () => {
   assert.equal(normalizeRecordType('enquiry'), 'enquiry');
-  assert.equal(getDestinationTable('enquiry'), 'enquiries');
+  assert.equal(getDestinationTable('enquiry'), 'leads');
 });
 
-test('treats unrecognized values as enquiries for backward compatibility', () => {
+test('keeps all submitted records on the operational leads table', () => {
   assert.equal(normalizeRecordType(''), 'enquiry');
-  assert.equal(getDestinationTable(''), 'enquiries');
+  assert.equal(getDestinationTable(''), 'leads');
 });
 
 test('uses the supplied fallback for legacy records without a record type', () => {

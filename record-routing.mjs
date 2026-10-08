@@ -8,7 +8,11 @@ export function normalizeRecordType(value, fallback = 'enquiry') {
 }
 
 export function getDestinationTable(value) {
-  return normalizeRecordType(value) === 'lead' ? 'leads' : 'enquiries';
+  // The deployed leads table is the schema-backed operational store for both
+  // guided care submissions and Contact Us enquiries. The record_type field
+  // preserves the distinction for admin routing without sending unsupported
+  // columns to a separate enquiries table.
+  return 'leads';
 }
 
 export function createSubmissionId() {
