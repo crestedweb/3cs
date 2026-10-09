@@ -1303,6 +1303,19 @@ app.put('/api/admin/leads/:id/status', async (req, res) => {
   }
 
   try {
+    if (normalized === 'Booked') {
+      const leadList = await getLeadsFromDataSource();
+      const requestedLead = leadList.find((item) => String(item.id) === leadId);
+      if (!requestedLead) return res.status(404).json({ error: 'Lead not found.' });
+      if (!requestedLead.providerName || requestedLead.providerName === 'Unassigned') {
+        return res.status(422).json({ error: 'Assign an eligible provider before marking this case booked.' });
+      }
+      const providerList = await getProvidersFromDataSource();
+      const assignedProvider = providerList.find((provider) => provider.businessName === requestedLead.providerName || provider.name === requestedLead.providerName);
+      if (!assignedProvider) return res.status(422).json({ error: 'The assigned provider no longer exists. Match an eligible provider before booking.' });
+      const providerMatch = (await getMatchesForLead(requestedLead, [assignedProvider]))[0];
+      if (!providerMatch.eligible) return res.status(422).json({ error: 'The assigned provider is no longer eligible for this referral.', reasons: providerMatch.reasons });
+    }
     const lead = await updateLeadRecord(leadId, { status: normalized }, { status: normalized.toLowerCase() });
     if (!lead) {
       return res.status(404).json({ error: 'Lead not found.' });
@@ -1320,18 +1333,23 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
   }
 
   const leadId = String(req.params.id);
-  const providerName = clean(req.body?.providerName || 'Unassigned');
+  const requestedProviderId = clean(req.body?.providerId || '');
+  const requestedProviderName = clean(req.body?.providerName || '');
   const matchStatus = clean(req.body?.matchStatus || 'Matched');
 
   const leadList = await getLeadsFromDataSource();
   const requestedLead = leadList.find((item) => String(item.id) === leadId);
   if (!requestedLead) return res.status(404).json({ error: 'Lead not found.' });
-  if (providerName !== 'Unassigned') {
+  let providerName = 'Unassigned';
+  if (requestedProviderId || (requestedProviderName && requestedProviderName !== 'Unassigned')) {
     const providerList = await getProvidersFromDataSource();
-    const candidate = providerList.find((item) => item.businessName === providerName || item.name === providerName);
+    const candidate = providerList.find((item) => requestedProviderId
+      ? String(item.id) === requestedProviderId
+      : item.businessName === requestedProviderName || item.name === requestedProviderName);
     if (!candidate) return res.status(404).json({ error: 'Provider not found.' });
     const candidateMatch = (await getMatchesForLead(requestedLead, [candidate]))[0];
     if (!candidateMatch.eligible) return res.status(422).json({ error: 'This provider is not eligible for this referral.', reasons: candidateMatch.reasons });
+    providerName = candidate.businessName || candidate.name;
   }
 
   try {

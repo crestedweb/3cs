@@ -34,6 +34,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const [selectedLeadId, setSelectedLeadId] = useState(() => new URLSearchParams(window.location.search).get('leadId') || '');
   const [providerMatches, setProviderMatches] = useState([]);
   const [matchesForLeadId, setMatchesForLeadId] = useState('');
+  const [loadingMatchesFor, setLoadingMatchesFor] = useState('');
   const [expandedRecentLeadId, setExpandedRecentLeadId] = useState('');
   const [actionFeedback, setActionFeedback] = useState('');
   const requestedView = new URLSearchParams(location.search || '').get('view');
@@ -166,6 +167,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   };
 
   const loadProviderMatches = async (leadId) => {
+    setLoadingMatchesFor(String(leadId));
     try {
       const response = await fetch(`/api/admin/leads/${leadId}/matches`, { headers: { Authorization: `Bearer ${adminSession?.token || ''}` } });
       const payload = await response.json();
@@ -173,6 +175,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       setProviderMatches(payload.matches || []);
       setMatchesForLeadId(String(leadId));
     } catch (error) { setActionFeedback(error.message || 'Unable to calculate provider matches.'); }
+    finally { setLoadingMatchesFor(''); }
   };
 
   const handleLeadStatusChange = async (leadId, nextStatus, onSuccess) => {
@@ -246,7 +249,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     }
   };
 
-  const handleLeadMatch = async (leadId, providerName, matchStatus = 'Matched') => {
+  const handleLeadMatch = async (leadId, providerId, matchStatus = 'Matched') => {
     try {
       const response = await fetch(`/api/admin/leads/${leadId}/match`, {
         method: 'PUT',
@@ -254,7 +257,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${adminSession?.token || ''}`,
         },
-        body: JSON.stringify({ providerName, matchStatus }),
+        body: JSON.stringify({ providerId, matchStatus }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -267,7 +270,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           String(lead.id) === String(leadId) ? { ...lead, ...payload.lead } : lead
         )));
       }
-      setActionFeedback(`Matched to ${providerName}.`);
+      setActionFeedback(`Matched to ${payload.lead?.providerName || 'provider'}.`);
       void refreshDashboard();
     } catch (error) {
       console.error('Lead match failed', error);
@@ -729,16 +732,15 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Recommended providers</label>
               <select
-                value={selectedLead.providerName || 'Unassigned'}
+                value={providers.find((provider) => (provider.businessName || provider.name) === selectedLead.providerName)?.id || 'Unassigned'}
                 onChange={(event) => {
-                  const nextProvider = event.target.value;
-                  handleLeadMatch(selectedLead.id, nextProvider, 'Matched');
+                  handleLeadMatch(selectedLead.id, event.target.value, 'Matched');
                 }}
                 style={{ width: '100%', border: '1px solid #dfeaf8', borderRadius: 10, padding: '10px 12px', fontSize: '0.9rem', background: '#fff' }}
               >
                 <option value="Unassigned">Unassigned</option>
                 {(matchesForLeadId === String(selectedLead.id) ? providerMatches : []).filter((item) => item.eligible).map(({ provider }) => (
-                  <option key={provider.id} value={provider.businessName || provider.name || 'Provider'}>
+                  <option key={provider.id} value={provider.id}>
                     {provider.businessName || provider.name || 'Provider'}
                   </option>
                 ))}
@@ -997,15 +999,23 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
             <div style={{ border: '1px solid #edf2f7', borderRadius: 12, padding: 12, background: '#fff' }}>
               <h4 style={{ margin: '0 0 10px', color: '#0B1D3A', fontSize: '0.96rem' }}>Admin actions</h4>
               {actionFeedback && (
-                <div role="status" style={{ marginBottom: 10, borderRadius: 8, padding: '8px 10px', background: actionFeedback.startsWith('Unable') ? '#fff1f2' : '#eefaf2', color: actionFeedback.startsWith('Unable') ? '#b42318' : '#0B1D3A', fontSize: '0.78rem', fontWeight: 700 }}>
+                <div role="status" style={{ marginBottom: 10, borderRadius: 8, padding: '8px 10px', background: /unable|not eligible|failed|error/i.test(actionFeedback) ? '#fff1f2' : '#eefaf2', color: /unable|not eligible|failed|error/i.test(actionFeedback) ? '#b42318' : '#0B1D3A', fontSize: '0.78rem', fontWeight: 700 }}>
                   {actionFeedback}
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button type="button" className="btn btn-green" onClick={() => handleLeadStatusChange(enquiryLead.id, 'Qualified')} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem' }}>Qualify enquiry</button>
-                <button type="button" className="btn btn-ghost-green" onClick={() => handleLeadMatch(enquiryLead.id, providers[0]?.businessName || 'Oakwell Care Ltd', 'Matched')} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem' }}>Match provider</button>
+                <button type="button" className="btn btn-ghost-green" onClick={() => loadProviderMatches(enquiryLead.id)} disabled={loadingMatchesFor === String(enquiryLead.id)} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem' }}>{loadingMatchesFor === String(enquiryLead.id) ? 'Checking coverage…' : 'Find eligible providers'}</button>
+                {matchesForLeadId === String(enquiryLead.id) && <div style={{ display: 'grid', gap: 8 }}>
+                  {!providerMatches.length && <small style={{ color: '#5a6a7e' }}>No provider profiles are available to check.</small>}
+                  {providerMatches.map((match) => <div key={match.provider.id} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, fontSize: 12 }}>
+                    <strong>{match.provider.businessName || match.provider.name}</strong><div style={{ color: match.eligible ? '#146c2e' : '#b42318', margin: '3px 0' }}>{match.eligible ? 'Eligible for this referral' : 'Not eligible'}</div>
+                    <div style={{ color: '#5a6a7e' }}>{(match.reasons || []).join(' · ')}</div>
+                    {match.eligible && <button type="button" className="btn btn-green" onClick={() => handleLeadMatch(enquiryLead.id, match.provider.id, 'Matched')} style={{ width: '100%', marginTop: 7, padding: '8px 10px', fontSize: '0.76rem' }}>Assign this provider</button>}
+                  </div>)}
+                </div>}
                 <button type="button" className="btn btn-ghost-green" onClick={() => handleLeadFollowUp(enquiryLead.id, 'Family contacted', 'Admin has contacted the family and is scheduling the next care conversation.')} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem' }}>Set follow-up</button>
-                <button type="button" className="btn btn-navy" onClick={() => handleLeadStatusChange(enquiryLead.id, 'Booked', () => updateView('bookings'))} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem' }}>Mark booked</button>
+                <button type="button" className="btn btn-navy" disabled={!enquiryLead.providerName || enquiryLead.providerName === 'Unassigned'} title={!enquiryLead.providerName || enquiryLead.providerName === 'Unassigned' ? 'Assign an eligible provider before marking this case booked.' : ''} onClick={() => handleLeadStatusChange(enquiryLead.id, 'Booked', () => updateView('bookings'))} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem', opacity: !enquiryLead.providerName || enquiryLead.providerName === 'Unassigned' ? 0.55 : 1 }}>Mark booked</button>
               </div>
             </div>
           </div>
