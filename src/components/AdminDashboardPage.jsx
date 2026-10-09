@@ -1,6 +1,8 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+const DASHBOARD_FILTER_REFERENCE_TIME = Date.now();
+
 export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -29,6 +31,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('All');
+  const [enquiryStatusFilter, setEnquiryStatusFilter] = useState('All');
+  const [enquiryDateFilter, setEnquiryDateFilter] = useState('All time');
   const [providerSearch, setProviderSearch] = useState('');
   const [selectedProviderId, setSelectedProviderId] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState(() => new URLSearchParams(window.location.search).get('leadId') || '');
@@ -106,6 +110,32 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const newestLead = [...leads].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null;
   const sortedEnquiries = [...enquiries].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   const newestEnquiry = sortedEnquiries[0] || null;
+  const visibleEnquiries = sortedEnquiries.filter((enquiry) => {
+    const statusMatches = enquiryStatusFilter === 'All'
+      || String(enquiry.status || 'New').toLowerCase() === enquiryStatusFilter.toLowerCase();
+    const ageInDays = (DASHBOARD_FILTER_REFERENCE_TIME - new Date(enquiry.createdAt || 0).getTime()) / 86400000;
+    const dateMatches = enquiryDateFilter === 'All time'
+      || (Number.isFinite(ageInDays) && ageInDays >= 0 && ageInDays <= Number(enquiryDateFilter));
+    return statusMatches && dateMatches;
+  });
+
+  const caseReference = (record) => `ENQ-${String(record?.id || '').replace(/\W/g, '').slice(-8).toUpperCase() || 'UNKNOWN'}`;
+  const hasPossibleDuplicate = (record) => {
+    const email = String(record.contactEmail || '').trim().toLowerCase();
+    const phone = String(record.phone || '').replace(/\D/g, '');
+    return allCases.some((candidate) => String(candidate.id) !== String(record.id)
+      && ((email && String(candidate.contactEmail || '').trim().toLowerCase() === email)
+        || (phone && String(candidate.phone || '').replace(/\D/g, '') === phone)));
+  };
+  const nextActionFor = (record) => {
+    const status = String(record?.status || 'New').toLowerCase();
+    if (status === 'new') return 'Review details and qualify';
+    if (status === 'qualified' && (!record.providerName || record.providerName === 'Unassigned')) return 'Find an eligible provider';
+    if (status === 'qualified') return 'Follow up with the family';
+    if (status === 'booked') return 'Confirm service start';
+    if (status === 'replied') return 'Check for a response';
+    return 'No action pending';
+  };
 
   const filteredProviders = providers.filter((provider) => {
     const text = `${provider.businessName || provider.name || ''} ${provider.email || ''} ${provider.area || ''}`.toLowerCase();
@@ -497,7 +527,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                     style={{ width: '100%', border: 0, background: 'transparent', padding: '13px 14px', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}
                   >
                     <span>
-                      <strong style={{ display: 'block', color: '#0B1D3A' }}>{lead.family || 'Unknown family'}</strong>
+                      <strong style={{ display: 'block', color: '#0B1D3A' }}>{lead.family || 'Unknown family'} <small style={{ color: '#758397', fontWeight: 600 }}>· {caseReference(lead)}</small></strong>
                       <span style={{ display: 'block', color: '#5a6a7e', fontSize: '0.82rem', marginTop: 3 }}>{lead.need || 'Care support'} Â· {lead.area || 'Not set'}</span>
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -633,7 +663,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     <div className="admin-lead-layout" style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 18 }}>
       <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, color: '#0B1D3A', fontSize: '1.1rem' }}>Lead pipeline</h3>
+          <h3 style={{ margin: 0, color: '#0B1D3A', fontSize: '1.1rem' }}>Cases and leads</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {['All', 'New', 'Qualified', 'Booked', 'Replied'].map((item) => (
               <button
@@ -694,8 +724,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       <div className="admin-dashboard-card" style={{ border: '1px solid #dce8f3', borderRadius: 18, padding: 16, background: 'linear-gradient(160deg, #ffffff 0%, #f5f9ff 100%)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <div>
-            <div style={{ color: '#28A745', fontSize: 11, fontWeight: 800, letterSpacing: 1.1, textTransform: 'uppercase' }}>Case overview</div>
-            <h3 style={{ margin: '4px 0 0', color: '#0B1D3A', fontSize: '1.2rem' }}>Lead insight</h3>
+            <div style={{ color: '#28A745', fontSize: 11, fontWeight: 800, letterSpacing: 1.1, textTransform: 'uppercase' }}>Case overview · {caseReference(selectedLead)}</div>
+            <h3 style={{ margin: '4px 0 0', color: '#0B1D3A', fontSize: '1.2rem' }}>Case details</h3>
           </div>
           <span style={{ color: '#0B1D3A', background: '#eafaf1', border: '1px solid #bde8c9', borderRadius: 999, padding: '6px 10px', fontSize: 11, fontWeight: 800 }}>
             {selectedLead?.status || 'New'}
@@ -704,7 +734,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         {selectedLead ? (
           <div style={{ display: 'grid', gap: 16, color: '#0B1D3A' }}>
             <div style={{ padding: 14, borderRadius: 14, background: '#0B1D3A', color: '#fff', boxShadow: '0 10px 22px rgba(11,29,58,0.14)' }}>
-              <div style={{ fontSize: 11, color: '#8be6a0', fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Family enquiry</div>
+              <div style={{ fontSize: 11, color: '#8be6a0', fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>{selectedLead.recordType === 'enquiry' ? 'Contact Us enquiry' : 'Care request'} · {caseReference(selectedLead)}</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{selectedLead.family || 'Unknown family'}</div>
               <div style={{ marginTop: 4, color: '#d2deed', fontSize: '0.88rem' }}>{selectedLead.need || 'Care support'} Â· {selectedLead.area || 'Not set'}</div>
             </div>
@@ -723,10 +753,48 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               ))}
             </div>
 
+            <div style={{ border: '1px solid #dfeaf8', borderRadius: 12, padding: 12, background: '#fff', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px 14px' }}>
+              {[
+                ['Contact email', selectedLead.contactEmail || 'Not provided'],
+                ['Phone', selectedLead.phone || 'Not provided'],
+                ['Urgency', selectedLead.urgency || 'Soon'],
+                ['Budget', selectedLead.budget || 'TBC'],
+                ['Assigned provider', selectedLead.providerName || 'Unassigned'],
+                ['Match status', selectedLead.matchStatus || 'Awaiting triage'],
+                ['Follow-up stage', selectedLead.followUpStage || 'Pending'],
+                ['Submitted', selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable'],
+              ].map(([label, value]) => (
+                <div key={label} style={{ minWidth: 0 }}>
+                  <div style={{ color: '#758397', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.7 }}>{label}</div>
+                  <div style={{ color: '#0B1D3A', fontSize: '0.84rem', fontWeight: 600, marginTop: 3, overflowWrap: 'anywhere' }}>{value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ border: '1px solid #dfeaf8', borderRadius: 12, padding: 12, background: '#fff', color: '#5a6a7e', lineHeight: 1.55, fontSize: '0.88rem', overflowWrap: 'anywhere' }}>
+              <strong style={{ display: 'block', color: '#0B1D3A', marginBottom: 6 }}>Enquirer’s message</strong>
+              {selectedLead.message || 'No message was included with this submission.'}
+            </div>
+
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ background: '#eafaf1', color: '#146c2e', borderRadius: 999, padding: '6px 9px', fontSize: 11, fontWeight: 800 }}>Status: {selectedLead.status || 'New'}</span>
               <span style={{ background: '#edf4ff', color: '#174c8e', borderRadius: 999, padding: '6px 9px', fontSize: 11, fontWeight: 800 }}>Match: {selectedLead.matchStatus || 'Awaiting triage'}</span>
               <span style={{ background: '#fff4d8', color: '#805a08', borderRadius: 999, padding: '6px 9px', fontSize: 11, fontWeight: 800 }}>Follow-up: {selectedLead.followUpStage || 'Pending'}</span>
+            </div>
+            <div style={{ border: '1px solid #bde8c9', background: '#f4fbf6', color: '#146c2e', borderRadius: 10, padding: '9px 11px', fontSize: '0.84rem' }}><strong>Suggested next action:</strong> {nextActionFor(selectedLead)}</div>
+            {hasPossibleDuplicate(selectedLead) && <div role="status" style={{ border: '1px solid #f1d58b', background: '#fff9e8', color: '#805a08', borderRadius: 10, padding: '9px 11px', fontSize: '0.84rem' }}><strong>Possible duplicate:</strong> another case uses the same email address or phone number. Review both records before taking action; they have not been merged.</div>}
+            {actionFeedback && <div role="status" style={{ border: '1px solid #dfeaf8', background: /unable|not eligible|failed|error/i.test(actionFeedback) ? '#fff1f2' : '#f4fbf6', color: /unable|not eligible|failed|error/i.test(actionFeedback) ? '#b42318' : '#0B1D3A', borderRadius: 10, padding: '9px 11px', fontSize: '0.84rem' }}>{actionFeedback}</div>}
+            <div style={{ border: '1px solid #edf2f7', borderRadius: 12, padding: 12, background: '#fff' }}>
+              <strong style={{ display: 'block', color: '#0B1D3A', marginBottom: 8 }}>Case activity</strong>
+              {selectedLead.activity?.length ? (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {[...selectedLead.activity].slice(-8).reverse().map((entry, index) => (
+                    <div key={`${entry.at || 'activity'}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, borderBottom: '1px solid #f0f3f7', paddingBottom: 6, fontSize: '0.8rem' }}>
+                      <span style={{ color: '#0B1D3A' }}>{entry.action}</span>
+                      <span style={{ color: '#758397', whiteSpace: 'nowrap' }}>{entry.at ? new Date(entry.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Time unavailable'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <small style={{ color: '#758397' }}>No activity history is available for this older record yet.</small>}
             </div>
 
             <div style={{ borderTop: '1px solid #dfeaf8', paddingTop: 14 }}>
@@ -763,7 +831,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Admin case note</label>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Internal admin note <span style={{ color: '#5a6a7e', fontWeight: 400 }}>(private; not sent to the family)</span></label>
               <textarea
                 rows={3}
                 defaultValue={selectedLead.adminNote || ''}
@@ -895,17 +963,34 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 18 }}>
         <div style={{ color: '#28A745', fontSize: 11, fontWeight: 800, letterSpacing: 1.1, textTransform: 'uppercase' }}>Inbox snapshot</div>
         <h3 style={{ margin: '6px 0 5px', color: '#0B1D3A', fontSize: '1.2rem' }}>Contact enquiries</h3>
-        <p style={{ margin: '0 0 16px', color: '#5a6a7e', fontSize: '0.88rem' }}>New contact-form submissions appear at the top. Earlier enquiries remain in this list.</p>
+        <p style={{ margin: '0 0 16px', color: '#5a6a7e', fontSize: '0.88rem' }}>Contact-form submissions are retained here, newest first. Open a case to review the full message and manage its next steps.</p>
         {!enquiryLead ? (
           <div style={{ color: '#5a6a7e' }}>No contact enquiries have been submitted yet.</div>
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
-            {sortedEnquiries.map((item) => (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+              <label style={{ display: 'grid', gap: 4, color: '#5a6a7e', fontSize: 12, fontWeight: 700 }}>
+                Status
+                <select value={enquiryStatusFilter} onChange={(event) => setEnquiryStatusFilter(event.target.value)} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: '8px 10px', color: '#0B1D3A', background: '#fff' }}>
+                  {['All', 'New', 'Qualified', 'Booked', 'Replied', 'Closed'].map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </label>
+              <label style={{ display: 'grid', gap: 4, color: '#5a6a7e', fontSize: 12, fontWeight: 700 }}>
+                Received
+                <select value={enquiryDateFilter} onChange={(event) => setEnquiryDateFilter(event.target.value)} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: '8px 10px', color: '#0B1D3A', background: '#fff' }}>
+                  <option value="All time">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option>
+                </select>
+              </label>
+            </div>
+            {visibleEnquiries.length === 0 && <div style={{ border: '1px dashed #cdd9e6', borderRadius: 12, padding: 16, color: '#5a6a7e' }}>No enquiries match these filters. Try a different status or date range.</div>}
+            {visibleEnquiries.map((item) => (
               <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid #dfeaf8', borderRadius: 12, background: item.id === enquiryLead.id ? '#f4fbf6' : '#fff', padding: 14 }}>
                 <div style={{ minWidth: 0 }}>
-                  <strong style={{ display: 'block', color: '#0B1D3A' }}>{item.family || 'Contact enquiry'}</strong>
+                  <strong style={{ display: 'block', color: '#0B1D3A' }}>{item.family || 'Contact enquiry'} <small style={{ color: '#758397', fontWeight: 600 }}>· {caseReference(item)}</small></strong>
                   <span style={{ display: 'block', color: '#5a6a7e', marginTop: 4, fontSize: '0.88rem' }}>{item.need || 'General enquiry'} · {item.area || 'Area not provided'}</span>
-                  <small style={{ display: 'block', color: '#758397', marginTop: 5 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable'}</small>
+                  <small style={{ display: 'block', color: '#758397', marginTop: 5 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable'} · Source: Contact Us</small>
+                  <small style={{ display: 'block', color: '#0B1D3A', marginTop: 5, fontWeight: 700 }}>Next: {nextActionFor(item)}</small>
+                  {hasPossibleDuplicate(item) && <small style={{ display: 'inline-block', marginTop: 6, borderRadius: 999, padding: '4px 8px', background: '#fff4d8', color: '#805a08', fontWeight: 700 }}>Possible duplicate: same email or phone</small>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                   <span style={{ background: '#fff4d8', color: '#805a08', borderRadius: 999, padding: '6px 10px', fontSize: 11, fontWeight: 700 }}>{item.status || 'New'}</span>

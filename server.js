@@ -347,6 +347,7 @@ function normalizeLead(row) {
     followUpStage: row.follow_up_stage || row.followUpStage || 'Pending',
     adminRating: row.admin_rating || row.adminRating || null,
     adminNote: row.admin_note || row.adminNote || '',
+    activity: Array.isArray(row.case_activity || row.activity) ? (row.case_activity || row.activity) : [],
     createdAt: row.created_at || row.createdAt,
     contactEmail: row.contact_email || row.contactEmail || '',
     phone: row.phone || '',
@@ -376,6 +377,7 @@ function buildLeadFromEnquiry(body = {}) {
     followUpStage: 'Pending',
     adminRating: null,
     adminNote: '',
+    activity: [{ at: new Date().toISOString(), action: 'Enquiry submitted', actor: 'System' }],
     createdAt: new Date().toISOString(),
     contactEmail: clean(body.email || ''),
     phone: clean(body.phone || ''),
@@ -403,6 +405,7 @@ async function persistLeadFromEnquiry(body = {}) {
       message: `[${nextLead.recordType}] ${nextLead.message}`,
       record_type: nextLead.recordType,
       created_at: nextLead.createdAt,
+      case_activity: nextLead.activity,
     }]).select();
 
     if (!error && data && data[0]) {
@@ -486,10 +489,37 @@ async function getLeadsFromDataSource() {
 }
 
 async function updateLeadRecord(leadId, localUpdates, databaseUpdates) {
+  const activityAt = new Date().toISOString();
+  const makeActivityEntries = (previous = {}) => {
+    const entries = [];
+    const changed = (key, oldValue) => Object.hasOwn(localUpdates, key) && String(localUpdates[key] ?? '') !== String(oldValue ?? '');
+    if (changed('status', previous.status)) entries.push({ at: activityAt, action: `Status changed to ${localUpdates.status}`, actor: 'Admin' });
+    if (changed('providerName', previous.providerName)) entries.push({ at: activityAt, action: `Provider assignment changed to ${localUpdates.providerName}`, actor: 'Admin' });
+    if (changed('followUpStage', previous.followUpStage)) entries.push({ at: activityAt, action: `Follow-up set to ${localUpdates.followUpStage}`, actor: 'Admin' });
+    if (changed('adminNote', previous.adminNote)) entries.push({ at: activityAt, action: 'Internal note updated', actor: 'Admin' });
+    if (changed('adminRating', previous.adminRating)) entries.push({ at: activityAt, action: `Final rating ${localUpdates.adminRating ? `set to ${localUpdates.adminRating}/5` : 'cleared'}`, actor: 'Admin' });
+    return entries;
+  };
+
   if (supabase) {
+    const { data: existing, error: existingError } = await supabase
+      .from('leads')
+      .select('case_activity,status,provider_name,follow_up_stage,admin_note,admin_rating')
+      .eq('id', leadId)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
+    if (!existing) return null;
+    const activityEntries = makeActivityEntries({
+      status: existing.status,
+      providerName: existing.provider_name,
+      followUpStage: existing.follow_up_stage,
+      adminNote: existing.admin_note,
+      adminRating: existing.admin_rating,
+    });
+    const caseActivity = [...(Array.isArray(existing.case_activity) ? existing.case_activity : []), ...activityEntries].slice(-100);
     const { data, error } = await supabase
       .from('leads')
-      .update(databaseUpdates)
+      .update({ ...databaseUpdates, case_activity: caseActivity })
       .eq('id', leadId)
       .select();
 
@@ -514,7 +544,9 @@ async function updateLeadRecord(leadId, localUpdates, databaseUpdates) {
     return null;
   }
 
+  const activityEntries = makeActivityEntries(leads[leadIndex]);
   Object.assign(leads[leadIndex], localUpdates);
+  leads[leadIndex].activity = [...(leads[leadIndex].activity || []), ...activityEntries].slice(-100);
   persistAppData();
   return leads[leadIndex];
 }
