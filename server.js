@@ -449,7 +449,12 @@ async function getLeadsFromDataSource() {
     for (const tableName of tableNames) {
       const { data, error } = await supabase.from(tableName).select('*').order('created_at', { ascending: false });
       if (error) {
-        throw new Error(`Supabase ${tableName} query failed: ${error.message}`);
+        if (tableName === 'leads') throw new Error(`Supabase ${tableName} query failed: ${error.message}`);
+        // The current schema stores contact, care-finder, and other submissions
+        // in `leads`. Keep legacy `enquiries` records visible when that table
+        // exists, but its absence must not hide every admin dashboard section.
+        console.warn('Legacy Supabase enquiries table unavailable:', error.message);
+        continue;
       }
       const defaultRecordType = tableName === 'enquiries' ? 'enquiry' : 'lead';
       databaseLeads.push(...(data || []).map((row) => normalizeLead({

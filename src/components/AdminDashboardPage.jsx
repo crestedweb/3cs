@@ -1,14 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, []);
-
-  if (!adminSession) {
-    return <Navigate to="/" replace />;
-  }
 
   const adminTitle = '3Cs Care Admin';
 
@@ -35,19 +31,16 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const [statusFilter, setStatusFilter] = useState('All');
   const [providerSearch, setProviderSearch] = useState('');
   const [selectedProviderId, setSelectedProviderId] = useState('');
-  const [selectedLeadId, setSelectedLeadId] = useState('');
+  const [selectedLeadId, setSelectedLeadId] = useState(() => new URLSearchParams(window.location.search).get('leadId') || '');
   const [providerMatches, setProviderMatches] = useState([]);
   const [matchesForLeadId, setMatchesForLeadId] = useState('');
   const [expandedRecentLeadId, setExpandedRecentLeadId] = useState('');
   const [actionFeedback, setActionFeedback] = useState('');
-  const [currentView, setCurrentView] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const current = params.get('view');
-    return ['overview', 'recent-leads', 'providers', 'leads', 'bookings', 'reports', 'enquiry'].includes(current) ? current : 'overview';
-  });
+  const requestedView = new URLSearchParams(location.search || '').get('view');
+  const currentView = ['overview', 'recent-leads', 'providers', 'leads', 'bookings', 'reports', 'enquiry'].includes(requestedView) ? requestedView : 'overview';
 
   const updateView = (nextView, nextLeadId = null) => {
-    setCurrentView(nextView);
+    if (nextLeadId) setSelectedLeadId(String(nextLeadId));
     const params = new URLSearchParams(location.search || '');
     params.set('view', nextView);
     if (nextLeadId) {
@@ -59,7 +52,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: false });
   };
 
-  const refreshDashboard = async () => {
+  const refreshDashboard = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/dashboard', {
         headers: {
@@ -67,11 +60,12 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         },
       });
       const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to load the admin dashboard.');
       if (response.ok && payload.dashboard) {
         const nextProviders = Array.isArray(payload.dashboard.providers) ? payload.dashboard.providers : [];
         const nextLeads = Array.isArray(payload.dashboard.leads) ? payload.dashboard.leads : [];
         const nextEnquiries = Array.isArray(payload.dashboard.enquiries) ? payload.dashboard.enquiries : [];
-        setSummary(payload.dashboard.summary || summary);
+        setSummary((current) => payload.dashboard.summary || current);
         setOverview(payload.dashboard.overview || [
           ['New enquiries', String(payload.dashboard.summary?.newLeads || 0)],
           ['Pending provider responses', String(payload.dashboard.summary?.pendingProviders || 0)],
@@ -87,22 +81,14 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       }
     } catch (error) {
       console.error('Admin dashboard fetch failed', error);
+      setActionFeedback(error.message || 'Unable to load the admin dashboard.');
     }
-  };
+  }, [adminSession]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search || '');
-    const nextView = ['overview', 'recent-leads', 'providers', 'leads', 'bookings', 'reports', 'enquiry'].includes(params.get('view')) ? params.get('view') : 'overview';
-    setCurrentView(nextView);
-    const nextLeadId = params.get('leadId');
-    if (nextLeadId) {
-      setSelectedLeadId(String(nextLeadId));
-    }
-  }, [location.search]);
-
-  useEffect(() => {
-    refreshDashboard();
-  }, [adminSession?.token]);
+    const timer = window.setTimeout(() => { void refreshDashboard(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshDashboard]);
 
   useEffect(() => {
     const handleLeadUpdate = (event) => {
@@ -113,33 +99,10 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
 
     window.addEventListener('storage', handleLeadUpdate);
     return () => window.removeEventListener('storage', handleLeadUpdate);
-  }, [adminSession?.token]);
-
-  useEffect(() => {
-    if (!providers.length) {
-      setSelectedProviderId('');
-      return;
-    }
-
-    if (!selectedProviderId || !providers.some((provider) => String(provider.id) === String(selectedProviderId))) {
-      setSelectedProviderId(String(providers[0].id));
-    }
-  }, [providers, selectedProviderId]);
+  }, [refreshDashboard]);
 
   const newestLead = [...leads].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null;
   const newestEnquiry = [...enquiries].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null;
-
-  useEffect(() => {
-    if (!leads.length) {
-      setSelectedLeadId('');
-      return;
-    }
-
-    if (!selectedLeadId || !leads.some((lead) => String(lead.id) === String(selectedLeadId))) {
-      const nextLeadId = newestLead?.id || leads[0].id;
-      setSelectedLeadId(String(nextLeadId));
-    }
-  }, [leads, selectedLeadId, newestLead]);
 
   const filteredProviders = providers.filter((provider) => {
     const text = `${provider.businessName || provider.name || ''} ${provider.email || ''} ${provider.area || ''}`.toLowerCase();
@@ -1071,6 +1034,10 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         return renderOverview();
     }
   };
+
+  if (!adminSession) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="admin-dashboard-shell" style={{ minHeight: '100vh', background: '#f5f7fa', padding: 20 }}>
