@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AUTH_KEYS } from '../data/siteData';
+import { normalizePostcode } from '../../provider-matching.mjs';
 
 const steps = ['Business', 'Registration', 'Coverage', 'Services', 'Compliance'];
 const services = ['Visiting/home care', 'Personal care', 'Live-in care', 'Overnight care', '24-hour care', 'Respite care', 'Emergency or urgent care', 'Hospital discharge and reablement', 'Companionship', 'Medication support', 'Domestic support', 'Complex care', 'Other'];
@@ -97,10 +98,12 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
     setSubmitting(true);
     setStatus({ type: '', message: '' });
     try {
-      const postcodeResponse = await fetch(`/api/locations/postcode/${encodeURIComponent(form.mainOfficePostcode)}`);
+      const normalizedOfficePostcode = normalizePostcode(form.mainOfficePostcode);
+      if (!normalizedOfficePostcode) throw new Error('We could not recognize that postcode format. Enter a full UK postcode, for example SW1A 1AA.');
+      const postcodeResponse = await fetch(`/api/locations/postcode/${encodeURIComponent(normalizedOfficePostcode)}`);
       const postcodePayload = await postcodeResponse.json();
-      if (!postcodeResponse.ok && postcodeResponse.status !== 503) throw new Error(postcodePayload.error || 'Could not verify the main office postcode.');
-      const base = postcodePayload.location || { postcode: form.mainOfficePostcode.trim().toUpperCase(), areaName: '', latitude: null, longitude: null };
+      if (!postcodeResponse.ok && postcodeResponse.status !== 503) throw new Error(postcodePayload.error || 'The postcode was not found. Check it and try again.');
+      const base = postcodePayload.location || { postcode: normalizedOfficePostcode, areaName: '', latitude: null, longitude: null };
       const profileData = {
         business: { contactName: form.name, providerName: form.businessName, phone: form.phone, legalName: form.legalBusinessName, type: form.businessType, website: form.website, address: form.address, mainOfficePostcode: base.postcode, companiesHouseNumber: form.companiesHouseNumber },
         registration: { nation: form.nation, isRegistered: form.nation === 'England' ? form.cqcRegistered === 'yes' : form.otherRegistered === 'yes', cqcRegistered: form.nation === 'England' && form.cqcRegistered === 'yes', cqcRegistration: form.nation === 'England' ? form.cqcRegistration : '', registrationDetails: form.nation === 'England' ? form.cqcRegistration : form.otherRegistration, locationIds: (form.nation === 'England' ? form.cqcLocationIds : form.otherLocationIds).split(',').map((item) => item.trim()).filter(Boolean), cqcLocationIds: form.cqcLocationIds.split(',').map((item) => item.trim()).filter(Boolean), registeredManager: form.registeredManager, regulatedActivities: (form.nation === 'England' ? form.regulatedActivities : form.otherActivities).split(',').map((item) => item.trim()).filter(Boolean), regulator: ({ England: 'CQC', Wales: 'Care Inspectorate Wales', Scotland: 'Care Inspectorate Scotland', 'Northern Ireland': 'RQIA' })[form.nation], verificationSource: 'Self-declared; pending manual verification' },

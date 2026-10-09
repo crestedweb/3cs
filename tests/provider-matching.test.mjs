@@ -21,6 +21,8 @@ const approvedProvider = {
 
 test('normalizes UK postcodes across spaces and case', () => {
   assert.equal(normalizePostcode('le2 7lt'), 'LE2 7LT');
+  assert.equal(normalizePostcode('SW1A-1AA'), 'SW1A 1AA');
+  assert.equal(normalizePostcode(' SW1A\u00a01AA '), 'SW1A 1AA');
   assert.equal(normalizePostcode('GIR 0AA'), 'GIR 0AA');
   assert.equal(normalizePostcode('not a postcode'), '');
 });

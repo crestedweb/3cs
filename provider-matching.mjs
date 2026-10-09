@@ -1,5 +1,5 @@
 export function normalizePostcode(value = '') {
-  const compact = String(value).toUpperCase().replace(/\s+/g, '');
+  const compact = String(value).normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (compact !== 'GIR0AA' && !/^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(compact)) return '';
   return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
 }
