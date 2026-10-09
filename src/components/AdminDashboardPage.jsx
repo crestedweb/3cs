@@ -102,8 +102,10 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     return () => window.removeEventListener('storage', handleLeadUpdate);
   }, [refreshDashboard]);
 
+  const allCases = [...leads, ...enquiries].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   const newestLead = [...leads].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null;
-  const newestEnquiry = [...enquiries].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null;
+  const sortedEnquiries = [...enquiries].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const newestEnquiry = sortedEnquiries[0] || null;
 
   const filteredProviders = providers.filter((provider) => {
     const text = `${provider.businessName || provider.name || ''} ${provider.email || ''} ${provider.area || ''}`.toLowerCase();
@@ -111,11 +113,11 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   });
 
   const filteredLeads = statusFilter === 'All'
-    ? leads
-    : leads.filter((lead) => String(lead.status || 'New').toLowerCase() === statusFilter.toLowerCase());
+    ? allCases
+    : allCases.filter((lead) => String(lead.status || 'New').toLowerCase() === statusFilter.toLowerCase());
 
   const selectedProvider = providers.find((provider) => String(provider.id) === String(selectedProviderId)) || providers[0] || null;
-  const selectedLead = leads.find((lead) => String(lead.id) === String(selectedLeadId)) || newestLead || null;
+  const selectedLead = allCases.find((lead) => String(lead.id) === String(selectedLeadId)) || newestLead || newestEnquiry || null;
   const bookedLeads = leads.filter((lead) => String(lead.status || 'New').toLowerCase() === 'booked');
   const pendingProviders = providers.filter((provider) => String(provider.status || 'pending').toLowerCase() === 'pending');
   const activeProviders = providers.filter((provider) => String(provider.status || 'pending').toLowerCase() === 'active');
@@ -890,29 +892,28 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     const enquiryLead = newestEnquiry;
 
     return (
-      <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 18, maxWidth: 820 }}>
+      <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 18 }}>
         <div style={{ color: '#28A745', fontSize: 11, fontWeight: 800, letterSpacing: 1.1, textTransform: 'uppercase' }}>Inbox snapshot</div>
-        <h3 style={{ margin: '6px 0 16px', color: '#0B1D3A', fontSize: '1.2rem' }}>Latest enquiry</h3>
+        <h3 style={{ margin: '6px 0 5px', color: '#0B1D3A', fontSize: '1.2rem' }}>Contact enquiries</h3>
+        <p style={{ margin: '0 0 16px', color: '#5a6a7e', fontSize: '0.88rem' }}>New contact-form submissions appear at the top. Earlier enquiries remain in this list.</p>
         {!enquiryLead ? (
-          <div style={{ color: '#5a6a7e' }}>No enquiry has been submitted yet.</div>
+          <div style={{ color: '#5a6a7e' }}>No contact enquiries have been submitted yet.</div>
         ) : (
-          <div style={{ display: 'grid', gap: 14 }}>
-            <div style={{ border: '1px solid #dfeaf8', borderRadius: 14, background: '#f8fbff', padding: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12, flexWrap: 'wrap' }}>
-                <div>
-                  <strong style={{ display: 'block', color: '#0B1D3A', fontSize: '1.05rem' }}>{enquiryLead.family || 'New enquiry'}</strong>
-                  <span style={{ display: 'block', color: '#5a6a7e', marginTop: 4 }}>{enquiryLead.need || 'Care support'} · {enquiryLead.area || 'Area not provided'}</span>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {sortedEnquiries.map((item) => (
+              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid #dfeaf8', borderRadius: 12, background: item.id === enquiryLead.id ? '#f4fbf6' : '#fff', padding: 14 }}>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ display: 'block', color: '#0B1D3A' }}>{item.family || 'Contact enquiry'}</strong>
+                  <span style={{ display: 'block', color: '#5a6a7e', marginTop: 4, fontSize: '0.88rem' }}>{item.need || 'General enquiry'} · {item.area || 'Area not provided'}</span>
+                  <small style={{ display: 'block', color: '#758397', marginTop: 5 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable'}</small>
                 </div>
-                <span style={{ background: '#fff4d8', color: '#805a08', borderRadius: 999, padding: '6px 10px', fontSize: 12, fontWeight: 700 }}>{enquiryLead.status || 'New'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <span style={{ background: '#fff4d8', color: '#805a08', borderRadius: 999, padding: '6px 10px', fontSize: 11, fontWeight: 700 }}>{item.status || 'New'}</span>
+                  <button type="button" className="btn btn-ghost-green" onClick={() => updateView('leads', item.id)} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.78rem' }}>Open full case</button>
+                </div>
               </div>
-              <div style={{ marginTop: 12, color: '#5a6a7e', fontSize: '0.9rem' }}>
-                Received {enquiryLead.createdAt ? new Date(enquiryLead.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'recently'}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-green" onClick={() => updateView('leads', enquiryLead.id)} style={{ width: 'auto', padding: '10px 14px', fontSize: '0.82rem' }}>Open full case in Leads</button>
-              <button type="button" className="btn btn-ghost-green" onClick={() => updateView('recent-leads')} style={{ width: 'auto', padding: '10px 14px', fontSize: '0.82rem' }}>View recent leads</button>
-            </div>
+            ))}
+            <button type="button" className="btn btn-green" onClick={() => updateView('leads', enquiryLead.id)} style={{ width: 'fit-content', padding: '9px 13px', fontSize: '0.8rem' }}>Manage newest enquiry in Leads</button>
           </div>
         )}
       </div>
