@@ -4,12 +4,18 @@ import nodemailer from 'nodemailer';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import process from 'node:process';
+import { randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'url';
+import { Buffer } from 'node:buffer';
 import { createClient } from '@supabase/supabase-js';
+import { matchProviderToRequest, normalizePostcode } from './provider-matching.mjs';
+import { calculateReferralEligibility, isProviderSessionFor } from './provider-policy.mjs';
 import {
   createProviderId,
   createSubmissionId,
   getDestinationTable,
+  isEnquiryRecord,
   normalizeRecordType,
 } from './record-routing.mjs';
 
@@ -21,8 +27,13 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (allowedMimes.includes(file.mimetype) || file.originalname.match(/\.(pdf|doc|docx)$/i)) {
+    const allowed = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    };
+    const extension = path.extname(file.originalname).toLowerCase();
+    if (allowed[extension] === file.mimetype) {
       cb(null, true);
     } else {
       cb(new Error('Only PDF, DOC, and DOCX files are allowed'), false);
@@ -81,10 +92,15 @@ const supabaseAnon = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
   : null;
 
 const supabase = supabaseAdmin;
-const hasSupabaseAuth = Boolean(supabaseAnon || supabaseAdmin);
+const supabaseAuth = supabaseAnon || supabaseAdmin;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const authSessions = new Map();
+const postcodeLookupCache = new Map();
+const providerServiceOptions = ['Visiting/home care', 'Personal care', 'Live-in care', 'Overnight care', '24-hour care', 'Respite care', 'Emergency or urgent care', 'Hospital discharge and reablement', 'Companionship', 'Medication support', 'Domestic support', 'Complex care', 'Other'];
+const providerCareNeedOptions = ['Older adults', 'Dementia', 'Complex care', 'Physical disabilities', 'Learning disabilities', 'Autism', 'Mental health needs', 'Palliative or end-of-life care', 'Nursing care', 'Other specialist needs'];
+const normalizeSelections = (values, allowed) => [...new Set((Array.isArray(values) ? values : []).map((value) => String(value).trim()).filter((value) => allowed.includes(value)))];
 
 app.use(cors());
 app.use(express.json());
@@ -212,6 +228,14 @@ const persistedData = loadPersistedData();
 let providers = [...persistedData.providers];
 let leads = [...persistedData.leads];
 const fallbackLeads = [];
+let migratedLocalPasswords = false;
+providers = providers.map((provider) => {
+  const password = String(provider.password || '');
+  if (!password || password.startsWith('scrypt:')) return provider;
+  migratedLocalPasswords = true;
+  return { ...provider, password: hashProviderPassword(password) };
+});
+if (migratedLocalPasswords) persistAppData();
 
 function persistAppData() {
   try {
@@ -234,9 +258,28 @@ function getBearerToken(req) {
   return token;
 }
 
+function createSession(role, subject, email) {
+  const token = randomUUID();
+  authSessions.set(token, { role, subject: String(subject), email, expiresAt: Date.now() + 12 * 60 * 60 * 1000 });
+  return token;
+}
+
+function getSession(req) {
+  const token = getBearerToken(req);
+  const session = token ? authSessions.get(token) : null;
+  if (session && session.expiresAt > Date.now()) return session;
+  if (token) authSessions.delete(token);
+  return null;
+}
+
+app.post('/api/logout', (req, res) => {
+  const token = getBearerToken(req);
+  if (token) authSessions.delete(token);
+  return res.json({ ok: true });
+});
+
 function isConfiguredAdminRequest(req) {
-  const adminEmail = clean(process.env.ADMIN_EMAIL).toLowerCase();
-  return Boolean(adminEmail) && getBearerToken(req) === `admin-${adminEmail}-token`;
+  return getSession(req)?.role === 'admin';
 }
 
 function normalizeProvider(row) {
@@ -256,7 +299,27 @@ function normalizeProvider(row) {
     status: row.status || 'pending',
     password: row.password,
     createdAt: row.created_at || row.createdAt,
+    accountStatus: row.account_status || row.accountStatus || row.status || 'pending',
+    verificationStatus: row.verification_status || row.verificationStatus || (row.verified ? 'verified' : 'incomplete'),
+    referralEligibility: row.referral_eligibility || row.referralEligibility || 'temporarily_ineligible',
+    profileData: row.profile_data || row.profileData || {},
   };
+}
+
+function hashProviderPassword(password) {
+  const salt = randomUUID();
+  return `scrypt:${salt}:${scryptSync(password, salt, 64).toString('hex')}`;
+}
+
+function providerPasswordMatches(stored, supplied) {
+  const parts = String(stored || '').split(':');
+  if (parts.length === 3 && parts[0] === 'scrypt') {
+    const expected = Buffer.from(parts[2], 'hex');
+    const actual = scryptSync(supplied, parts[1], 64);
+    return expected.length === actual.length && timingSafeEqual(expected, actual);
+  }
+  // Keep existing local demo accounts usable; new local registrations are hashed.
+  return String(stored || '') === supplied;
 }
 
 function normalizeLead(row) {
@@ -319,19 +382,6 @@ function buildLeadFromEnquiry(body = {}) {
     message: clean(body.message || ''),
     recordType,
   };
-}
-
-function isEnquiryRecord(lead) {
-  const explicitType = clean(lead?.recordType || lead?.record_type || '').toLowerCase();
-  if (explicitType === 'enquiry') return true;
-  if (explicitType === 'lead') return false;
-
-  const message = String(lead?.message || '').trim();
-  if (!message) return false;
-
-  return message.toLowerCase().startsWith('[enquiry]')
-    || /^care enquiry for\b/i.test(message)
-    || /\benquiry\b/i.test(message);
 }
 
 async function persistLeadFromEnquiry(body = {}) {
@@ -519,21 +569,79 @@ async function getMarketplaceSummaryFromDataSource() {
 }
 
 function buildProviderSnapshot(provider) {
+  const business = provider.profileData?.business || {};
   return {
     id: provider.id,
-    name: provider.name,
-    businessName: provider.businessName,
+    name: business.contactName || provider.name,
+    businessName: business.providerName || provider.businessName,
     email: provider.email,
     phone: provider.phone,
     cqcRegistration: provider.cqcRegistration,
-    serviceType: provider.serviceType,
+    serviceType: provider.profileData?.services?.join(', ') || provider.serviceType,
     area: provider.area,
-    verified: provider.verified,
+    verified: provider.verificationStatus === 'verified',
     rating: provider.rating,
     responseTime: provider.responseTime,
-    capacity: provider.capacity,
+    capacity: provider.profileData?.availability ? `${Number(provider.profileData.availability.capacity || 0)} new clients` : provider.capacity,
     status: provider.status,
+    accountStatus: provider.accountStatus || provider.status || 'pending',
+    verificationStatus: provider.verificationStatus || 'incomplete',
+    referralEligibility: provider.referralEligibility || 'temporarily_ineligible',
+    profileData: provider.profileData || {},
+    createdAt: provider.createdAt,
   };
+}
+
+async function lookupPostcodeCoordinates(value) {
+  const postcode = normalizePostcode(value);
+  if (!postcode) return null;
+  if (postcodeLookupCache.has(postcode)) return postcodeLookupCache.get(postcode);
+  const lookup = (async () => {
+  try {
+    const response = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode.replace(/\s/g, ''))}`, { signal: AbortSignal.timeout(5000) });
+    const payload = await response.json();
+    const result = payload?.result;
+    if (!response.ok || !Number.isFinite(result?.latitude) || !Number.isFinite(result?.longitude)) return null;
+    return { latitude: result.latitude, longitude: result.longitude, postcode: result.postcode, outcode: result.outcode, areaName: result.parish || result.admin_district };
+  } catch { return null; }
+  })();
+  postcodeLookupCache.set(postcode, lookup);
+  if (postcodeLookupCache.size > 1000) postcodeLookupCache.delete(postcodeLookupCache.keys().next().value);
+  const result = await lookup;
+  if (!result) postcodeLookupCache.delete(postcode);
+  return result;
+}
+
+async function getMatchesForLead(lead, providerList) {
+  const postcode = String(lead.area || '').match(/[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/i)?.[0]
+    || ( /^[A-Z]{1,2}\d[A-Z\d]?$/i.test(String(lead.area || '').trim()) ? String(lead.area).trim() : '' );
+  const coordinates = await lookupPostcodeCoordinates(postcode);
+  const arrangement = String(lead.message || '').match(/(?:^|\|\s*)Arrangement:\s*([^|]+)/i)?.[1]?.trim().toLowerCase() || '';
+  const serviceMap = { 'visiting care': 'visiting/home care', 'personal care': 'personal care', 'live-in care': 'live-in care', 'overnight care': 'overnight care', '24-hour care': '24-hour care' };
+  const needServiceMap = { 'personal care': 'personal care', 'complex care': 'complex care', companionship: 'companionship', 'medication support': 'medication support', 'domestic support': 'domestic support', 'respite care': 'respite care', 'hospital discharge and rehabilitation': 'hospital discharge and reablement', 'other care support': 'other' };
+  const careNeedMap = {
+    'dementia support': ['dementia'],
+    'complex care': ['complex care'],
+    'learning disability and autism support': ['learning disabilities', 'autism'],
+  };
+  const urgency = String(lead.urgency || '').toLowerCase();
+  const requestedWithinDays = urgency.includes('as soon') || urgency === 'urgent' || urgency === 'immediately' ? 0
+    : urgency.includes('2 week') ? 14
+      : urgency.includes('week') ? 7
+        : urgency.includes('month') || urgency.includes('exploring') ? 30
+          : 7;
+  const requestedDateValue = new Date();
+  requestedDateValue.setDate(requestedDateValue.getDate() + requestedWithinDays);
+  const requestedDate = `${requestedDateValue.getFullYear()}-${String(requestedDateValue.getMonth() + 1).padStart(2, '0')}-${String(requestedDateValue.getDate()).padStart(2, '0')}`;
+  const request = {
+    postcode,
+    coordinates,
+    service: lead.serviceType || serviceMap[arrangement] || needServiceMap[String(lead.need || '').toLowerCase()] || '',
+    careNeeds: lead.careNeeds || careNeedMap[String(lead.need || '').toLowerCase()] || [],
+    areaName: coordinates?.areaName || '',
+    requestedDate,
+  };
+  return providerList.map((provider) => ({ provider: buildProviderSnapshot(provider), areaName: coordinates?.areaName || '', outcode: coordinates?.outcode || '', ...matchProviderToRequest(provider, request) }));
 }
 
 async function sendProviderRegistrationEmail(provider) {
@@ -578,30 +686,52 @@ async function sendProviderRegistrationEmail(provider) {
   });
 }
 
-function buildMarketplaceSummary() {
-  const activeProviders = providers.filter((provider) => provider.status === 'active').length;
-  const newLeads = leads.filter((lead) => lead.status === 'New').length;
-  const qualifiedLeads = leads.filter((lead) => lead.status === 'Qualified').length;
-  const bookedLeads = leads.filter((lead) => lead.status === 'Booked').length;
-
-  return {
-    totalProviders: providers.length,
-    activeProviders,
-    totalLeads: leads.length,
-    newLeads,
-    qualifiedLeads,
-    bookedLeads,
-    averageRating: (providers.reduce((sum, provider) => sum + provider.rating, 0) / providers.length).toFixed(1),
-  };
-}
-
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: '3CS marketplace API is online.' });
 });
 
 app.get('/api/providers', async (req, res) => {
   const providerList = await getProvidersFromDataSource();
-  res.json({ providers: providerList.map(buildProviderSnapshot) });
+  res.json({ providers: providerList.map((provider) => ({ ...buildProviderSnapshot(provider), profileData: undefined })) });
+});
+
+app.get('/api/locations/postcode/:postcode', async (req, res) => {
+  const postcode = normalizePostcode(req.params.postcode);
+  if (!postcode) return res.status(400).json({ error: 'Enter a valid UK postcode.' });
+  try {
+    const response = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode.replace(/\s/g, ''))}`, { signal: AbortSignal.timeout(5000) });
+    const payload = await response.json();
+    if (!response.ok || !payload?.result) return res.status(404).json({ error: 'Postcode was not found. Check it and try again.' });
+    const result = payload.result;
+    return res.json({ location: { postcode: result.postcode, country: result.country, areaName: result.parish || result.admin_district, latitude: result.latitude, longitude: result.longitude, outcode: result.outcode } });
+  } catch {
+    return res.status(503).json({ error: 'Postcode lookup is temporarily unavailable. Try again later.' });
+  }
+});
+
+app.get('/api/locations/outcode/:outcode', async (req, res) => {
+  const outcode = clean(req.params.outcode).toUpperCase();
+  if (!/^[A-Z]{1,2}\d[A-Z\d]?$/.test(outcode)) return res.status(400).json({ error: 'Enter a valid UK postcode district.' });
+  try {
+    const response = await fetch(`https://api.postcodes.io/outcodes/${encodeURIComponent(outcode)}`, { signal: AbortSignal.timeout(5000) });
+    const payload = await response.json();
+    const result = payload?.result;
+    if (!response.ok || !result) return res.status(404).json({ error: 'Postcode district was not found.' });
+    return res.json({ location: { id: `outcode-${outcode}`, name: `${outcode} postcode district`, outcode, kind: 'postcode-district' } });
+  } catch { return res.status(503).json({ error: 'Postcode district lookup is temporarily unavailable.' }); }
+});
+
+app.get('/api/locations/search', async (req, res) => {
+  const query = clean(req.query.q);
+  if (query.length < 2) return res.json({ locations: [] });
+  try {
+    const response = await fetch(`https://api.postcodes.io/places?q=${encodeURIComponent(query)}`, { signal: AbortSignal.timeout(5000) });
+    const payload = await response.json();
+    const locations = (payload?.result || []).slice(0, 8).map((item) => ({ id: item.code, name: item.name_1, aliases: item.name_2 ? [item.name_2] : [], kind: 'place', outcode: item.outcode || '', latitude: Number(item.latitude) || null, longitude: Number(item.longitude) || null }));
+    return res.json({ locations });
+  } catch {
+    return res.status(503).json({ error: 'Location search is temporarily unavailable.' });
+  }
 });
 
 app.get('/api/providers/:id', async (req, res) => {
@@ -611,7 +741,7 @@ app.get('/api/providers/:id', async (req, res) => {
     return res.status(404).json({ error: 'Provider not found.' });
   }
 
-  return res.json({ provider: buildProviderSnapshot(provider) });
+  return res.json({ provider: { ...buildProviderSnapshot(provider), profileData: undefined } });
 });
 
 app.post('/api/providers/register', async (req, res) => {
@@ -624,14 +754,33 @@ app.post('/api/providers/register', async (req, res) => {
   const serviceType = clean(body.serviceType || body.service);
   const area = clean(body.area);
   const password = clean(body.password || 'welcome123');
+  const submittedProfileData = body.profileData && typeof body.profileData === 'object' ? body.profileData : {};
+  const submittedServices = normalizeSelections(submittedProfileData.services, providerServiceOptions);
+  const submittedCareNeeds = normalizeSelections(submittedProfileData.careNeeds, providerCareNeedOptions);
+  const businessTypes = ['limited_company', 'sole_trader', 'partnership', 'charity', 'other'];
 
-  if (!name || !businessName || !email || !serviceType || !area) {
-    return res.status(400).json({ error: 'All key registration fields are required.' });
+  if (!name || !businessName || !email || !phone || !serviceType || !area || !businessTypes.includes(submittedProfileData.business?.type) || !submittedProfileData.coverage?.basePostcode || !submittedServices.length || !submittedCareNeeds.length || body.termsAccepted !== true) {
+    return res.status(400).json({ error: 'Complete the contact, business, service, and main office postcode fields.' });
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  const normalizedBasePostcode = normalizePostcode(submittedProfileData.coverage.basePostcode);
+  if (!normalizedBasePostcode) return res.status(400).json({ error: 'Enter a valid UK main office postcode.' });
+  const initialRadius = Number(submittedProfileData.coverage.radiusMiles || 0);
+  if (!Number.isFinite(initialRadius) || initialRadius < 0 || initialRadius > 250) return res.status(400).json({ error: 'Travel radius must be between 0 and 250 miles.' });
+  if (submittedProfileData.registration?.cqcRegistered && !clean(submittedProfileData.registration?.cqcRegistration)) return res.status(400).json({ error: 'CQC registration details are required when marked CQC registered.' });
+
+  if (password.length < 10) {
+    return res.status(400).json({ error: 'Password must be at least 10 characters long.' });
   }
+
+  const baseLocation = await lookupPostcodeCoordinates(normalizedBasePostcode);
+  const profileData = {
+    ...submittedProfileData,
+    services: submittedServices,
+    careNeeds: submittedCareNeeds,
+    coverage: { ...submittedProfileData.coverage, basePostcode: normalizedBasePostcode, baseCoordinates: baseLocation ? { latitude: baseLocation.latitude, longitude: baseLocation.longitude } : null, baseArea: baseLocation?.areaName || '' },
+    consent: { providerTermsAccepted: true, acceptedAt: new Date().toISOString() },
+  };
 
   const providerList = await getProvidersFromDataSource();
   const existingProvider = providerList.find((provider) => String(provider.email || '').toLowerCase() === email);
@@ -649,19 +798,27 @@ app.post('/api/providers/register', async (req, res) => {
     serviceType,
     area,
     verified: false,
-    rating: 4.8,
+    rating: 0,
     responseTime: '< 1 hour',
     capacity: 'Open for leads',
     status: 'pending',
-    password,
+    accountStatus: 'pending',
+    verificationStatus: 'pending_review',
+    referralEligibility: 'temporarily_ineligible',
+    profileData: {
+      ...profileData,
+      coverage: { ...(profileData.coverage || {}), basePostcode: normalizedBasePostcode },
+    },
+    password: supabaseAdmin ? undefined : hashProviderPassword(password),
     createdAt: new Date().toISOString(),
   };
 
   let savedProvider = newProvider;
   let source = 'local';
+  let createdAuthUserId = null;
   if (supabaseAdmin) {
     try {
-      const { error: authError } = await supabaseAdmin.auth.admin.createUser({
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
@@ -677,6 +834,7 @@ app.post('/api/providers/register', async (req, res) => {
       if (authError) {
         throw new Error(authError.message);
       }
+      createdAuthUserId = authData?.user?.id || null;
 
       const { data, error } = await supabase.from('providers').insert([{
         name,
@@ -685,9 +843,13 @@ app.post('/api/providers/register', async (req, res) => {
         phone,
         cqc_registration: cqcRegistration,
         service_type: serviceType,
-        area,
-        verified: false,
-        rating: 4.8,
+          area,
+          profile_data: newProvider.profileData,
+          account_status: 'pending',
+          verification_status: 'pending_review',
+          referral_eligibility: 'temporarily_ineligible',
+          verified: false,
+          rating: 0,
         response_time: '< 1 hour',
         status: 'pending',
       }]).select();
@@ -703,6 +865,7 @@ app.post('/api/providers/register', async (req, res) => {
       source = 'supabase';
     } catch (error) {
       console.error('Supabase provider registration failed:', error.message);
+      if (createdAuthUserId) await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId).catch(() => {});
       return res.status(500).json({
         error: 'Provider registration could not be saved to Supabase.',
         details: error.message,
@@ -727,6 +890,175 @@ app.post('/api/providers/register', async (req, res) => {
   });
 });
 
+app.put('/api/providers/:id/profile', async (req, res) => {
+  const providerId = String(req.params.id);
+  if (!isProviderSessionFor(getSession(req), providerId)) return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
+  const profileData = req.body?.profileData;
+  if (!profileData || typeof profileData !== 'object' || !profileData.coverage || !Array.isArray(profileData.coverage.locations)) {
+    return res.status(400).json({ error: 'A structured provider profile and service-area list are required.' });
+  }
+  const providerList = await getProvidersFromDataSource();
+  const current = providerList.find((item) => String(item.id) === providerId);
+  if (!current) return res.status(404).json({ error: 'Provider not found.' });
+  const basePostcode = normalizePostcode(profileData.coverage.basePostcode || current.profileData?.coverage?.basePostcode);
+  const radiusMiles = Number(profileData.coverage.radiusMiles || 0);
+  if (!basePostcode || !Number.isFinite(radiusMiles) || radiusMiles < 0 || radiusMiles > 250) return res.status(400).json({ error: 'Check the main office postcode and enter a travel radius from 0 to 250 miles.' });
+  const selectedLocations = [...(profileData.coverage.locations || []), ...(profileData.coverage.exclusions || [])];
+  if (selectedLocations.some((item) => !item || typeof item.id !== 'string' || typeof item.name !== 'string')) return res.status(400).json({ error: 'Service-area entries must be selected UK locations.' });
+  const lookedUpBase = await lookupPostcodeCoordinates(basePostcode);
+  const sameBase = basePostcode === current.profileData?.coverage?.basePostcode;
+  const nextProfile = {
+    ...(current.profileData || {}),
+    business: {
+      ...(current.profileData?.business || {}),
+      legalName: String(profileData.business?.legalName || ''),
+      type: ['limited_company', 'sole_trader', 'partnership', 'charity', 'other'].includes(profileData.business?.type) ? profileData.business.type : current.profileData?.business?.type || '',
+      companiesHouseNumber: String(profileData.business?.companiesHouseNumber || ''),
+      website: String(profileData.business?.website || ''),
+      address: String(profileData.business?.address || ''),
+      contactName: String(profileData.business?.contactName || current.name),
+      providerName: String(profileData.business?.providerName || current.businessName),
+      phone: String(profileData.business?.phone || current.phone || ''),
+    },
+    registration: {
+      nation: ['England', 'Wales', 'Scotland', 'Northern Ireland'].includes(profileData.registration?.nation)
+        ? profileData.registration.nation : current.profileData?.registration?.nation || 'England',
+      regulator: ({ England: 'CQC', Wales: 'Care Inspectorate Wales', Scotland: 'Care Inspectorate Scotland', 'Northern Ireland': 'RQIA' })[profileData.registration?.nation] || current.profileData?.registration?.regulator || 'CQC',
+      isRegistered: profileData.registration?.isRegistered === true,
+      cqcRegistered: (profileData.registration?.nation || current.profileData?.registration?.nation || 'England') === 'England' && profileData.registration?.isRegistered === true,
+      registrationDetails: String(profileData.registration?.registrationDetails || ''),
+      cqcRegistration: (profileData.registration?.nation || current.profileData?.registration?.nation || 'England') === 'England' ? String(profileData.registration?.registrationDetails || '') : '',
+      otherRegistration: (profileData.registration?.nation || current.profileData?.registration?.nation || 'England') === 'England' ? '' : String(profileData.registration?.registrationDetails || ''),
+      locationIds: Array.isArray(profileData.registration?.locationIds) ? [...new Set(profileData.registration.locationIds.map(String).map((item) => item.trim()).filter(Boolean))] : [],
+      cqcLocationIds: (profileData.registration?.nation || current.profileData?.registration?.nation || 'England') === 'England' && Array.isArray(profileData.registration?.locationIds) ? [...new Set(profileData.registration.locationIds.map(String).map((item) => item.trim()).filter(Boolean))] : [],
+      registeredManager: String(profileData.registration?.registeredManager || ''),
+      regulatedActivities: Array.isArray(profileData.registration?.regulatedActivities) ? [...new Set(profileData.registration.regulatedActivities.map(String).map((item) => item.trim()).filter(Boolean))] : [],
+      verificationSource: 'Self-declared; pending manual verification',
+    },
+    coverage: {
+      ...(current.profileData?.coverage || {}),
+      ...profileData.coverage,
+      basePostcode,
+      radiusMiles,
+      baseCoordinates: lookedUpBase ? { latitude: lookedUpBase.latitude, longitude: lookedUpBase.longitude } : (sameBase ? current.profileData?.coverage?.baseCoordinates || null : null),
+      baseArea: lookedUpBase?.areaName || (sameBase ? current.profileData?.coverage?.baseArea || '' : ''),
+      locations: [...new Map((profileData.coverage.locations || []).map((item) => [item.id, item])).values()],
+      exclusions: [...new Map((profileData.coverage.exclusions || []).map((item) => [item.id, item])).values()],
+    },
+    services: Array.isArray(profileData.services) ? normalizeSelections(profileData.services, providerServiceOptions) : current.profileData?.services || [],
+    careNeeds: Array.isArray(profileData.careNeeds) ? normalizeSelections(profileData.careNeeds, providerCareNeedOptions) : current.profileData?.careNeeds || [],
+    serviceDescription: String(profileData.serviceDescription || ''),
+    specialisms: Array.isArray(profileData.specialisms) ? profileData.specialisms : [],
+    minimumPackage: String(profileData.minimumPackage || ''),
+    minimumVisit: String(profileData.minimumVisit || ''),
+    indicativePrice: String(profileData.indicativePrice || ''),
+    availability: profileData.availability && typeof profileData.availability === 'object' ? profileData.availability : current.profileData?.availability || {},
+    compliance: {
+      ...(current.profileData?.compliance || {}),
+      insurance: profileData.compliance?.insurance && typeof profileData.compliance.insurance === 'object'
+        ? { publicLiabilityExpiry: String(profileData.compliance.insurance.publicLiabilityExpiry || ''), employersLiabilityExpiry: String(profileData.compliance.insurance.employersLiabilityExpiry || ''), indemnityExpiry: String(profileData.compliance.insurance.indemnityExpiry || '') }
+        : current.profileData?.compliance?.insurance || {},
+      policies: profileData.compliance?.policies && typeof profileData.compliance.policies === 'object'
+        ? Object.fromEntries(['safeguarding', 'complaints', 'medication', 'infectionControl'].map((key) => [key, profileData.compliance.policies[key] === true]))
+        : current.profileData?.compliance?.policies || {},
+    },
+  };
+  const identityChanged = ['contactName', 'providerName', 'legalName', 'type', 'companiesHouseNumber'].some((key) => String(nextProfile.business?.[key] || '') !== String(current.profileData?.business?.[key] || ''));
+  const registrationSummary = (value = {}) => ({
+    nation: value.nation || 'England',
+    isRegistered: value.isRegistered === true || value.cqcRegistered === true,
+    registrationDetails: String(value.registrationDetails || (value.nation === 'England' ? value.cqcRegistration : value.otherRegistration) || ''),
+    locationIds: [...(value.locationIds || value.cqcLocationIds || value.otherLocationIds || [])].map(String),
+    registeredManager: String(value.registeredManager || ''),
+    regulatedActivities: [...(value.regulatedActivities || [])].map(String),
+  });
+  const registrationChanged = JSON.stringify(registrationSummary(nextProfile.registration)) !== JSON.stringify(registrationSummary(current.profileData?.registration));
+  const nextVerificationStatus = identityChanged || registrationChanged ? 'pending_review' : current.verificationStatus;
+  const referralEligibility = calculateReferralEligibility(current.status, nextVerificationStatus, nextProfile);
+  if (supabase) {
+    const { data, error } = await supabase.from('providers').update({ profile_data: nextProfile, name: nextProfile.business.contactName, business_name: nextProfile.business.providerName, phone: nextProfile.business.phone, verification_status: nextVerificationStatus, referral_eligibility: referralEligibility }).eq('id', providerId).select();
+    if (error) return res.status(500).json({ error: 'Unable to save provider profile.', details: error.message });
+    if (!data?.[0]) return res.status(404).json({ error: 'Provider not found.' });
+    const saved = normalizeProvider(data[0]);
+    return res.json({ provider: buildProviderSnapshot(saved) });
+  }
+  const target = providers.find((item) => String(item.id) === providerId);
+  if (!target) return res.status(404).json({ error: 'Provider not found.' });
+  target.name = nextProfile.business.contactName;
+  target.businessName = nextProfile.business.providerName;
+  target.phone = nextProfile.business.phone;
+  target.profileData = nextProfile;
+  target.verificationStatus = nextVerificationStatus;
+  target.referralEligibility = referralEligibility;
+  persistAppData();
+  return res.json({ provider: buildProviderSnapshot(target) });
+});
+
+app.post('/api/providers/:id/documents', upload.single('document'), async (req, res) => {
+  const providerId = String(req.params.id);
+  if (!isProviderSessionFor(getSession(req), providerId)) return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
+  if (!req.file) return res.status(400).json({ error: 'Select a PDF, DOC, or DOCX document under 5 MB.' });
+  const buffer = req.file.buffer;
+  const extension = path.extname(req.file.originalname).toLowerCase();
+  const validSignature = extension === '.pdf' ? buffer.subarray(0, 5).toString() === '%PDF-'
+    : extension === '.doc' ? buffer.subarray(0, 8).equals(Buffer.from('D0CF11E0A1B11AE1', 'hex'))
+      : extension === '.docx' && buffer.subarray(0, 2).toString() === 'PK';
+  if (!validSignature) return res.status(400).json({ error: 'The file contents do not match the selected document type.' });
+  if (!supabase) return res.status(503).json({ error: 'Private document storage requires Supabase configuration.' });
+  const providerList = await getProvidersFromDataSource();
+  const provider = providerList.find((item) => String(item.id) === providerId);
+  if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+  const allowedDocumentTypes = ['public_liability', 'employers_liability', 'professional_indemnity', 'safeguarding', 'complaints', 'medication', 'infection_control', 'registration', 'other'];
+  const documentType = allowedDocumentTypes.includes(String(req.body?.documentType)) ? String(req.body.documentType) : 'other';
+  const bucket = process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents';
+  const storagePath = `${providerId}/${randomUUID()}-${path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const { error: storageError } = await supabase.storage.from(bucket).upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+  if (storageError) return res.status(500).json({ error: 'Unable to securely store this document.', details: storageError.message });
+  const document = { id: randomUUID(), type: documentType, name: path.basename(req.file.originalname), mimeType: req.file.mimetype, size: req.file.size, storagePath, uploadedAt: new Date().toISOString(), reviewStatus: 'pending' };
+  const profileData = { ...(provider.profileData || {}), compliance: { ...(provider.profileData?.compliance || {}), documents: [...(provider.profileData?.compliance?.documents || []), document] } };
+  const referralEligibility = calculateReferralEligibility(provider.status, provider.verificationStatus, profileData);
+  const { data, error } = await supabase.from('providers').update({ profile_data: profileData, referral_eligibility: referralEligibility }).eq('id', providerId).select();
+  if (error || !data?.[0]) {
+    await supabase.storage.from(bucket).remove([storagePath]);
+    return res.status(500).json({ error: 'Document was uploaded but could not be attached to the provider profile.', details: error?.message });
+  }
+  return res.status(201).json({ document, provider: buildProviderSnapshot(normalizeProvider(data[0])) });
+});
+
+app.get('/api/admin/providers/:providerId/documents/:documentId/url', async (req, res) => {
+  if (!isConfiguredAdminRequest(req)) return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  const provider = (await getProvidersFromDataSource()).find((item) => String(item.id) === String(req.params.providerId));
+  const document = provider?.profileData?.compliance?.documents?.find((item) => item.id === req.params.documentId);
+  if (!document) return res.status(404).json({ error: 'Document not found.' });
+  const { data, error } = await supabase.storage.from(process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents').createSignedUrl(document.storagePath, 60);
+  if (error) return res.status(500).json({ error: 'Unable to access provider document.' });
+  return res.json({ url: data.signedUrl });
+});
+
+app.put('/api/admin/providers/:providerId/documents/:documentId', async (req, res) => {
+  if (!isConfiguredAdminRequest(req)) return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  const reviewStatus = String(req.body?.reviewStatus || '').toLowerCase();
+  if (!['reviewed', 'rejected'].includes(reviewStatus)) return res.status(400).json({ error: 'Document review status must be reviewed or rejected.' });
+  const providerList = await getProvidersFromDataSource();
+  const provider = providerList.find((item) => String(item.id) === String(req.params.providerId));
+  if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+  const documents = provider.profileData?.compliance?.documents || [];
+  const updatedDocuments = documents.map((item) => item.id === req.params.documentId ? { ...item, reviewStatus, reviewedAt: new Date().toISOString() } : item);
+  if (!documents.some((item) => item.id === req.params.documentId)) return res.status(404).json({ error: 'Document not found.' });
+  const profileData = { ...provider.profileData, compliance: { ...provider.profileData.compliance, documents: updatedDocuments } };
+  const referralEligibility = calculateReferralEligibility(provider.status, provider.verificationStatus, profileData);
+  if (supabase) {
+    const { error } = await supabase.from('providers').update({ profile_data: profileData, referral_eligibility: referralEligibility }).eq('id', provider.id);
+    if (error) return res.status(500).json({ error: 'Unable to save document review.' });
+  } else {
+    const localProvider = providers.find((item) => String(item.id) === String(provider.id));
+    localProvider.profileData = profileData;
+    localProvider.referralEligibility = referralEligibility;
+    persistAppData();
+  }
+  return res.json({ message: 'Document review status saved.', profileData });
+});
+
 app.post('/api/providers/login', async (req, res) => {
   const body = req.body || {};
   const email = clean(body.email).toLowerCase();
@@ -736,22 +1068,15 @@ app.post('/api/providers/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required.' });
   }
 
-  if (supabaseAnon) {
+  if (supabaseAuth) {
     try {
-      const { data, error } = await supabaseAnon.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password });
       if (!error && data?.user && data.user.user_metadata?.role === 'provider') {
-        const provider = providers.find((item) => item.email.toLowerCase() === email);
-        const providerRecord = provider || { id: createProviderId(), businessName: data.user.user_metadata?.business_name || 'Provider', email, area: data.user.user_metadata?.area || 'Not set' };
+        const provider = (await getProvidersFromDataSource()).find((item) => item.email.toLowerCase() === email);
+        if (!provider) return res.status(403).json({ error: 'Provider account has no registered profile. Contact support.' });
         return res.json({
-          token: `provider-${providerRecord.id}-token`,
-          provider: buildProviderSnapshot({
-            ...providerRecord,
-            businessName: providerRecord.businessName || providerRecord.business_name,
-            name: providerRecord.name || data.user.user_metadata?.name || 'Provider user',
-            area: providerRecord.area || data.user.user_metadata?.area || 'Not set',
-            status: providerRecord.status || 'active',
-            rating: providerRecord.rating || 4.8,
-          }),
+          token: createSession('provider', provider.id, email),
+          provider: buildProviderSnapshot(provider),
         });
       }
     } catch (error) {
@@ -759,13 +1084,13 @@ app.post('/api/providers/login', async (req, res) => {
     }
   }
 
-  const provider = providers.find((item) => item.email.toLowerCase() === email && item.password === password);
+  const provider = providers.find((item) => item.email.toLowerCase() === email && providerPasswordMatches(item.password, password));
   if (!provider) {
     return res.status(401).json({ error: 'Invalid provider login credentials.' });
   }
 
   return res.json({
-    token: `provider-${provider.id}-token`,
+    token: createSession('provider', provider.id, email),
     provider: buildProviderSnapshot(provider),
   });
 });
@@ -857,12 +1182,12 @@ app.post('/api/admin/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required.' });
   }
 
-  if (supabaseAnon) {
+  if (supabaseAuth) {
     try {
-      const { data, error } = await supabaseAnon.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password });
       if (!error && data?.user && data.user.user_metadata?.role === 'admin') {
         return res.json({
-          token: `admin-${email}-token`,
+          token: createSession('admin', data.user.id, email),
           admin: {
             name: data.user.user_metadata?.name || '3Cs Care Admin',
             email,
@@ -879,7 +1204,7 @@ app.post('/api/admin/login', async (req, res) => {
   const configuredAdminPassword = String(process.env.ADMIN_PASSWORD || '');
   if (configuredAdminEmail && configuredAdminPassword && email === configuredAdminEmail && password === configuredAdminPassword) {
     return res.json({
-      token: `admin-${configuredAdminEmail}-token`,
+      token: createSession('admin', configuredAdminEmail, configuredAdminEmail),
       admin: {
         name: '3Cs Care Admin',
         email,
@@ -916,6 +1241,31 @@ app.put('/api/admin/providers/:id/status', async (req, res) => {
     message: `Provider status updated to ${nextStatus}.`,
     provider: buildProviderSnapshot(providers[providerIndex]),
   });
+});
+
+app.put('/api/admin/providers/:id/review', async (req, res) => {
+  if (!isConfiguredAdminRequest(req)) return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  const id = String(req.params.id);
+  const accountStatus = String(req.body?.accountStatus || '').toLowerCase();
+  const verificationStatus = String(req.body?.verificationStatus || '').toLowerCase();
+  if (!['pending', 'active', 'suspended'].includes(accountStatus)) return res.status(400).json({ error: 'Invalid account status.' });
+  if (!['incomplete', 'pending_review', 'verified', 'rejected', 'expired'].includes(verificationStatus)) return res.status(400).json({ error: 'Invalid verification status.' });
+  const providerList = await getProvidersFromDataSource();
+  const reviewedProvider = providerList.find((item) => String(item.id) === id);
+  if (!reviewedProvider) return res.status(404).json({ error: 'Provider not found.' });
+  const referralEligibility = calculateReferralEligibility(accountStatus, verificationStatus, reviewedProvider.profileData);
+  if (supabase) {
+    const { data, error } = await supabase.from('providers').update({ status: accountStatus, account_status: accountStatus, verification_status: verificationStatus, referral_eligibility: referralEligibility, verified: verificationStatus === 'verified' }).eq('id', id).select();
+    if (error) return res.status(500).json({ error: 'Unable to save provider review.', details: error.message });
+    if (!data?.[0]) return res.status(404).json({ error: 'Provider not found.' });
+    const provider = normalizeProvider(data[0]);
+    return res.json({ provider: buildProviderSnapshot(provider) });
+  }
+  const provider = providers.find((item) => String(item.id) === id);
+  if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+  Object.assign(provider, { status: accountStatus, accountStatus, verificationStatus, referralEligibility, verified: verificationStatus === 'verified' });
+  persistAppData();
+  return res.json({ provider: buildProviderSnapshot(provider) });
 });
 
 app.delete('/api/admin/providers/:id', async (req, res) => {
@@ -967,6 +1317,17 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
   const leadId = String(req.params.id);
   const providerName = clean(req.body?.providerName || 'Unassigned');
   const matchStatus = clean(req.body?.matchStatus || 'Matched');
+
+  const leadList = await getLeadsFromDataSource();
+  const requestedLead = leadList.find((item) => String(item.id) === leadId);
+  if (!requestedLead) return res.status(404).json({ error: 'Lead not found.' });
+  if (providerName !== 'Unassigned') {
+    const providerList = await getProvidersFromDataSource();
+    const candidate = providerList.find((item) => item.businessName === providerName || item.name === providerName);
+    if (!candidate) return res.status(404).json({ error: 'Provider not found.' });
+    const candidateMatch = (await getMatchesForLead(requestedLead, [candidate]))[0];
+    if (!candidateMatch.eligible) return res.status(422).json({ error: 'This provider is not eligible for this referral.', reasons: candidateMatch.reasons });
+  }
 
   try {
     const lead = await updateLeadRecord(
@@ -1124,7 +1485,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
       },
       leads: leadRecords,
       enquiries: enquiryRecords,
-      providers: providerList.slice(0, 6),
+      providers: providerList,
       overview: [
         ['New enquiries', String(newLeads)],
         ['Matched cases', String(matchedLeads)],
@@ -1135,12 +1496,19 @@ app.get('/api/admin/dashboard', async (req, res) => {
   });
 });
 
-app.get('/api/provider/dashboard/:providerId', async (req, res) => {
-  const token = getBearerToken(req);
-  const providerId = String(req.params.providerId);
-  const expectedProviderToken = `provider-${providerId}-token`;
+app.get('/api/admin/leads/:id/matches', async (req, res) => {
+  if (!isConfiguredAdminRequest(req)) return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  const leadList = await getLeadsFromDataSource();
+  const lead = leadList.find((item) => String(item.id) === String(req.params.id));
+  if (!lead) return res.status(404).json({ error: 'Lead not found.' });
+  const providerList = await getProvidersFromDataSource();
+  return res.json({ matches: await getMatchesForLead(lead, providerList) });
+});
 
-  if (token !== expectedProviderToken) {
+app.get('/api/provider/dashboard/:providerId', async (req, res) => {
+  const providerId = String(req.params.providerId);
+  const session = getSession(req);
+  if (!isProviderSessionFor(session, providerId)) {
     return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
   }
 
@@ -1151,15 +1519,18 @@ app.get('/api/provider/dashboard/:providerId', async (req, res) => {
   }
 
   const leadList = await getLeadsFromDataSource();
-  const assignedLeads = leadList
-    .filter((lead) => lead.providerName === provider.businessName || lead.providerName === 'Unassigned')
-    .slice(0, 4)
-    .map(({ contactEmail, phone, message, family, ...lead }) => ({
-      ...lead,
-      family: 'Private care opportunity',
-      matchStatus: lead.matchStatus || 'Awaiting triage',
-      followUpStage: lead.followUpStage || 'Pending',
-    }));
+  const matches = await Promise.all(leadList.map(async (lead) => {
+    const providerMatch = (await getMatchesForLead(lead, [provider]))[0];
+    if (!providerMatch.eligible) return null;
+    const safeLead = { ...lead };
+    delete safeLead.contactEmail;
+    delete safeLead.phone;
+    delete safeLead.message;
+    delete safeLead.family;
+    const outcode = providerMatch.outcode || String(lead.area || '').match(/[A-Z]{1,2}\d[A-Z\d]?/i)?.[0] || '';
+    return { ...safeLead, area: providerMatch.areaName || (outcode ? `${outcode} area` : 'Area shared after referral review'), family: 'Private care opportunity', matchStatus: lead.matchStatus || 'Awaiting triage', followUpStage: lead.followUpStage || 'Pending', matchReasons: providerMatch.reasons };
+  }));
+  const assignedLeads = matches.filter(Boolean).slice(0, 20);
 
   return res.json({
     provider: buildProviderSnapshot(provider),
@@ -1464,6 +1835,18 @@ Received on:
     console.error('req.file:', req.file);
     return res.status(502).json({ error: "Email could not be sent.", details: error.message, lead: leadRecord });
   }
+});
+
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    const message = error.code === 'LIMIT_FILE_SIZE' ? 'Files must be 5 MB or smaller.' : 'The uploaded file could not be accepted.';
+    return res.status(400).json({ error: message });
+  }
+  if (error) {
+    console.error('Request failed:', error.message);
+    return res.status(400).json({ error: 'The request could not be processed.' });
+  }
+  return next();
 });
 
 app.use((req, res, next) => {

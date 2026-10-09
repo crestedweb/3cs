@@ -1,6 +1,44 @@
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { AUTH_KEYS } from '../data/siteData';
 
-export default function ProviderDashboardPage({ providerSession, onBack, onLogout }) {
+const dashboardServices = ['Visiting/home care', 'Personal care', 'Live-in care', 'Overnight care', '24-hour care', 'Respite care', 'Emergency or urgent care', 'Hospital discharge and reablement', 'Companionship', 'Medication support', 'Domestic support', 'Complex care', 'Other'];
+const dashboardCareNeeds = ['Older adults', 'Dementia', 'Complex care', 'Physical disabilities', 'Learning disabilities', 'Autism', 'Mental health needs', 'Palliative or end-of-life care', 'Nursing care', 'Other specialist needs'];
+
+export default function ProviderDashboardPage({ providerSession, setProviderSession, dashboardLeads = [], setDashboardLeads, onBack, onLogout }) {
+  const [profileData, setProfileData] = useState(() => ({ ...(providerSession?.profileData || {}), coverage: { radiusMiles: 0, locations: [], exclusions: [], ...(providerSession?.profileData?.coverage || {}) } }));
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
+  const [areaSearch, setAreaSearch] = useState('');
+  const [postcodeAreaSearch, setPostcodeAreaSearch] = useState('');
+  const [areaOptions, setAreaOptions] = useState([]);
+  const [areaExcludedMode, setAreaExcludedMode] = useState(false);
+  const [documentFile, setDocumentFile] = useState(null);
+  const [documentType, setDocumentType] = useState('other');
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  useEffect(() => {
+    if (!providerSession?.id || !providerSession?.token || !setDashboardLeads) return;
+    let active = true;
+    fetch(`/api/provider/dashboard/${providerSession.id}`, { headers: { Authorization: `Bearer ${providerSession.token}` } })
+      .then(async (response) => ({ response, payload: await response.json() }))
+      .then(({ response, payload }) => { if (active && response.ok) setDashboardLeads(payload.dashboard?.leads || []); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [providerSession?.id, providerSession?.token, setDashboardLeads]);
+  useEffect(() => {
+    if (areaSearch.trim().length < 2) return undefined;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/locations/search?q=${encodeURIComponent(areaSearch)}`, { signal: controller.signal });
+        const payload = await response.json();
+        setAreaOptions(payload.locations || []);
+      } catch { if (!controller.signal.aborted) setAreaOptions([]); }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [areaSearch]);
+  const visibleAreaOptions = areaSearch.trim().length >= 2 ? areaOptions : [];
+
   if (!providerSession) {
     return <Navigate to="/" replace />;
   }
@@ -10,8 +48,72 @@ export default function ProviderDashboardPage({ providerSession, onBack, onLogou
   const careTypes = providerSession?.serviceType || 'Domiciliary care';
   const responseTarget = providerSession?.responseTarget || 'Under 30 minutes';
   const currentCapacity = providerSession?.capacity || 'Open for new enquiries';
-  const verificationStatus = providerSession?.verificationStatus || 'CQC registered and approved';
-  const nextReview = providerSession?.nextReview || 'Today at 3:00 PM';
+  const verificationStatus = providerSession?.verificationStatus || 'incomplete';
+  const registration = profileData.registration || {};
+  const nextReview = 'Your verification review is pending';
+  const coverage = profileData.coverage || { locations: [] };
+  const toggleCapability = (key, value) => setProfileData((current) => {
+    const selected = current[key] || [];
+    return { ...current, [key]: selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value] };
+  });
+  const pendingDocuments = (profileData.compliance?.documents || []).filter((document) => document.reviewStatus === 'pending').length;
+  const saveProfile = async (event) => {
+    event.preventDefault();
+    setSavingProfile(true);
+    setProfileMessage('');
+    try {
+      const response = await fetch(`/api/providers/${providerSession.id}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${providerSession.token}` },
+        body: JSON.stringify({ profileData }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to save profile.');
+      setProfileData(payload.provider.profileData || profileData);
+      const updatedSession = { ...providerSession, ...payload.provider, profileData: payload.provider.profileData };
+      localStorage.setItem(AUTH_KEYS.provider, JSON.stringify(updatedSession));
+      setProviderSession?.(updatedSession);
+      setProfileMessage('Your coverage and care capabilities have been saved.');
+    } catch (error) { setProfileMessage(error.message || 'Unable to save profile.'); }
+    finally { setSavingProfile(false); }
+  };
+  const uploadDocument = async (event) => {
+    event.preventDefault();
+    if (!documentFile) return;
+    setUploadingDocument(true);
+    setProfileMessage('');
+    try {
+      const body = new FormData();
+      body.append('document', documentFile);
+      body.append('documentType', documentType);
+      const response = await fetch(`/api/providers/${providerSession.id}/documents`, { method: 'POST', headers: { Authorization: `Bearer ${providerSession.token}` }, body });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Document upload failed.');
+      const updatedSession = { ...providerSession, ...payload.provider, profileData: payload.provider.profileData };
+      setProfileData(updatedSession.profileData);
+      setProviderSession?.(updatedSession);
+      localStorage.setItem(AUTH_KEYS.provider, JSON.stringify(updatedSession));
+      setDocumentFile(null);
+      setProfileMessage('Document uploaded securely and marked pending admin review.');
+    } catch (error) { setProfileMessage(error.message || 'Document upload failed.'); }
+    finally { setUploadingDocument(false); }
+  };
+  const addCoveragePostcode = async () => {
+    try {
+      const district = /^[A-Z]{1,2}\d[A-Z\d]?$/i.test(postcodeAreaSearch.replace(/\s/g, ''));
+      const response = await fetch(district
+        ? `/api/locations/outcode/${encodeURIComponent(postcodeAreaSearch.replace(/\s/g, ''))}`
+        : `/api/locations/postcode/${encodeURIComponent(postcodeAreaSearch)}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Postcode lookup failed.');
+      const location = payload.location.kind === 'postcode-district'
+        ? payload.location
+        : { ...payload.location, id: `postcode-${payload.location.postcode}`, name: payload.location.postcode, kind: 'postcode' };
+      const key = areaExcludedMode ? 'exclusions' : 'locations';
+      setProfileData((current) => ({ ...current, coverage: { ...(current.coverage || {}), [key]: [...(current.coverage?.[key] || []).filter((item) => item.id !== location.id), location] } }));
+      setPostcodeAreaSearch('');
+    } catch (error) { setProfileMessage(error.message || 'Postcode lookup failed.'); }
+  };
   const hasRealRating = typeof providerSession?.rating === 'number' && Number.isFinite(providerSession.rating) && (providerSession?.reviewCount ?? 0) > 0;
   const displayRating = hasRealRating ? providerSession.rating.toFixed(1) : 'No rating yet';
   const stats = [
@@ -115,6 +217,20 @@ export default function ProviderDashboardPage({ providerSession, onBack, onLogou
           ))}
         </div>
 
+        <div className="provider-dashboard-card" style={{ border: '1px solid #dfeaf8', borderRadius: 16, padding: 14, marginBottom: 18, background: '#f9fbff', color: '#34445a', fontSize: 13, lineHeight: 1.6 }}>
+          <strong style={{ color: '#0B1D3A' }}>Verification progress</strong>
+          <div>Account: {providerSession.accountStatus || providerSession.status || 'pending'} · Platform review: {verificationStatus.replaceAll('_', ' ')} · Referral eligibility: {(providerSession.referralEligibility || 'temporarily_ineligible').replaceAll('_', ' ')}</div>
+          <div>Regulatory details are self-declared until reviewed. 3CS platform verification is not regulatory approval.</div>
+          {providerSession.referralEligibility !== 'eligible' && <div>Outstanding: wait for administrator review{pendingDocuments ? `; ${pendingDocuments} document(s) awaiting review` : ''}.</div>}
+        </div>
+
+        <div className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginBottom: 18 }}>
+          <h3 style={{ margin: '0 0 10px', color: '#0B1D3A', fontSize: '1.1rem' }}>Eligible referral opportunities</h3>
+          {providerSession.referralEligibility !== 'eligible' ? <p style={{ margin: 0, color: '#5a6a7e' }}>Referrals are restricted while your account or verification is pending. Check the verification progress below.</p>
+            : dashboardLeads.length === 0 ? <p style={{ margin: 0, color: '#5a6a7e' }}>No current referrals match your declared coverage, services, care needs and availability.</p>
+              : <div style={{ display: 'grid', gap: 9 }}>{dashboardLeads.map((lead) => <div key={lead.id} style={{ border: '1px solid #edf2f7', borderRadius: 11, padding: 12, background: '#f9fbff' }}><strong style={{ color: '#0B1D3A' }}>{lead.need || 'Care support'} · {lead.area || 'Area not provided'}</strong><div style={{ marginTop: 4, fontSize: 12, color: '#5a6a7e' }}>Why this matches: {(lead.matchReasons || []).join(' · ')}</div><div style={{ marginTop: 4, fontSize: 12, color: '#5a6a7e' }}>Submitted {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'recently'} · {lead.urgency || 'Soon'}</div></div>)}</div>}
+        </div>
+
         <div className="provider-dashboard-main" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18 }}>
           <div className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
             <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>Service overview</h3>
@@ -130,7 +246,7 @@ export default function ProviderDashboardPage({ providerSession, onBack, onLogou
                     <div style={{ fontWeight: 700, color: '#0B1D3A' }}>{label}</div>
                     <small style={{ color: '#5a6a7e' }}>{value}</small>
                   </div>
-                  <span style={{ background: '#eafaf1', color: '#0B1D3A', borderRadius: 999, padding: '6px 10px', fontWeight: 700, fontSize: 11 }}>Live</span>
+                  <span style={{ background: label === 'Verification status' && verificationStatus !== 'verified' ? '#fff4d8' : '#eafaf1', color: '#0B1D3A', borderRadius: 999, padding: '6px 10px', fontWeight: 700, fontSize: 11 }}>{label === 'Verification status' ? verificationStatus.replace('_', ' ') : 'Self-declared'}</span>
                 </div>
               ))}
             </div>
@@ -152,6 +268,54 @@ export default function ProviderDashboardPage({ providerSession, onBack, onLogou
             </div>
           </div>
         </div>
+        <form onSubmit={saveProfile} className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18, display: 'grid', gap: 12 }}>
+          <div><h3 style={{ margin: '0 0 4px', color: '#0B1D3A', fontSize: '1.1rem' }}>Edit service coverage and capabilities</h3><p style={{ margin: 0, color: '#5a6a7e', fontSize: 13 }}>Your office postcode is kept separate from the areas you declare you can serve.</p></div>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Contact person<input className="finput" value={profileData.business?.contactName || providerSession.name || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), contactName: event.target.value } }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Provider/business name<input className="finput" value={profileData.business?.providerName || providerSession.businessName || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), providerName: event.target.value } }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Business phone<input className="finput" type="tel" value={profileData.business?.phone || providerSession.phone || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), phone: event.target.value } }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Legal business name<input className="finput" value={profileData.business?.legalName || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), legalName: event.target.value } }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Business type<select className="finput" value={profileData.business?.type || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), type: event.target.value } }))}><option value="">Select business type</option><option value="limited_company">Limited company</option><option value="sole_trader">Sole trader</option><option value="partnership">Partnership</option><option value="charity">Charity</option><option value="other">Other</option></select></label>
+          {profileData.business?.type === 'limited_company' && <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Companies House number<input className="finput" value={profileData.business?.companiesHouseNumber || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), companiesHouseNumber: event.target.value } }))} /></label>}
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Website<input className="finput" type="url" value={profileData.business?.website || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), website: event.target.value } }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Registered business address<input className="finput" value={profileData.business?.address || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), address: event.target.value } }))} /></label>
+          <fieldset style={{ border: '1px solid #dfeaf8', borderRadius: 10, padding: 12, display: 'grid', gap: 10 }}><legend style={{ color: '#0B1D3A', fontWeight: 700, padding: '0 5px' }}>Regulatory registration (self-declared)</legend>
+            <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Nation<select className="finput" value={registration.nation || 'England'} onChange={(event) => setProfileData((current) => ({ ...current, registration: { ...(current.registration || {}), nation: event.target.value, regulator: ({ England: 'CQC', Wales: 'Care Inspectorate Wales', Scotland: 'Care Inspectorate Scotland', 'Northern Ireland': 'RQIA' })[event.target.value] } }))}><option>England</option><option>Wales</option><option>Scotland</option><option>Northern Ireland</option></select></label>
+            <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Registration status<select className="finput" value={registration.isRegistered ? 'yes' : 'no'} onChange={(event) => setProfileData((current) => ({ ...current, registration: { ...(current.registration || {}), isRegistered: event.target.value === 'yes' } }))}><option value="no">Not registered / not applicable to this service</option><option value="yes">Registered</option></select></label>
+            {registration.isRegistered && <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Registration details<input className="finput" value={registration.registrationDetails || registration.cqcRegistration || registration.otherRegistration || ''} onChange={(event) => setProfileData((current) => ({ ...current, registration: { ...(current.registration || {}), registrationDetails: event.target.value } }))} /></label>}
+            <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Location ID(s), comma separated<input className="finput" value={(registration.locationIds || []).join(', ')} onChange={(event) => setProfileData((current) => ({ ...current, registration: { ...(current.registration || {}), locationIds: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) } }))} /></label>
+            <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Registered manager details<input className="finput" value={registration.registeredManager || ''} onChange={(event) => setProfileData((current) => ({ ...current, registration: { ...(current.registration || {}), registeredManager: event.target.value } }))} /></label>
+            <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Regulated activities, comma separated<input className="finput" value={(registration.regulatedActivities || []).join(', ')} onChange={(event) => setProfileData((current) => ({ ...current, registration: { ...(current.registration || {}), regulatedActivities: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) } }))} /></label>
+            <small style={{ color: '#5a6a7e' }}>Changes require administrator review. This is not regulatory approval.</small>
+          </fieldset>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Main office postcode<input className="finput" value={coverage.basePostcode || ''} onChange={(event) => setProfileData((current) => ({ ...current, coverage: { ...(current.coverage || {}), basePostcode: event.target.value } }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Travel radius in miles<input className="finput" type="number" min="0" max="250" value={coverage.radiusMiles || 0} onChange={(event) => setProfileData((current) => ({ ...current, coverage: { ...(current.coverage || {}), radiusMiles: Number(event.target.value) } }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Search towns, cities and localities<input className="finput" value={areaSearch} onChange={(event) => setAreaSearch(event.target.value)} placeholder="Search UK places" /></label>
+          <label style={{ display: 'flex', gap: 8, color: '#33445b' }}><input type="checkbox" checked={areaExcludedMode} onChange={(event) => setAreaExcludedMode(event.target.checked)} />Add searched places as excluded areas</label>
+          {visibleAreaOptions.map((area) => <button key={area.id} type="button" onClick={() => { const key = areaExcludedMode ? 'exclusions' : 'locations'; const locations = coverage[key] || []; if (!locations.some((item) => item.id === area.id)) setProfileData((current) => ({ ...current, coverage: { ...(current.coverage || {}), [key]: [...(current.coverage?.[key] || []), area] } })); setAreaSearch(''); setAreaOptions([]); }} style={{ textAlign: 'left', border: '1px solid #dfeaf8', borderRadius: 8, padding: 8, background: '#fff' }}>{area.name} · {areaExcludedMode ? 'Exclude' : 'Add'}</button>)}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'end' }}><label style={{ flex: 1, display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Add a full postcode<input className="finput" value={postcodeAreaSearch} onChange={(event) => setPostcodeAreaSearch(event.target.value)} /></label><button type="button" onClick={addCoveragePostcode} className="btn btn-ghost-green" style={{ width: 'auto', padding: '10px 14px' }}>Add postcode</button></div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>{(coverage.locations || []).map((area) => <span key={area.id || area.name} style={{ background: '#eafaf1', padding: '6px 9px', borderRadius: 20 }}>{area.name}<button type="button" aria-label={`Remove ${area.name}`} onClick={() => setProfileData((current) => ({ ...current, coverage: { ...(current.coverage || {}), locations: (current.coverage?.locations || []).filter((item) => item.id !== area.id) } }))} style={{ border: 0, background: 'transparent', marginLeft: 6, cursor: 'pointer' }}>×</button></span>)}</div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>{(coverage.exclusions || []).map((area) => <span key={area.id || area.name} style={{ background: '#fff1f2', padding: '6px 9px', borderRadius: 20 }}>{area.name}<button type="button" aria-label={`Remove excluded ${area.name}`} onClick={() => setProfileData((current) => ({ ...current, coverage: { ...(current.coverage || {}), exclusions: (current.coverage?.exclusions || []).filter((item) => item.id !== area.id) } }))} style={{ border: 0, background: 'transparent', marginLeft: 6, cursor: 'pointer' }}>×</button></span>)}</div>
+          <fieldset style={{ border: '1px solid #dfeaf8', borderRadius: 10, padding: 12 }}><legend style={{ color: '#0B1D3A', fontWeight: 700, padding: '0 5px' }}>Services offered</legend><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>{dashboardServices.map((service) => <label key={service} style={{ display: 'flex', gap: 8, color: '#34445a' }}><input type="checkbox" checked={(profileData.services || []).includes(service)} onChange={() => toggleCapability('services', service)} />{service}</label>)}</div></fieldset>
+          <fieldset style={{ border: '1px solid #dfeaf8', borderRadius: 10, padding: 12 }}><legend style={{ color: '#0B1D3A', fontWeight: 700, padding: '0 5px' }}>Care needs supported</legend><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>{dashboardCareNeeds.map((need) => <label key={need} style={{ display: 'flex', gap: 8, color: '#34445a' }}><input type="checkbox" checked={(profileData.careNeeds || []).includes(need)} onChange={() => toggleCapability('careNeeds', need)} />{need}</label>)}</div></fieldset>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Service description<textarea className="finput" rows="3" value={profileData.serviceDescription || ''} onChange={(event) => setProfileData((current) => ({ ...current, serviceDescription: event.target.value }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Specialisms, comma separated<input className="finput" value={(profileData.specialisms || []).join(', ')} onChange={(event) => setProfileData((current) => ({ ...current, specialisms: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) }))} /></label>
+          <div className="provider-form-grid"><label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Minimum package/hours<input className="finput" value={profileData.minimumPackage || ''} onChange={(event) => setProfileData((current) => ({ ...current, minimumPackage: event.target.value }))} /></label><label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Minimum visit duration<input className="finput" value={profileData.minimumVisit || ''} onChange={(event) => setProfileData((current) => ({ ...current, minimumVisit: event.target.value }))} /></label><label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Indicative pricing<input className="finput" value={profileData.indicativePrice || ''} onChange={(event) => setProfileData((current) => ({ ...current, indicativePrice: event.target.value }))} /></label></div>
+          <label style={{ display: 'flex', gap: 8, color: '#33445b' }}><input type="checkbox" checked={profileData.availability?.acceptingReferrals === true} onChange={(event) => setProfileData((current) => ({ ...current, availability: { ...(current.availability || {}), acceptingReferrals: event.target.checked } }))} />Currently accepting referrals</label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Capacity for new clients<input className="finput" type="number" min="0" value={profileData.availability?.capacity || 0} onChange={(event) => setProfileData((current) => ({ ...current, availability: { ...(current.availability || {}), capacity: Number(event.target.value) } }))} /></label>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Earliest date you can accept a referral<input className="finput" type="date" value={profileData.availability?.earliestDate || ''} onChange={(event) => setProfileData((current) => ({ ...current, availability: { ...(current.availability || {}), earliestDate: event.target.value } }))} /></label>
+          <div className="provider-form-grid"><label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Public liability expiry<input className="finput" type="date" value={profileData.compliance?.insurance?.publicLiabilityExpiry || ''} onChange={(event) => setProfileData((current) => ({ ...current, compliance: { ...(current.compliance || {}), insurance: { ...(current.compliance?.insurance || {}), publicLiabilityExpiry: event.target.value } } }))} /></label><label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Employers liability expiry<input className="finput" type="date" value={profileData.compliance?.insurance?.employersLiabilityExpiry || ''} onChange={(event) => setProfileData((current) => ({ ...current, compliance: { ...(current.compliance || {}), insurance: { ...(current.compliance?.insurance || {}), employersLiabilityExpiry: event.target.value } } }))} /></label><label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Professional indemnity expiry<input className="finput" type="date" value={profileData.compliance?.insurance?.indemnityExpiry || ''} onChange={(event) => setProfileData((current) => ({ ...current, compliance: { ...(current.compliance || {}), insurance: { ...(current.compliance?.insurance || {}), indemnityExpiry: event.target.value } } }))} /></label></div>
+          <fieldset style={{ border: '1px solid #dfeaf8', borderRadius: 10, padding: 12 }}><legend style={{ color: '#0B1D3A', fontWeight: 700, padding: '0 5px' }}>Policies (self-declared)</legend>{[['safeguarding', 'Safeguarding policy'], ['complaints', 'Complaints procedure'], ['medication', 'Medication policy'], ['infectionControl', 'Infection prevention and control']].map(([key, label]) => <label key={key} style={{ display: 'flex', gap: 8, color: '#34445a', marginBottom: 7 }}><input type="checkbox" checked={profileData.compliance?.policies?.[key] === true} onChange={(event) => setProfileData((current) => ({ ...current, compliance: { ...(current.compliance || {}), policies: { ...(current.compliance?.policies || {}), [key]: event.target.checked } } }))} />{label}</label>)}</fieldset>
+          {profileMessage && <div role="status" style={{ color: '#1e7d3d', fontSize: 13 }}>{profileMessage}</div>}
+          <button type="submit" className="btn btn-green" disabled={savingProfile} style={{ padding: 12 }}>{savingProfile ? 'Saving…' : 'Save profile updates'}</button>
+        </form>
+        <form onSubmit={uploadDocument} className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18, display: 'grid', gap: 10 }}>
+          <h3 style={{ margin: 0, color: '#0B1D3A', fontSize: '1.1rem' }}>Verification documents</h3>
+          <p style={{ margin: 0, color: '#5a6a7e', fontSize: 13 }}>PDF, DOC or DOCX, up to 5 MB. Documents are private and stay pending until reviewed by an administrator.</p>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Document type<select className="finput" value={documentType} onChange={(event) => setDocumentType(event.target.value)}><option value="public_liability">Public liability insurance</option><option value="employers_liability">Employers' liability insurance</option><option value="professional_indemnity">Professional indemnity insurance</option><option value="safeguarding">Safeguarding policy</option><option value="complaints">Complaints procedure</option><option value="medication">Medication policy</option><option value="infection_control">Infection prevention and control policy</option><option value="registration">Regulator registration evidence</option><option value="other">Other supporting document</option></select></label>
+          <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => setDocumentFile(event.target.files?.[0] || null)} />
+          <button type="submit" className="btn btn-ghost-green" disabled={!documentFile || uploadingDocument} style={{ padding: 12 }}>{uploadingDocument ? 'Uploading…' : 'Upload document'}</button>
+          <div style={{ display: 'grid', gap: 6 }}>{(profileData.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, borderBottom: '1px solid #edf2f7', padding: '6px 0', color: '#34445a', fontSize: 13 }}><span>{document.name}</span><strong>{document.reviewStatus || 'pending review'}</strong></div>)}</div>
+        </form>
       </div>
     </div>
   );

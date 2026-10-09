@@ -36,6 +36,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const [providerSearch, setProviderSearch] = useState('');
   const [selectedProviderId, setSelectedProviderId] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState('');
+  const [providerMatches, setProviderMatches] = useState([]);
+  const [matchesForLeadId, setMatchesForLeadId] = useState('');
   const [expandedRecentLeadId, setExpandedRecentLeadId] = useState('');
   const [actionFeedback, setActionFeedback] = useState('');
   const [currentView, setCurrentView] = useState(() => {
@@ -165,26 +167,49 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     { key: 'reports', label: 'Reports' },
   ];
 
-  const handleProviderStatusChange = async (providerId, nextStatus) => {
+  const handleProviderReview = async (provider, accountStatus, verificationStatus) => {
     try {
-      const response = await fetch(`/api/admin/providers/${providerId}/status`, {
+      const response = await fetch(`/api/admin/providers/${provider.id}/review`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminSession?.token || ''}`,
-        },
-        body: JSON.stringify({ status: nextStatus }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminSession?.token || ''}` },
+        body: JSON.stringify({ accountStatus, verificationStatus }),
       });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Unable to update provider status.');
-      }
-
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Unable to save provider review.');
       await refreshDashboard();
-    } catch (error) {
-      console.error('Provider status update failed', error);
-    }
+      setActionFeedback(`${provider.businessName || 'Provider'} review updated: ${verificationStatus.replace('_', ' ')}.`);
+    } catch (error) { setActionFeedback(error.message || 'Unable to save provider review.'); }
+  };
+
+  const handleProviderDocument = async (provider, document, action) => {
+    try {
+      if (action === 'open') {
+        const response = await fetch(`/api/admin/providers/${provider.id}/documents/${document.id}/url`, { headers: { Authorization: `Bearer ${adminSession?.token || ''}` } });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Unable to open document.');
+        window.open(payload.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const response = await fetch(`/api/admin/providers/${provider.id}/documents/${document.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminSession?.token || ''}` },
+        body: JSON.stringify({ reviewStatus: action }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to save document review.');
+      await refreshDashboard();
+      setActionFeedback(`Document marked ${action}.`);
+    } catch (error) { setActionFeedback(error.message || 'Unable to review document.'); }
+  };
+
+  const loadProviderMatches = async (leadId) => {
+    try {
+      const response = await fetch(`/api/admin/leads/${leadId}/matches`, { headers: { Authorization: `Bearer ${adminSession?.token || ''}` } });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to calculate provider matches.');
+      setProviderMatches(payload.matches || []);
+      setMatchesForLeadId(String(leadId));
+    } catch (error) { setActionFeedback(error.message || 'Unable to calculate provider matches.'); }
   };
 
   const handleLeadStatusChange = async (leadId, nextStatus, onSuccess) => {
@@ -604,17 +629,26 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 </div>
               ))}
             </div>
+            <div style={{ border: '1px solid #dfeaf8', borderRadius: 11, padding: 12, background: '#f9fbff' }}>
+              <strong>Verification and referral eligibility</strong>
+              <div style={{ marginTop: 6 }}>Verification: {selectedProvider.verificationStatus || 'incomplete'}</div>
+              <div>Referrals: {selectedProvider.referralEligibility || 'temporarily_ineligible'}</div>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#5a6a7e' }}>Registration details and policies are self-declared unless separately checked. Platform verification is not regulatory approval.</div>
+              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Regulator: {selectedProvider.profileData.registration.regulator || 'Not selected'} · CQC registration: {selectedProvider.profileData.registration.cqcRegistration || 'Not declared'}</div>}
+              {selectedProvider.profileData?.business && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Legal name: {selectedProvider.profileData.business.legalName || 'Not supplied'} · Business type: {selectedProvider.profileData.business.type || 'Not supplied'} · Address: {selectedProvider.profileData.business.address || 'Not supplied'} · Companies House: {selectedProvider.profileData.business.companiesHouseNumber || 'Not supplied'}</div>}
+              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Nation: {selectedProvider.profileData.registration.nation || 'Not supplied'} · Registration ID: {selectedProvider.profileData.registration.registrationDetails || 'Not supplied'} · Activities: {(selectedProvider.profileData.registration.regulatedActivities || []).join(', ') || 'Not supplied'}</div>}
+              {selectedProvider.profileData?.coverage && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Office: {selectedProvider.profileData.coverage.basePostcode || 'Not set'} · Radius: {selectedProvider.profileData.coverage.radiusMiles || 0} miles · Explicit areas: {(selectedProvider.profileData.coverage.locations || []).map((item) => item.name).join(', ') || 'None'}</div>}
+              {selectedProvider.profileData?.coverage?.exclusions?.length > 0 && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Excluded areas: {selectedProvider.profileData.coverage.exclusions.map((item) => item.name).join(', ')}</div>}
+              {selectedProvider.profileData?.services && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Services: {selectedProvider.profileData.services.join(', ') || 'None declared'}</div>}
+              {selectedProvider.profileData?.careNeeds && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Care needs: {selectedProvider.profileData.careNeeds.join(', ') || 'None declared'} · Capacity: {selectedProvider.profileData.availability?.capacity || 0} · Accepting referrals: {selectedProvider.profileData.availability?.acceptingReferrals ? 'Yes' : 'No'}</div>}
+              {selectedProvider.profileData?.compliance && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Insurance expiry: Public liability {selectedProvider.profileData.compliance.insurance?.publicLiabilityExpiry || 'Not supplied'} · Employers liability {selectedProvider.profileData.compliance.insurance?.employersLiabilityExpiry || 'Not supplied'} · Professional indemnity {selectedProvider.profileData.compliance.insurance?.indemnityExpiry || 'Not supplied'}</div>}
+              {(selectedProvider.profileData?.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8, paddingTop: 8, borderTop: '1px solid #dfeaf8', fontSize: 12 }}><span>{document.name} · {document.reviewStatus || 'pending'}</span><div style={{ display: 'flex', gap: 6 }}><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'open')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Open securely</button>{document.reviewStatus === 'pending' && <><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'reviewed')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#eafaf1', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Mark reviewed</button><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'rejected')} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Reject</button></>}</div></div>)}
+            </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-              {selectedProvider.status !== 'active' && (
-                <button type="button" className="btn btn-green" onClick={() => handleProviderStatusChange(selectedProvider.id, 'active')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>
-                  Approve provider
-                </button>
-              )}
-              {selectedProvider.status !== 'pending' && (
-                <button type="button" className="btn btn-ghost-green" onClick={() => handleProviderStatusChange(selectedProvider.id, 'pending')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>
-                  Set pending
-                </button>
-              )}
+              <button type="button" className="btn btn-green" onClick={() => handleProviderReview(selectedProvider, 'active', 'verified')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Verify and activate</button>
+              <button type="button" className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'pending', 'pending_review')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Set pending review</button>
+              <button type="button" className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'pending', 'rejected')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Reject verification</button>
+              <button type="button" className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'suspended', selectedProvider.verificationStatus || 'pending_review')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Suspend account</button>
               <button type="button" onClick={() => handleProviderDelete(selectedProvider)} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>
                 Delete provider
               </button>
@@ -740,12 +774,14 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 style={{ width: '100%', border: '1px solid #dfeaf8', borderRadius: 10, padding: '10px 12px', fontSize: '0.9rem', background: '#fff' }}
               >
                 <option value="Unassigned">Unassigned</option>
-                {providers.map((provider) => (
+                {(matchesForLeadId === String(selectedLead.id) ? providerMatches : []).filter((item) => item.eligible).map(({ provider }) => (
                   <option key={provider.id} value={provider.businessName || provider.name || 'Provider'}>
                     {provider.businessName || provider.name || 'Provider'}
                   </option>
                 ))}
               </select>
+              <button type="button" onClick={() => loadProviderMatches(selectedLead.id)} style={{ marginTop: 7, border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 8, padding: '7px 10px', cursor: 'pointer' }}>Check coverage and eligibility</button>
+              {matchesForLeadId === String(selectedLead.id) && <div style={{ display: 'grid', gap: 7, marginTop: 8 }}>{providerMatches.map((item) => <div key={item.provider.id} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, fontSize: 12 }}><strong>{item.provider.businessName}</strong> · {item.eligible ? 'Eligible' : 'Not eligible'}<div style={{ color: '#5a6a7e', marginTop: 3 }}>{item.reasons.join(' · ')}</div></div>)}</div>}
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Follow-up stage</label>

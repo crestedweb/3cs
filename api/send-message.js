@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import process from "node:process";
 import { createClient } from "@supabase/supabase-js";
 import { getDestinationTable, normalizeRecordType } from "../record-routing.mjs";
 

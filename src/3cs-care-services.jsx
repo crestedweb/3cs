@@ -2956,13 +2956,15 @@ export default function App() {
   }, [navigate]);
   const goToAdminDashboard = useCallback(() => navigate('/admin/dashboard'), [navigate]);
   const handleProviderLogout = useCallback(() => {
+    if (providerSession?.token) fetch('/api/logout', { method: 'POST', headers: { Authorization: `Bearer ${providerSession.token}` } }).catch(() => {});
     persistProviderSession(null);
     goToProviderLogin();
-  }, [persistProviderSession, goToProviderLogin]);
+  }, [providerSession, persistProviderSession, goToProviderLogin]);
   const handleAdminLogout = useCallback(() => {
+    if (adminSession?.token) fetch('/api/logout', { method: 'POST', headers: { Authorization: `Bearer ${adminSession.token}` } }).catch(() => {});
     persistAdminSession(null);
     goToAdminLogin();
-  }, [persistAdminSession, goToAdminLogin]);
+  }, [adminSession, persistAdminSession, goToAdminLogin]);
 
   const siteView = (
     <>
@@ -3664,6 +3666,9 @@ export default function App() {
           providerSession ? (
             <ProviderDashboardPage
               providerSession={providerSession}
+              setProviderSession={setProviderSession}
+              dashboardLeads={dashboardLeads}
+              setDashboardLeads={setDashboardLeads}
               onBack={goToSite}
               onLogout={handleProviderLogout}
             />

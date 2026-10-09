@@ -14,7 +14,7 @@
       "responseTime": "< 30 mins",
       "capacity": "2 new enquiries",
       "status": "active",
-      "password": "demo123",
+      "password": "scrypt:82c27e31-d343-4c15-9f8a-a2d647bf8e90:4eb3684a1ac22b092edc7d899a0f9581221ce7ea31de1f346a735647b69107de00cddbae7cc255c492dfb5a3112e7ed085364cdf07f51245370a4aa7e7c25538",
       "createdAt": "2026-08-01T09:00:00.000Z"
     },
     {
@@ -31,7 +31,7 @@
       "responseTime": "< 1 hour",
       "capacity": "4 new enquiries",
       "status": "active",
-      "password": "demo123",
+      "password": "scrypt:b80f6c86-e048-444f-b96e-71cef590bed5:e1f33419860a094d4a3c5cbffc8d76d6dac009493d3bdecfe8621237c10640f67c9db3adf6e45b8f2b93977333453de473ca9e984102824959a8c0340ddbcb72",
       "createdAt": "2026-08-10T09:00:00.000Z"
     }
   ],

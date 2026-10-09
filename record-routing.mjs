@@ -15,6 +15,16 @@ export function getDestinationTable(value) {
   return 'leads';
 }
 
+export function isEnquiryRecord(record) {
+  const explicitType = String(record?.recordType || record?.record_type || '').trim().toLowerCase();
+  if (explicitType === 'enquiry') return true;
+  if (explicitType === 'lead') return false;
+  const message = String(record?.message || '').trim();
+  return message.toLowerCase().startsWith('[enquiry]')
+    || /^care enquiry for\b/i.test(message)
+    || /\benquiry\b/i.test(message);
+}
+
 export function createSubmissionId() {
   return `L-${randomUUID()}`;
 }
