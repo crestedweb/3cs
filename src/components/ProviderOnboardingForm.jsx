@@ -22,6 +22,7 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
+  const [postcodeError, setPostcodeError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [locationBusy, setLocationBusy] = useState(false);
   const [addingExclusion, setAddingExclusion] = useState(false);
@@ -29,8 +30,40 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
   const update = (event) => {
     const { name, value, type, checked } = event.target;
     setForm((current) => ({ ...current, [name]: type === 'checkbox' ? checked : value }));
+    if (name === 'mainOfficePostcode') {
+      setPostcodeError(value.trim() && !normalizePostcode(value) ? 'Enter a valid UK postcode, for example SW1A 1AA.' : '');
+    }
   };
   const updateList = (name, values) => setForm((current) => ({ ...current, [name]: values }));
+
+  const checkOfficePostcode = async () => {
+    const normalized = normalizePostcode(form.mainOfficePostcode);
+    if (!form.mainOfficePostcode.trim()) {
+      setPostcodeError('');
+      return false;
+    }
+    if (!normalized) {
+      setPostcodeError('Enter a valid UK postcode, for example SW1A 1AA.');
+      return false;
+    }
+    try {
+      const response = await fetch(`/api/locations/postcode/${encodeURIComponent(normalized)}`);
+      if (response.status === 404) {
+        setPostcodeError('This postcode was not found. Check it and try again.');
+        return false;
+      }
+      if (!response.ok && response.status !== 503) {
+        setPostcodeError('We could not verify this postcode. Check it and try again.');
+        return false;
+      }
+      setPostcodeError('');
+      return true;
+    } catch {
+      // A temporary lookup outage should not mark a correctly formatted postcode as invalid.
+      setPostcodeError('');
+      return true;
+    }
+  };
 
   useEffect(() => {
     const query = form.locationSearch.trim();
@@ -79,6 +112,10 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
   const validateStep = () => {
     if (step === 0) {
       if (!form.name || !form.businessName || !form.businessType || !form.email || !form.phone || !form.address || !form.mainOfficePostcode || !form.password) return 'Complete all required business and account fields.';
+      if (!normalizePostcode(form.mainOfficePostcode)) {
+        setPostcodeError('Enter a valid UK postcode, for example SW1A 1AA.');
+        return 'Correct the main office postcode before continuing.';
+      }
       if (form.password.length < 10) return 'Use a password with at least 10 characters.';
       if (form.password !== form.confirmPassword) return 'Passwords do not match.';
     }
@@ -94,6 +131,7 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
     event.preventDefault();
     const issue = validateStep();
     if (issue) { setStatus({ type: 'error', message: issue }); return; }
+    if (step === 0 && !(await checkOfficePostcode())) return;
     if (step < steps.length - 1) { setStatus({ type: '', message: '' }); setStep((current) => current + 1); return; }
     setSubmitting(true);
     setStatus({ type: '', message: '' });
@@ -144,7 +182,7 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
       {input('name', 'Contact person full name', 'text', true)}{input('businessName', 'Provider/business name', 'text', true)}{input('legalBusinessName', 'Legal business name (if different)')}
       {select('businessType', 'Business type', [['', 'Select business type'], ['limited_company', 'Limited company'], ['sole_trader', 'Sole trader'], ['partnership', 'Partnership'], ['charity', 'Charity'], ['other', 'Other']])}
       {input('email', 'Business email address', 'email', true)}{input('phone', 'Business phone number', 'tel', true)}{input('website', 'Website (optional)', 'url')}
-      {input('address', 'Registered business address', 'text', true)}{input('mainOfficePostcode', 'Main office postcode', 'text', true)}{input('companiesHouseNumber', 'Companies House number (where applicable)')}
+      {input('address', 'Registered business address', 'text', true)}<label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Main office postcode *<input className="finput" name="mainOfficePostcode" type="text" value={form.mainOfficePostcode} onChange={update} onBlur={checkOfficePostcode} required autoComplete="postal-code" aria-invalid={Boolean(postcodeError)} aria-describedby={postcodeError ? 'main-office-postcode-error' : undefined} />{postcodeError && <span id="main-office-postcode-error" role="alert" style={{ color: '#b42318', fontSize: 12 }}>{postcodeError}</span>}</label>{input('companiesHouseNumber', 'Companies House number (where applicable)')}
       {input('password', 'Password (10+ characters)', 'password', true)}{input('confirmPassword', 'Confirm password', 'password', true)}
     </div>}
     {step === 1 && <div style={{ display: 'grid', gap: 10 }}>
