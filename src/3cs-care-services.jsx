@@ -2878,21 +2878,9 @@ export default function App() {
   }, []);
 
   const checkCareArea = useCallback(() => {
-    const cleaned = postcode.trim().toUpperCase();
-    const ukPostcode = /^([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})$/i;
-    if (!cleaned) {
-      setPostcodeError(true);
-      setPostcodeMsg("Enter your postcode and we will confirm care availability.");
-      return;
-    }
-    if (!ukPostcode.test(cleaned)) {
-      setPostcodeError(true);
-      setPostcodeMsg("Please enter a valid UK postcode.");
-      return;
-    }
-    setPostcode(cleaned);
+    setPostcode(postcode.trim());
     setPostcodeError(false);
-    setPostcodeMsg("Thanks. Your postcode looks valid. Send the form and we will confirm care availability in your area.");
+    setPostcodeMsg("");
     go("contact-form");
   }, [go, postcode]);
 
