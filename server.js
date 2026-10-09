@@ -17,6 +17,7 @@ import {
   getDestinationTable,
   isEnquiryRecord,
   normalizeRecordType,
+  normalizeSubmissionRecordType,
 } from './record-routing.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -326,8 +327,8 @@ function normalizeLead(row) {
   const storedMessage = row.message || '';
   const sourceMatch = storedMessage.match(/^\[(lead|enquiry)\]\s*/i);
   const explicitRecordType = clean(row.record_type || row.recordType || '').toLowerCase();
-  const recordType = explicitRecordType
-    || sourceMatch?.[1]?.toLowerCase()
+  const recordType = sourceMatch?.[1]?.toLowerCase()
+    || explicitRecordType
     || normalizeRecordType(row.record_type || row.recordType || '', 'lead');
   const message = storedMessage.replace(/^\[(lead|enquiry)\]\s*/i, '');
   const submittedUrgency = message.match(/(?:^|\|\s*)Urgency:\s*([^|]+)/i)?.[1]?.trim();
@@ -360,8 +361,7 @@ function buildLeadFromEnquiry(body = {}) {
   const family = clean(body.family || body.name || 'Unknown family');
   const need = clean(body.need || body.service || body.careNeed || 'Care support');
   const area = clean(body.area || body.postcode || 'Not set');
-  const requestedRecordType = clean(body.recordType).toLowerCase();
-  const recordType = requestedRecordType === 'lead' ? 'lead' : 'enquiry';
+  const recordType = normalizeSubmissionRecordType(body);
 
   return {
     id: createSubmissionId(),
@@ -462,9 +462,9 @@ async function getLeadsFromDataSource() {
       const defaultRecordType = tableName === 'enquiries' ? 'enquiry' : 'lead';
       databaseLeads.push(...(data || []).map((row) => normalizeLead({
         ...row,
-        // Prefer an explicit stored marker (including the message prefix) so
-        // legacy Contact Us enquiries in the shared leads table stay enquiries.
-        record_type: row.record_type || (row.message?.match(/^\[(lead|enquiry)\]/i)?.[1]) || defaultRecordType,
+        // The stamped message prefix is written by the submission handler and
+        // is more reliable than a stale contradictory record_type value.
+        record_type: (row.message?.match(/^\[(lead|enquiry)\]/i)?.[1]) || row.record_type || defaultRecordType,
       })));
     }
 
@@ -1613,7 +1613,7 @@ app.post('/api/send-message', upload.single('cv'), async (req, res) => {
     const message = clean(body.message);
     const urgency = clean(body.urgency || 'Soon');
     const budget = clean(body.budget || 'TBC');
-    const recordType = clean(body.recordType).toLowerCase() === 'enquiry' ? 'enquiry' : 'lead';
+    const recordType = normalizeSubmissionRecordType(body);
 
     if (!name || !message || (!email && !phone)) {
       return res.status(400).json({ error: "Name, message, and at least one contact method are required." });

@@ -42,7 +42,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const [expandedRecentLeadId, setExpandedRecentLeadId] = useState('');
   const [actionFeedback, setActionFeedback] = useState('');
   const requestedView = new URLSearchParams(location.search || '').get('view');
-  const currentView = ['overview', 'recent-leads', 'providers', 'leads', 'bookings', 'reports', 'enquiry'].includes(requestedView) ? requestedView : 'overview';
+  const currentView = ['overview', 'recent-leads', 'providers', 'leads', 'enquiries', 'bookings', 'reports', 'enquiry'].includes(requestedView) ? requestedView : 'overview';
 
   const updateView = (nextView, nextLeadId = null) => {
     if (nextLeadId) setSelectedLeadId(String(nextLeadId));
@@ -143,11 +143,12 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   });
 
   const filteredLeads = statusFilter === 'All'
-    ? allCases
-    : allCases.filter((lead) => String(lead.status || 'New').toLowerCase() === statusFilter.toLowerCase());
+    ? leads
+    : leads.filter((lead) => String(lead.status || 'New').toLowerCase() === statusFilter.toLowerCase());
 
   const selectedProvider = providers.find((provider) => String(provider.id) === String(selectedProviderId)) || providers[0] || null;
-  const selectedLead = allCases.find((lead) => String(lead.id) === String(selectedLeadId)) || newestLead || newestEnquiry || null;
+  const selectedLead = leads.find((lead) => String(lead.id) === String(selectedLeadId)) || newestLead || null;
+  const selectedEnquiry = enquiries.find((enquiry) => String(enquiry.id) === String(selectedLeadId)) || newestEnquiry || null;
   const bookedLeads = leads.filter((lead) => String(lead.status || 'New').toLowerCase() === 'booked');
   const pendingProviders = providers.filter((provider) => String(provider.status || 'pending').toLowerCase() === 'pending');
   const activeProviders = providers.filter((provider) => String(provider.status || 'pending').toLowerCase() === 'active');
@@ -156,6 +157,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const navItems = [
     { key: 'overview', label: 'Overview' },
     { key: 'enquiry', label: 'Latest Enquiry' },
+    { key: 'enquiries', label: 'Enquiries' },
     { key: 'recent-leads', label: 'Recent leads' },
     { key: 'providers', label: 'Providers' },
     { key: 'leads', label: 'Leads' },
@@ -956,7 +958,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     </div>
   );
 
-  const renderEnquiryDetail = () => {
+  const renderLatestEnquiry = () => {
     const enquiryLead = newestEnquiry;
 
     return (
@@ -994,20 +996,70 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                   <span style={{ background: '#fff4d8', color: '#805a08', borderRadius: 999, padding: '6px 10px', fontSize: 11, fontWeight: 700 }}>{item.status || 'New'}</span>
-                  <button type="button" className="btn btn-ghost-green" onClick={() => updateView('leads', item.id)} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.78rem' }}>Open full case</button>
+                  <button type="button" className="btn btn-ghost-green" onClick={() => updateView('enquiries', item.id)} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.78rem' }}>Open enquiry case</button>
                 </div>
               </div>
             ))}
-            <button type="button" className="btn btn-green" onClick={() => updateView('leads', enquiryLead.id)} style={{ width: 'fit-content', padding: '9px 13px', fontSize: '0.8rem' }}>Manage newest enquiry in Leads</button>
+            <button type="button" className="btn btn-green" onClick={() => updateView('enquiries', enquiryLead.id)} style={{ width: 'fit-content', padding: '9px 13px', fontSize: '0.8rem' }}>Open newest enquiry case</button>
           </div>
         )}
       </div>
     );
   };
+
+  const renderEnquiryCase = () => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 0.8fr) minmax(0, 1.2fr)', gap: 16 }}>
+      <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
+        <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>Contact Us enquiries</h3>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {sortedEnquiries.map((item) => (
+            <button key={item.id} type="button" onClick={() => updateView('enquiries', item.id)} style={{ textAlign: 'left', border: String(item.id) === String(selectedEnquiry?.id) ? '1px solid #28A745' : '1px solid #edf2f7', borderRadius: 10, background: String(item.id) === String(selectedEnquiry?.id) ? '#f4fbf6' : '#fff', padding: 10, cursor: 'pointer' }}>
+              <strong style={{ display: 'block', color: '#0B1D3A' }}>{item.family || 'Contact enquiry'} · {caseReference(item)}</strong>
+              <small style={{ color: '#5a6a7e' }}>{item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable'} · {item.status || 'New'}</small>
+            </button>
+          ))}
+          {!sortedEnquiries.length && <div style={{ color: '#5a6a7e' }}>No Contact Us submissions yet.</div>}
+        </div>
+      </div>
+      <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
+        {!selectedEnquiry ? <div style={{ color: '#5a6a7e' }}>Select an enquiry to review its details.</div> : (
+          <div style={{ display: 'grid', gap: 13 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
+              <div><div style={{ color: '#28A745', fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase' }}>Contact Us · {caseReference(selectedEnquiry)}</div><h3 style={{ margin: '5px 0 0', color: '#0B1D3A' }}>{selectedEnquiry.family || 'Contact enquiry'}</h3></div>
+              <span style={{ background: '#fff4d8', color: '#805a08', borderRadius: 999, padding: '6px 10px', fontSize: 12, fontWeight: 700 }}>{selectedEnquiry.status || 'New'}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10 }}>
+              {[
+                ['Email', selectedEnquiry.contactEmail || 'Not provided'],
+                ['Phone', selectedEnquiry.phone || 'Not provided'],
+                ['Service', selectedEnquiry.need || 'General enquiry'],
+                ['Area', selectedEnquiry.area || 'Not provided'],
+                ['Received', selectedEnquiry.createdAt ? new Date(selectedEnquiry.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable'],
+              ].map(([label, value]) => <div key={label}><small style={{ display: 'block', color: '#758397', fontWeight: 800, textTransform: 'uppercase' }}>{label}</small><span style={{ color: '#0B1D3A', overflowWrap: 'anywhere' }}>{value}</span></div>)}
+            </div>
+            <div style={{ border: '1px solid #edf2f7', borderRadius: 11, padding: 12, color: '#42536b', lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><strong style={{ display: 'block', color: '#0B1D3A', marginBottom: 5 }}>Submitted message</strong>{selectedEnquiry.message || 'No message was included.'}</div>
+            <label style={{ display: 'grid', gap: 6, color: '#0B1D3A', fontWeight: 700 }}>Internal admin note <span style={{ color: '#5a6a7e', fontWeight: 400 }}>(private; not sent to the enquirer)</span>
+              <textarea rows={3} defaultValue={selectedEnquiry.adminNote || ''} onBlur={(event) => handleLeadFollowUp(selectedEnquiry.id, selectedEnquiry.followUpStage || 'Pending', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #dfeaf8', borderRadius: 10, padding: 10, resize: 'vertical' }} placeholder="Add an internal note" />
+            </label>
+            <label style={{ display: 'grid', gap: 6, color: '#0B1D3A', fontWeight: 700 }}>Enquiry status
+              <select value={selectedEnquiry.status || 'New'} onChange={(event) => handleLeadStatusChange(selectedEnquiry.id, event.target.value)} style={{ border: '1px solid #dfeaf8', borderRadius: 10, padding: 10, background: '#fff' }}>
+                {['New', 'Qualified', 'Replied', 'Closed'].map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </label>
+            <div style={{ borderTop: '1px solid #edf2f7', paddingTop: 10 }}><strong style={{ display: 'block', color: '#0B1D3A', marginBottom: 7 }}>Case activity</strong>{selectedEnquiry.activity?.length ? [...selectedEnquiry.activity].slice(-8).reverse().map((entry, index) => <div key={`${entry.at}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: '#5a6a7e', fontSize: 12, padding: '5px 0' }}><span>{entry.action}</span><span>{entry.at ? new Date(entry.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}</span></div>) : <small style={{ color: '#758397' }}>No activity history is available for this older record yet.</small>}</div>
+            <button type="button" onClick={() => handleLeadDelete(selectedEnquiry)} style={{ justifySelf: 'start', border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '8px 11px', fontWeight: 700, cursor: 'pointer' }}>Delete enquiry</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const renderCurrentView = () => {
     switch (currentView) {
       case 'enquiry':
-        return renderEnquiryDetail();
+        return renderLatestEnquiry();
+      case 'enquiries':
+        return renderEnquiryCase();
       case 'recent-leads':
         return renderOverview({ recentOnly: true });
       case 'providers':

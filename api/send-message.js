@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import process from "node:process";
 import { createClient } from "@supabase/supabase-js";
-import { getDestinationTable, normalizeRecordType } from "../record-routing.mjs";
+import { getDestinationTable, normalizeSubmissionRecordType } from "../record-routing.mjs";
 
 const TO_EMAIL = process.env.CONTACT_TO_EMAIL || "info@3cscareservices.co.uk";
 
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
   const message = clean(body.message);
   const urgency = clean(body.urgency || "Soon");
   const budget = clean(body.budget || "TBC");
-  const recordType = normalizeRecordType(body.recordType);
+  const recordType = normalizeSubmissionRecordType(body);
 
   if (!name || !message || (!email && !phone)) {
     return res.status(400).json({ error: "Name, message, and at least one contact method are required." });

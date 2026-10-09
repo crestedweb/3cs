@@ -5,6 +5,7 @@ import {
   getDestinationTable,
   isEnquiryRecord,
   normalizeRecordType,
+  normalizeSubmissionRecordType,
 } from '../record-routing.mjs';
 
 test('routes guided care submissions to the leads table', () => {
@@ -15,6 +16,16 @@ test('routes guided care submissions to the leads table', () => {
 test('preserves explicit lead classification even when message text mentions an enquiry', () => {
   assert.equal(isEnquiryRecord({ recordType: 'lead', message: 'Care enquiry for a family' }), false);
   assert.equal(isEnquiryRecord({ recordType: 'enquiry', message: 'A care request' }), true);
+});
+
+test('the stored source marker corrects a stale contradictory record type', () => {
+  assert.equal(isEnquiryRecord({ record_type: 'lead', message: '[enquiry] Contact Us message' }), true);
+  assert.equal(isEnquiryRecord({ record_type: 'enquiry', message: '[lead] Find Care request' }), false);
+});
+
+test('Contact Us source always routes submissions into enquiries', () => {
+  assert.equal(normalizeSubmissionRecordType({ recordType: 'lead', source: 'contact-us' }), 'enquiry');
+  assert.equal(normalizeSubmissionRecordType({ source: 'find-care' }), 'lead');
 });
 
 test('routes contact submissions to the schema-backed leads table', () => {
