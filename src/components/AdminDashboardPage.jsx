@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
@@ -360,7 +360,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 18 }}>
         {[
-          { label: 'Latest enquiry', detail: newestEnquiry ? `${newestEnquiry.family || 'Family'} · ${newestEnquiry.need || 'Care support'}` : 'No enquiry yet', action: () => updateView('enquiry', newestEnquiry?.id) },
+          { label: 'Latest enquiry', detail: newestEnquiry ? `${newestEnquiry.family || 'Family'} Â· ${newestEnquiry.need || 'Care support'}` : 'No enquiry yet', action: () => updateView('enquiry') },
           { label: 'Recent leads', detail: `${summary.totalLeads} lead records`, action: () => updateView('recent-leads') },
           { label: 'Review leads', detail: `${summary.newLeads} new leads`, action: () => { setStatusFilter('New'); updateView('leads'); } },
           { label: 'Approve providers', detail: `${pendingProviders.length} pending`, action: () => updateView('providers') },
@@ -440,7 +440,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                   </div>
                   <div style={{ color: '#5a6a7e', fontSize: '0.85rem', lineHeight: 1.6 }}>
                     {provider.email || 'No email'}<br />
-                    {provider.area || 'Area not set'} · {provider.serviceType || 'Service not set'}
+                    {provider.area || 'Area not set'} Â· {provider.serviceType || 'Service not set'}
                   </div>
                 </button>
               ))}
@@ -496,19 +496,19 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                   >
                     <span>
                       <strong style={{ display: 'block', color: '#0B1D3A' }}>{lead.family || 'Unknown family'}</strong>
-                      <span style={{ display: 'block', color: '#5a6a7e', fontSize: '0.82rem', marginTop: 3 }}>{lead.need || 'Care support'} · {lead.area || 'Not set'}</span>
+                      <span style={{ display: 'block', color: '#5a6a7e', fontSize: '0.82rem', marginTop: 3 }}>{lead.need || 'Care support'} Â· {lead.area || 'Not set'}</span>
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ background: lead.status === 'Booked' ? '#eafaf1' : lead.status === 'Qualified' ? '#eefaf2' : '#fff4d8', color: '#0B1D3A', borderRadius: 999, padding: '5px 8px', fontSize: 11, fontWeight: 700 }}>{lead.status || 'New'}</span>
-                      <span aria-hidden="true" style={{ color: '#0B1D3A', fontSize: 18 }}>{expanded ? '−' : '+'}</span>
+                      <span aria-hidden="true" style={{ color: '#0B1D3A', fontSize: 18 }}>{expanded ? 'âˆ’' : '+'}</span>
                     </span>
                   </button>
                   {expanded && (
                     <div style={{ borderTop: '1px solid #dfeaf8', padding: '12px 14px', color: '#0B1D3A', display: 'grid', gap: 7, fontSize: '0.88rem' }}>
-                      <div><strong>Urgency:</strong> {lead.urgency || 'Soon'} · <strong>Budget:</strong> {lead.budget || 'TBC'}</div>
+                      <div><strong>Urgency:</strong> {lead.urgency || 'Soon'} Â· <strong>Budget:</strong> {lead.budget || 'TBC'}</div>
                       <div><strong>Contact:</strong> {lead.contactEmail || lead.phone || 'Not provided'}</div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                        <button type="button" className="btn btn-ghost-green" onClick={() => updateView('enquiry', lead.id)} style={{ width: 'fit-content', padding: '8px 12px', fontSize: '0.75rem' }}>Open full case</button>
+                        <button type="button" className="btn btn-ghost-green" onClick={() => updateView('leads', lead.id)} style={{ width: 'fit-content', padding: '8px 12px', fontSize: '0.75rem' }}>Open full case</button>
                         <button type="button" onClick={() => handleLeadDelete(lead)} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>Delete</button>
                       </div>
                     </div>
@@ -562,7 +562,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 </div>
                 <div style={{ color: '#5a6a7e', fontSize: '0.85rem', lineHeight: 1.6 }}>
                   {provider.email || 'No email'}<br />
-                  {provider.area || 'Area not set'} · {provider.serviceType || 'Service not set'}
+                  {provider.area || 'Area not set'} Â· {provider.serviceType || 'Service not set'}
                 </div>
               </button>
             ))
@@ -600,15 +600,15 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               <div style={{ marginTop: 6 }}>Verification: {selectedProvider.verificationStatus || 'incomplete'}</div>
               <div>Referrals: {selectedProvider.referralEligibility || 'temporarily_ineligible'}</div>
               <div style={{ marginTop: 8, fontSize: 12, color: '#5a6a7e' }}>Registration details and policies are self-declared unless separately checked. Platform verification is not regulatory approval.</div>
-              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Regulator: {selectedProvider.profileData.registration.regulator || 'Not selected'} · CQC registration: {selectedProvider.profileData.registration.cqcRegistration || 'Not declared'}</div>}
-              {selectedProvider.profileData?.business && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Legal name: {selectedProvider.profileData.business.legalName || 'Not supplied'} · Business type: {selectedProvider.profileData.business.type || 'Not supplied'} · Address: {selectedProvider.profileData.business.address || 'Not supplied'} · Companies House: {selectedProvider.profileData.business.companiesHouseNumber || 'Not supplied'}</div>}
-              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Nation: {selectedProvider.profileData.registration.nation || 'Not supplied'} · Registration ID: {selectedProvider.profileData.registration.registrationDetails || 'Not supplied'} · Activities: {(selectedProvider.profileData.registration.regulatedActivities || []).join(', ') || 'Not supplied'}</div>}
-              {selectedProvider.profileData?.coverage && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Office: {selectedProvider.profileData.coverage.basePostcode || 'Not set'} · Radius: {selectedProvider.profileData.coverage.radiusMiles || 0} miles · Explicit areas: {(selectedProvider.profileData.coverage.locations || []).map((item) => item.name).join(', ') || 'None'}</div>}
+              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Regulator: {selectedProvider.profileData.registration.regulator || 'Not selected'} Â· CQC registration: {selectedProvider.profileData.registration.cqcRegistration || 'Not declared'}</div>}
+              {selectedProvider.profileData?.business && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Legal name: {selectedProvider.profileData.business.legalName || 'Not supplied'} Â· Business type: {selectedProvider.profileData.business.type || 'Not supplied'} Â· Address: {selectedProvider.profileData.business.address || 'Not supplied'} Â· Companies House: {selectedProvider.profileData.business.companiesHouseNumber || 'Not supplied'}</div>}
+              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Nation: {selectedProvider.profileData.registration.nation || 'Not supplied'} Â· Registration ID: {selectedProvider.profileData.registration.registrationDetails || 'Not supplied'} Â· Activities: {(selectedProvider.profileData.registration.regulatedActivities || []).join(', ') || 'Not supplied'}</div>}
+              {selectedProvider.profileData?.coverage && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Office: {selectedProvider.profileData.coverage.basePostcode || 'Not set'} Â· Radius: {selectedProvider.profileData.coverage.radiusMiles || 0} miles Â· Explicit areas: {(selectedProvider.profileData.coverage.locations || []).map((item) => item.name).join(', ') || 'None'}</div>}
               {selectedProvider.profileData?.coverage?.exclusions?.length > 0 && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Excluded areas: {selectedProvider.profileData.coverage.exclusions.map((item) => item.name).join(', ')}</div>}
               {selectedProvider.profileData?.services && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Services: {selectedProvider.profileData.services.join(', ') || 'None declared'}</div>}
-              {selectedProvider.profileData?.careNeeds && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Care needs: {selectedProvider.profileData.careNeeds.join(', ') || 'None declared'} · Capacity: {selectedProvider.profileData.availability?.capacity || 0} · Accepting referrals: {selectedProvider.profileData.availability?.acceptingReferrals ? 'Yes' : 'No'}</div>}
-              {selectedProvider.profileData?.compliance && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Insurance expiry: Public liability {selectedProvider.profileData.compliance.insurance?.publicLiabilityExpiry || 'Not supplied'} · Employers liability {selectedProvider.profileData.compliance.insurance?.employersLiabilityExpiry || 'Not supplied'} · Professional indemnity {selectedProvider.profileData.compliance.insurance?.indemnityExpiry || 'Not supplied'}</div>}
-              {(selectedProvider.profileData?.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8, paddingTop: 8, borderTop: '1px solid #dfeaf8', fontSize: 12 }}><span>{document.name} · {document.reviewStatus || 'pending'}</span><div style={{ display: 'flex', gap: 6 }}><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'open')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Open securely</button>{document.reviewStatus === 'pending' && <><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'reviewed')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#eafaf1', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Mark reviewed</button><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'rejected')} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Reject</button></>}</div></div>)}
+              {selectedProvider.profileData?.careNeeds && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Care needs: {selectedProvider.profileData.careNeeds.join(', ') || 'None declared'} Â· Capacity: {selectedProvider.profileData.availability?.capacity || 0} Â· Accepting referrals: {selectedProvider.profileData.availability?.acceptingReferrals ? 'Yes' : 'No'}</div>}
+              {selectedProvider.profileData?.compliance && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Insurance expiry: Public liability {selectedProvider.profileData.compliance.insurance?.publicLiabilityExpiry || 'Not supplied'} Â· Employers liability {selectedProvider.profileData.compliance.insurance?.employersLiabilityExpiry || 'Not supplied'} Â· Professional indemnity {selectedProvider.profileData.compliance.insurance?.indemnityExpiry || 'Not supplied'}</div>}
+              {(selectedProvider.profileData?.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8, paddingTop: 8, borderTop: '1px solid #dfeaf8', fontSize: 12 }}><span>{document.name} Â· {document.reviewStatus || 'pending'}</span><div style={{ display: 'flex', gap: 6 }}><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'open')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Open securely</button>{document.reviewStatus === 'pending' && <><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'reviewed')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#eafaf1', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Mark reviewed</button><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'rejected')} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Reject</button></>}</div></div>)}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
               <button type="button" className="btn btn-green" onClick={() => handleProviderReview(selectedProvider, 'active', 'verified')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Verify and activate</button>
@@ -704,7 +704,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
             <div style={{ padding: 14, borderRadius: 14, background: '#0B1D3A', color: '#fff', boxShadow: '0 10px 22px rgba(11,29,58,0.14)' }}>
               <div style={{ fontSize: 11, color: '#8be6a0', fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Family enquiry</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{selectedLead.family || 'Unknown family'}</div>
-              <div style={{ marginTop: 4, color: '#d2deed', fontSize: '0.88rem' }}>{selectedLead.need || 'Care support'} · {selectedLead.area || 'Not set'}</div>
+              <div style={{ marginTop: 4, color: '#d2deed', fontSize: '0.88rem' }}>{selectedLead.need || 'Care support'} Â· {selectedLead.area || 'Not set'}</div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
@@ -745,8 +745,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                   </option>
                 ))}
               </select>
-              <button type="button" onClick={() => loadProviderMatches(selectedLead.id)} style={{ marginTop: 7, border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 8, padding: '7px 10px', cursor: 'pointer' }}>Check coverage and eligibility</button>
-              {matchesForLeadId === String(selectedLead.id) && <div style={{ display: 'grid', gap: 7, marginTop: 8 }}>{providerMatches.map((item) => <div key={item.provider.id} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, fontSize: 12 }}><strong>{item.provider.businessName}</strong> · {item.eligible ? 'Eligible' : 'Not eligible'}<div style={{ color: '#5a6a7e', marginTop: 3 }}>{item.reasons.join(' · ')}</div></div>)}</div>}
+              <button type="button" onClick={() => loadProviderMatches(selectedLead.id)} disabled={loadingMatchesFor === String(selectedLead.id)} style={{ marginTop: 7, border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 8, padding: '7px 10px', cursor: loadingMatchesFor === String(selectedLead.id) ? 'wait' : 'pointer', opacity: loadingMatchesFor === String(selectedLead.id) ? 0.65 : 1 }}>{loadingMatchesFor === String(selectedLead.id) ? 'Checking coverage…' : 'Check coverage and eligibility'}</button>
+              {matchesForLeadId === String(selectedLead.id) && <div style={{ display: 'grid', gap: 7, marginTop: 8 }}>{providerMatches.map((item) => <div key={item.provider.id} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, fontSize: 12 }}><strong>{item.provider.businessName}</strong> Â· {item.eligible ? 'Eligible' : 'Not eligible'}<div style={{ color: '#5a6a7e', marginTop: 3 }}>{item.reasons.join(' Â· ')}</div></div>)}</div>}
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Follow-up stage</label>
@@ -822,8 +822,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 <button type="button" onClick={() => handleLeadDelete(lead)} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '6px 9px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Delete booking</button>
               </div>
               <div style={{ color: '#5a6a7e', lineHeight: 1.6 }}>
-                {lead.need} · {lead.area}<br />
-                Provider: {lead.providerName || 'Unassigned'} · Budget: {lead.budget || 'TBC'}
+                {lead.need} Â· {lead.area}<br />
+                Provider: {lead.providerName || 'Unassigned'} Â· Budget: {lead.budget || 'TBC'}
               </div>
             </div>
           ))}
@@ -876,7 +876,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           <div style={{ display: 'grid', gap: 8 }}>
             {leads.map((lead) => (
               <div key={lead.id} className="admin-report-record" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingBottom: 8, borderBottom: '1px solid #edf2f7' }}>
-                <span style={{ minWidth: 0 }}><strong style={{ display: 'block', color: '#0B1D3A' }}>{lead.family || 'Unknown family'}</strong><small style={{ color: '#5a6a7e' }}>{lead.need || 'Care support'} · {lead.area || 'Not set'}</small></span>
+                <span style={{ minWidth: 0 }}><strong style={{ display: 'block', color: '#0B1D3A' }}>{lead.family || 'Unknown family'}</strong><small style={{ color: '#5a6a7e' }}>{lead.need || 'Care support'} Â· {lead.area || 'Not set'}</small></span>
                 <button type="button" onClick={() => handleLeadDelete(lead)} style={{ flex: '0 0 auto', border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '7px 10px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Delete</button>
               </div>
             ))}
@@ -887,144 +887,37 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   );
 
   const renderEnquiryDetail = () => {
-    const requestedLeadId = new URLSearchParams(location.search || '').get('leadId');
-    // A case can be opened from Recent leads as well as Latest Enquiry. Search
-    // the complete lead list first so ordinary leads do not produce a false
-    // "not found" result.
-    const enquiryLead = requestedLeadId
-      ? leads.find((lead) => String(lead.id) === String(requestedLeadId))
-        || enquiries.find((enquiry) => String(enquiry.id) === String(requestedLeadId))
-        || null
-      : newestEnquiry;
-
-    const sortedEnquiries = [...enquiries].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-
-    if (!enquiryLead) {
-      return (
-        <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
-          <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>Latest enquiry</h3>
-          <div style={{ color: '#5a6a7e' }}>No enquiry has been submitted yet.</div>
-        </div>
-      );
-    }
-
-    const enquiryTimeline = [
-      { label: 'Submitted', value: enquiryLead.createdAt ? new Date(enquiryLead.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently' },
-      { label: 'Current status', value: enquiryLead.status || 'New' },
-      { label: 'Assigned match', value: enquiryLead.matchStatus || 'Awaiting triage' },
-      { label: 'Follow-up stage', value: enquiryLead.followUpStage || 'Pending' },
-      { label: 'Final rating', value: enquiryLead.adminRating ? `${enquiryLead.adminRating}/5` : 'Not rated yet' },
-    ];
+    const enquiryLead = newestEnquiry;
 
     return (
-      <div style={{ display: 'grid', gap: 14 }}>
-      <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
-        <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>All enquiries ({sortedEnquiries.length})</h3>
-        <div style={{ display: 'grid', gap: 8 }}>
-          {sortedEnquiries.map((item) => (
-            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 12px', border: String(item.id) === String(enquiryLead.id) ? '1px solid #28A745' : '1px solid #edf2f7', borderRadius: 10, background: '#fff' }}>
-              <button type="button" onClick={() => updateView('enquiry', item.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', border: 0, background: 'transparent', cursor: 'pointer', padding: 0, color: '#0B1D3A' }}>
-                <strong style={{ display: 'block' }}>{item.family || 'Unknown family'}</strong>
-                <small style={{ color: '#5a6a7e' }}>{item.need || 'Care support'} · {item.area || 'Not set'} · {item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Recently'}</small>
-              </button>
-              <button type="button" onClick={() => handleLeadDelete(item)} style={{ flex: '0 0 auto', border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '7px 10px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Delete</button>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="admin-dashboard-card admin-enquiry-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: '#28A745', fontWeight: 800 }}>Case overview</div>
-            <h3 style={{ margin: '6px 0 0', color: '#0B1D3A', fontSize: '1.1rem' }}>Enquiry detail</h3>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-green" onClick={() => updateView('leads')} style={{ width: 'auto', padding: '10px 14px', fontSize: '0.8rem' }}>Back to leads</button>
-            <button type="button" className="btn btn-ghost-green" onClick={() => handleLeadStatusChange(enquiryLead.id, 'Qualified')} style={{ width: 'auto', padding: '10px 14px', fontSize: '0.8rem' }}>Mark qualified</button>
-          </div>
-        </div>
-
-        <div className="admin-enquiry-layout" style={{ display: 'grid', gridTemplateColumns: '1.25fr 0.75fr', gap: 16, alignItems: 'start' }}>
-          <div style={{ display: 'grid', gap: 10, color: '#0B1D3A' }}>
-            <div style={{ background: '#f9fbff', border: '1px solid #edf2f7', borderRadius: 14, padding: 12 }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0B1D3A' }}>{enquiryLead.family || 'Unknown family'}</div>
-                <span style={{ background: '#eafaf1', color: '#0B1D3A', borderRadius: 999, padding: '5px 9px', fontSize: 11, fontWeight: 700 }}>{enquiryLead.status || 'New'}</span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px 12px' }}>
-                {[
-                  ['Care need', enquiryLead.need || 'Care support'],
-                  ['Area', enquiryLead.area || 'Not set'],
-                  ['Urgency', enquiryLead.urgency || 'Soon'],
-                  ['Budget', enquiryLead.budget || 'TBC'],
-                  ['Contact email', enquiryLead.contactEmail || 'Not provided'],
-                  ['Phone', enquiryLead.phone || 'Not provided'],
-                  ['Assigned provider', enquiryLead.providerName || 'Unassigned'],
-                  ['Match status', enquiryLead.matchStatus || 'Awaiting triage'],
-                ].map(([label, value]) => (
-                  <div key={label} style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 11, color: '#5a6a7e', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>{label}</div>
-                    <div style={{ color: '#0B1D3A', fontSize: '0.9rem', fontWeight: 600, lineHeight: 1.5, wordBreak: 'break-word' }}>{value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {enquiryLead.adminNote && (
-              <div style={{ background: '#eefaf2', border: '1px solid #d7f1df', borderRadius: 12, padding: 10, color: '#0B1D3A', fontSize: '0.9rem' }}>
-                <strong>Admin note:</strong> {enquiryLead.adminNote}
-              </div>
-            )}
-
-            <div style={{ border: '1px solid #edf2f7', borderRadius: 12, padding: 12, color: '#5a6a7e', lineHeight: 1.6, background: '#fff', fontSize: '0.92rem', wordBreak: 'break-word' }}>
-              <div style={{ marginBottom: 8, color: '#0B1D3A', fontWeight: 700 }}>Message</div>
-              {enquiryLead.message || 'No message supplied.'}
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ border: '1px solid #edf2f7', borderRadius: 12, padding: 12, background: '#f9fbff' }}>
-              <h4 style={{ margin: '0 0 10px', color: '#0B1D3A', fontSize: '0.96rem' }}>Case timeline</h4>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {enquiryTimeline.map((item) => (
-                  <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, borderBottom: '1px solid #edf2f7', paddingBottom: 6, fontSize: '0.82rem' }}>
-                    <span style={{ color: '#5a6a7e' }}>{item.label}</span>
-                    <strong style={{ color: '#0B1D3A', textAlign: 'right' }}>{item.value}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ border: '1px solid #edf2f7', borderRadius: 12, padding: 12, background: '#fff' }}>
-              <h4 style={{ margin: '0 0 10px', color: '#0B1D3A', fontSize: '0.96rem' }}>Admin actions</h4>
-              {actionFeedback && (
-                <div role="status" style={{ marginBottom: 10, borderRadius: 8, padding: '8px 10px', background: /unable|not eligible|failed|error/i.test(actionFeedback) ? '#fff1f2' : '#eefaf2', color: /unable|not eligible|failed|error/i.test(actionFeedback) ? '#b42318' : '#0B1D3A', fontSize: '0.78rem', fontWeight: 700 }}>
-                  {actionFeedback}
+      <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 18, maxWidth: 820 }}>
+        <div style={{ color: '#28A745', fontSize: 11, fontWeight: 800, letterSpacing: 1.1, textTransform: 'uppercase' }}>Inbox snapshot</div>
+        <h3 style={{ margin: '6px 0 16px', color: '#0B1D3A', fontSize: '1.2rem' }}>Latest enquiry</h3>
+        {!enquiryLead ? (
+          <div style={{ color: '#5a6a7e' }}>No enquiry has been submitted yet.</div>
+        ) : (
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ border: '1px solid #dfeaf8', borderRadius: 14, background: '#f8fbff', padding: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <strong style={{ display: 'block', color: '#0B1D3A', fontSize: '1.05rem' }}>{enquiryLead.family || 'New enquiry'}</strong>
+                  <span style={{ display: 'block', color: '#5a6a7e', marginTop: 4 }}>{enquiryLead.need || 'Care support'} · {enquiryLead.area || 'Area not provided'}</span>
                 </div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <button type="button" className="btn btn-green" onClick={() => handleLeadStatusChange(enquiryLead.id, 'Qualified')} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem' }}>Qualify enquiry</button>
-                <button type="button" className="btn btn-ghost-green" onClick={() => loadProviderMatches(enquiryLead.id)} disabled={loadingMatchesFor === String(enquiryLead.id)} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem' }}>{loadingMatchesFor === String(enquiryLead.id) ? 'Checking coverage…' : 'Find eligible providers'}</button>
-                {matchesForLeadId === String(enquiryLead.id) && <div style={{ display: 'grid', gap: 8 }}>
-                  {!providerMatches.length && <small style={{ color: '#5a6a7e' }}>No provider profiles are available to check.</small>}
-                  {providerMatches.map((match) => <div key={match.provider.id} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, fontSize: 12 }}>
-                    <strong>{match.provider.businessName || match.provider.name}</strong><div style={{ color: match.eligible ? '#146c2e' : '#b42318', margin: '3px 0' }}>{match.eligible ? 'Eligible for this referral' : 'Not eligible'}</div>
-                    <div style={{ color: '#5a6a7e' }}>{(match.reasons || []).join(' · ')}</div>
-                    {match.eligible && <button type="button" className="btn btn-green" onClick={() => handleLeadMatch(enquiryLead.id, match.provider.id, 'Matched')} style={{ width: '100%', marginTop: 7, padding: '8px 10px', fontSize: '0.76rem' }}>Assign this provider</button>}
-                  </div>)}
-                </div>}
-                <button type="button" className="btn btn-ghost-green" onClick={() => handleLeadFollowUp(enquiryLead.id, 'Family contacted', 'Admin has contacted the family and is scheduling the next care conversation.')} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem' }}>Set follow-up</button>
-                <button type="button" className="btn btn-navy" disabled={!enquiryLead.providerName || enquiryLead.providerName === 'Unassigned'} title={!enquiryLead.providerName || enquiryLead.providerName === 'Unassigned' ? 'Assign an eligible provider before marking this case booked.' : ''} onClick={() => handleLeadStatusChange(enquiryLead.id, 'Booked', () => updateView('bookings'))} style={{ width: '100%', padding: '10px 12px', fontSize: '0.8rem', opacity: !enquiryLead.providerName || enquiryLead.providerName === 'Unassigned' ? 0.55 : 1 }}>Mark booked</button>
+                <span style={{ background: '#fff4d8', color: '#805a08', borderRadius: 999, padding: '6px 10px', fontSize: 12, fontWeight: 700 }}>{enquiryLead.status || 'New'}</span>
+              </div>
+              <div style={{ marginTop: 12, color: '#5a6a7e', fontSize: '0.9rem' }}>
+                Received {enquiryLead.createdAt ? new Date(enquiryLead.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'recently'}
               </div>
             </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-green" onClick={() => updateView('leads', enquiryLead.id)} style={{ width: 'auto', padding: '10px 14px', fontSize: '0.82rem' }}>Open full case in Leads</button>
+              <button type="button" className="btn btn-ghost-green" onClick={() => updateView('recent-leads')} style={{ width: 'auto', padding: '10px 14px', fontSize: '0.82rem' }}>View recent leads</button>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
       </div>
     );
   };
-
   const renderCurrentView = () => {
     switch (currentView) {
       case 'enquiry':
