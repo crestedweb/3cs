@@ -5,7 +5,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import process from 'node:process';
-import { randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import { Buffer } from 'node:buffer';
 import { createClient } from '@supabase/supabase-js';
@@ -98,6 +98,10 @@ const supabaseAuth = supabaseAnon || supabaseAdmin;
 const app = express();
 const PORT = process.env.PORT || 3000;
 const authSessions = new Map();
+const revokedAdminSessions = new Set();
+const adminSessionSecret = process.env.ADMIN_SESSION_SECRET
+  || process.env.SUPABASE_SERVICE_ROLE_KEY
+  || process.env.ADMIN_PASSWORD;
 const postcodeLookupCache = new Map();
 const providerServiceOptions = ['Visiting/home care', 'Personal care', 'Live-in care', 'Overnight care', '24-hour care', 'Respite care', 'Emergency or urgent care', 'Hospital discharge and reablement', 'Companionship', 'Medication support', 'Domestic support', 'Complex care', 'Other'];
 const providerCareNeedOptions = ['Older adults', 'Dementia', 'Complex care', 'Physical disabilities', 'Learning disabilities', 'Autism', 'Mental health needs', 'Palliative or end-of-life care', 'Nursing care', 'Other specialist needs'];
@@ -260,14 +264,43 @@ function getBearerToken(req) {
 }
 
 function createSession(role, subject, email) {
-  const token = randomUUID();
-  authSessions.set(token, { role, subject: String(subject), email, expiresAt: Date.now() + 12 * 60 * 60 * 1000 });
+  const expiresAt = Date.now() + 12 * 60 * 60 * 1000;
+  const session = { role, subject: String(subject), email, expiresAt };
+  let token = randomUUID();
+  if (role === 'admin' && adminSessionSecret) {
+    session.sessionId = randomUUID();
+    const payload = Buffer.from(JSON.stringify(session)).toString('base64url');
+    const signature = createHmac('sha256', adminSessionSecret).update(payload).digest('base64url');
+    token = `admin.${payload}.${signature}`;
+  }
+  authSessions.set(token, session);
   return token;
+}
+
+function getSignedAdminSession(token) {
+  if (!adminSessionSecret) return null;
+  const [prefix, payload, signature, extra] = String(token || '').split('.');
+  if (prefix !== 'admin' || !payload || !signature || extra) return null;
+  const expected = createHmac('sha256', adminSessionSecret).update(payload).digest();
+  let provided;
+  try {
+    provided = Buffer.from(signature, 'base64url');
+  } catch {
+    return null;
+  }
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return null;
+  try {
+    const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (session.role !== 'admin' || !session.sessionId || revokedAdminSessions.has(session.sessionId)) return null;
+    return session;
+  } catch {
+    return null;
+  }
 }
 
 function getSession(req) {
   const token = getBearerToken(req);
-  const session = token ? authSessions.get(token) : null;
+  const session = token ? (authSessions.get(token) || getSignedAdminSession(token)) : null;
   if (session && session.expiresAt > Date.now()) return session;
   if (token) authSessions.delete(token);
   return null;
@@ -275,6 +308,8 @@ function getSession(req) {
 
 app.post('/api/logout', (req, res) => {
   const token = getBearerToken(req);
+  const session = token ? getSession(req) : null;
+  if (session?.role === 'admin' && session.sessionId) revokedAdminSessions.add(session.sessionId);
   if (token) authSessions.delete(token);
   return res.json({ ok: true });
 });

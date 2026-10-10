@@ -63,6 +63,10 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         },
       });
       const payload = await response.json();
+      if (response.status === 401) {
+        onLogout?.();
+        return;
+      }
       if (!response.ok) throw new Error(payload.error || 'Unable to load the admin dashboard.');
       if (response.ok && payload.dashboard) {
         const nextProviders = Array.isArray(payload.dashboard.providers) ? payload.dashboard.providers : [];
@@ -86,7 +90,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       console.error('Admin dashboard fetch failed', error);
       setActionFeedback(error.message || 'Unable to load the admin dashboard.');
     }
-  }, [adminSession]);
+  }, [adminSession, onLogout]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void refreshDashboard(); }, 0);
@@ -392,7 +396,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 18 }}>
         {[
-          { label: 'Latest enquiry', detail: newestEnquiry ? `${newestEnquiry.family || 'Family'} Â· ${newestEnquiry.need || 'Care support'}` : 'No enquiry yet', action: () => updateView('enquiry') },
+          { label: 'Latest enquiry', detail: newestEnquiry ? `${newestEnquiry.family || 'Family'} · ${newestEnquiry.need || 'Care support'}` : 'No enquiry yet', action: () => updateView('enquiry') },
           { label: 'Recent leads', detail: `${summary.totalLeads} lead records`, action: () => updateView('recent-leads') },
           { label: 'Review leads', detail: `${summary.newLeads} new leads`, action: () => { setStatusFilter('New'); updateView('leads'); } },
           { label: 'Approve providers', detail: `${pendingProviders.length} pending`, action: () => updateView('providers') },
@@ -472,7 +476,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                   </div>
                   <div style={{ color: '#5a6a7e', fontSize: '0.85rem', lineHeight: 1.6 }}>
                     {provider.email || 'No email'}<br />
-                    {provider.area || 'Area not set'} Â· {provider.serviceType || 'Service not set'}
+                    {provider.area || 'Area not set'} · {provider.serviceType || 'Service not set'}
                   </div>
                 </button>
               ))}
@@ -528,7 +532,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                   >
                     <span>
                       <strong style={{ display: 'block', color: '#0B1D3A' }}>{lead.family || 'Unknown family'} <small style={{ color: '#758397', fontWeight: 600 }}>· {caseReference(lead)}</small></strong>
-                      <span style={{ display: 'block', color: '#5a6a7e', fontSize: '0.82rem', marginTop: 3 }}>{lead.need || 'Care support'} Â· {lead.area || 'Not set'}</span>
+                      <span style={{ display: 'block', color: '#5a6a7e', fontSize: '0.82rem', marginTop: 3 }}>{lead.need || 'Care support'} · {lead.area || 'Not set'}</span>
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ background: lead.status === 'Booked' ? '#eafaf1' : lead.status === 'Qualified' ? '#eefaf2' : '#fff4d8', color: '#0B1D3A', borderRadius: 999, padding: '5px 8px', fontSize: 11, fontWeight: 700 }}>{lead.status || 'New'}</span>
@@ -537,7 +541,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                   </button>
                   {expanded && (
                     <div style={{ borderTop: '1px solid #dfeaf8', padding: '12px 14px', color: '#0B1D3A', display: 'grid', gap: 7, fontSize: '0.88rem' }}>
-                      <div><strong>Urgency:</strong> {lead.urgency || 'Soon'} Â· <strong>Budget:</strong> {lead.budget || 'TBC'}</div>
+                      <div><strong>Urgency:</strong> {lead.urgency || 'Soon'} · <strong>Budget:</strong> {lead.budget || 'TBC'}</div>
                       <div><strong>Contact:</strong> {lead.contactEmail || lead.phone || 'Not provided'}</div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                         <button type="button" className="btn btn-ghost-green" onClick={() => updateView('leads', lead.id)} style={{ width: 'fit-content', padding: '8px 12px', fontSize: '0.75rem' }}>Open full case</button>
@@ -594,7 +598,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 </div>
                 <div style={{ color: '#5a6a7e', fontSize: '0.85rem', lineHeight: 1.6 }}>
                   {provider.email || 'No email'}<br />
-                  {provider.area || 'Area not set'} Â· {provider.serviceType || 'Service not set'}
+                  {provider.area || 'Area not set'} · {provider.serviceType || 'Service not set'}
                 </div>
               </button>
             ))
@@ -632,15 +636,15 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               <div style={{ marginTop: 6 }}>Verification: {selectedProvider.verificationStatus || 'incomplete'}</div>
               <div>Referrals: {selectedProvider.referralEligibility || 'temporarily_ineligible'}</div>
               <div style={{ marginTop: 8, fontSize: 12, color: '#5a6a7e' }}>Registration details and policies are self-declared unless separately checked. Platform verification is not regulatory approval.</div>
-              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Regulator: {selectedProvider.profileData.registration.regulator || 'Not selected'} Â· CQC registration: {selectedProvider.profileData.registration.cqcRegistration || 'Not declared'}</div>}
-              {selectedProvider.profileData?.business && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Legal name: {selectedProvider.profileData.business.legalName || 'Not supplied'} Â· Business type: {selectedProvider.profileData.business.type || 'Not supplied'} Â· Address: {selectedProvider.profileData.business.address || 'Not supplied'} Â· Companies House: {selectedProvider.profileData.business.companiesHouseNumber || 'Not supplied'}</div>}
-              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Nation: {selectedProvider.profileData.registration.nation || 'Not supplied'} Â· Registration ID: {selectedProvider.profileData.registration.registrationDetails || 'Not supplied'} Â· Activities: {(selectedProvider.profileData.registration.regulatedActivities || []).join(', ') || 'Not supplied'}</div>}
-              {selectedProvider.profileData?.coverage && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Office: {selectedProvider.profileData.coverage.basePostcode || 'Not set'} Â· Radius: {selectedProvider.profileData.coverage.radiusMiles || 0} miles Â· Explicit areas: {(selectedProvider.profileData.coverage.locations || []).map((item) => item.name).join(', ') || 'None'}</div>}
+              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Regulator: {selectedProvider.profileData.registration.regulator || 'Not selected'} · CQC registration: {selectedProvider.profileData.registration.cqcRegistration || 'Not declared'}</div>}
+              {selectedProvider.profileData?.business && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Legal name: {selectedProvider.profileData.business.legalName || 'Not supplied'} · Business type: {selectedProvider.profileData.business.type || 'Not supplied'} · Address: {selectedProvider.profileData.business.address || 'Not supplied'} · Companies House: {selectedProvider.profileData.business.companiesHouseNumber || 'Not supplied'}</div>}
+              {selectedProvider.profileData?.registration && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Nation: {selectedProvider.profileData.registration.nation || 'Not supplied'} · Registration ID: {selectedProvider.profileData.registration.registrationDetails || 'Not supplied'} · Activities: {(selectedProvider.profileData.registration.regulatedActivities || []).join(', ') || 'Not supplied'}</div>}
+              {selectedProvider.profileData?.coverage && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Office: {selectedProvider.profileData.coverage.basePostcode || 'Not set'} · Radius: {selectedProvider.profileData.coverage.radiusMiles || 0} miles · Explicit areas: {(selectedProvider.profileData.coverage.locations || []).map((item) => item.name).join(', ') || 'None'}</div>}
               {selectedProvider.profileData?.coverage?.exclusions?.length > 0 && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Excluded areas: {selectedProvider.profileData.coverage.exclusions.map((item) => item.name).join(', ')}</div>}
               {selectedProvider.profileData?.services && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Services: {selectedProvider.profileData.services.join(', ') || 'None declared'}</div>}
-              {selectedProvider.profileData?.careNeeds && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Care needs: {selectedProvider.profileData.careNeeds.join(', ') || 'None declared'} Â· Capacity: {selectedProvider.profileData.availability?.capacity || 0} Â· Accepting referrals: {selectedProvider.profileData.availability?.acceptingReferrals ? 'Yes' : 'No'}</div>}
-              {selectedProvider.profileData?.compliance && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Insurance expiry: Public liability {selectedProvider.profileData.compliance.insurance?.publicLiabilityExpiry || 'Not supplied'} Â· Employers liability {selectedProvider.profileData.compliance.insurance?.employersLiabilityExpiry || 'Not supplied'} Â· Professional indemnity {selectedProvider.profileData.compliance.insurance?.indemnityExpiry || 'Not supplied'}</div>}
-              {(selectedProvider.profileData?.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8, paddingTop: 8, borderTop: '1px solid #dfeaf8', fontSize: 12 }}><span>{document.name} Â· {document.reviewStatus || 'pending'}</span><div style={{ display: 'flex', gap: 6 }}><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'open')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Open securely</button>{document.reviewStatus === 'pending' && <><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'reviewed')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#eafaf1', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Mark reviewed</button><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'rejected')} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Reject</button></>}</div></div>)}
+              {selectedProvider.profileData?.careNeeds && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Care needs: {selectedProvider.profileData.careNeeds.join(', ') || 'None declared'} · Capacity: {selectedProvider.profileData.availability?.capacity || 0} · Accepting referrals: {selectedProvider.profileData.availability?.acceptingReferrals ? 'Yes' : 'No'}</div>}
+              {selectedProvider.profileData?.compliance && <div style={{ marginTop: 8, fontSize: 12, color: '#34445a' }}>Insurance expiry: Public liability {selectedProvider.profileData.compliance.insurance?.publicLiabilityExpiry || 'Not supplied'} · Employers liability {selectedProvider.profileData.compliance.insurance?.employersLiabilityExpiry || 'Not supplied'} · Professional indemnity {selectedProvider.profileData.compliance.insurance?.indemnityExpiry || 'Not supplied'}</div>}
+              {(selectedProvider.profileData?.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8, paddingTop: 8, borderTop: '1px solid #dfeaf8', fontSize: 12 }}><span>{document.name} · {document.reviewStatus || 'pending'}</span><div style={{ display: 'flex', gap: 6 }}><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'open')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Open securely</button>{document.reviewStatus === 'pending' && <><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'reviewed')} style={{ border: '1px solid #28A745', color: '#0B1D3A', background: '#eafaf1', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Mark reviewed</button><button type="button" onClick={() => handleProviderDocument(selectedProvider, document, 'rejected')} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 7, padding: '5px 8px', cursor: 'pointer' }}>Reject</button></>}</div></div>)}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
               <button type="button" className="btn btn-green" onClick={() => handleProviderReview(selectedProvider, 'active', 'verified')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Verify and activate</button>
@@ -736,7 +740,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
             <div style={{ padding: 14, borderRadius: 14, background: '#0B1D3A', color: '#fff', boxShadow: '0 10px 22px rgba(11,29,58,0.14)' }}>
               <div style={{ fontSize: 11, color: '#8be6a0', fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>{selectedLead.recordType === 'enquiry' ? 'Contact Us enquiry' : 'Care request'} · {caseReference(selectedLead)}</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{selectedLead.family || 'Unknown family'}</div>
-              <div style={{ marginTop: 4, color: '#d2deed', fontSize: '0.88rem' }}>{selectedLead.need || 'Care support'} Â· {selectedLead.area || 'Not set'}</div>
+              <div style={{ marginTop: 4, color: '#d2deed', fontSize: '0.88rem' }}>{selectedLead.need || 'Care support'} · {selectedLead.area || 'Not set'}</div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
@@ -816,7 +820,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 ))}
               </select>
               <button type="button" onClick={() => loadProviderMatches(selectedLead.id)} disabled={loadingMatchesFor === String(selectedLead.id)} style={{ marginTop: 7, border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 8, padding: '7px 10px', cursor: loadingMatchesFor === String(selectedLead.id) ? 'wait' : 'pointer', opacity: loadingMatchesFor === String(selectedLead.id) ? 0.65 : 1 }}>{loadingMatchesFor === String(selectedLead.id) ? 'Checking coverage…' : 'Check coverage and eligibility'}</button>
-              {matchesForLeadId === String(selectedLead.id) && <div style={{ display: 'grid', gap: 7, marginTop: 8 }}>{providerMatches.map((item) => <div key={item.provider.id} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, fontSize: 12 }}><strong>{item.provider.businessName}</strong> Â· {item.eligible ? 'Eligible' : 'Not eligible'}<div style={{ color: '#5a6a7e', marginTop: 3 }}>{item.reasons.join(' Â· ')}</div></div>)}</div>}
+              {matchesForLeadId === String(selectedLead.id) && <div style={{ display: 'grid', gap: 7, marginTop: 8 }}>{providerMatches.map((item) => <div key={item.provider.id} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, fontSize: 12 }}><strong>{item.provider.businessName}</strong> · {item.eligible ? 'Eligible' : 'Not eligible'}<div style={{ color: '#5a6a7e', marginTop: 3 }}>{item.reasons.join(' · ')}</div></div>)}</div>}
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Follow-up stage</label>
@@ -892,8 +896,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 <button type="button" onClick={() => handleLeadDelete(lead)} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '6px 9px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Delete booking</button>
               </div>
               <div style={{ color: '#5a6a7e', lineHeight: 1.6 }}>
-                {lead.need} Â· {lead.area}<br />
-                Provider: {lead.providerName || 'Unassigned'} Â· Budget: {lead.budget || 'TBC'}
+                {lead.need} · {lead.area}<br />
+                Provider: {lead.providerName || 'Unassigned'} · Budget: {lead.budget || 'TBC'}
               </div>
             </div>
           ))}
@@ -946,7 +950,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           <div style={{ display: 'grid', gap: 8 }}>
             {leads.map((lead) => (
               <div key={lead.id} className="admin-report-record" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingBottom: 8, borderBottom: '1px solid #edf2f7' }}>
-                <span style={{ minWidth: 0 }}><strong style={{ display: 'block', color: '#0B1D3A' }}>{lead.family || 'Unknown family'}</strong><small style={{ color: '#5a6a7e' }}>{lead.need || 'Care support'} Â· {lead.area || 'Not set'}</small></span>
+                <span style={{ minWidth: 0 }}><strong style={{ display: 'block', color: '#0B1D3A' }}>{lead.family || 'Unknown family'}</strong><small style={{ color: '#5a6a7e' }}>{lead.need || 'Care support'} · {lead.area || 'Not set'}</small></span>
                 <button type="button" onClick={() => handleLeadDelete(lead)} style={{ flex: '0 0 auto', border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '7px 10px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Delete</button>
               </div>
             ))}
