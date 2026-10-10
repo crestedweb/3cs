@@ -574,6 +574,7 @@ async function updateLeadRecord(leadId, localUpdates, databaseUpdates) {
     if (changed('followUpStage', previous.followUpStage)) entries.push({ at: activityAt, action: `Follow-up set to ${localUpdates.followUpStage}`, actor: 'Admin' });
     if (changed('adminNote', previous.adminNote)) entries.push({ at: activityAt, action: 'Internal note updated', actor: 'Admin' });
     if (changed('adminRating', previous.adminRating)) entries.push({ at: activityAt, action: `Final rating ${localUpdates.adminRating ? `set to ${localUpdates.adminRating}/5` : 'cleared'}`, actor: 'Admin' });
+    if (localUpdates.manualOverride) entries.push({ at: activityAt, action: `Admin manually overrode provider eligibility for ${localUpdates.manualOverride.providerName}: ${localUpdates.manualOverride.reasons.join('; ')}`, actor: 'Admin' });
     return entries;
   };
 
@@ -1555,7 +1556,8 @@ app.put('/api/admin/leads/:id/status', async (req, res) => {
       const assignedProvider = providerList.find((provider) => provider.businessName === requestedLead.providerName || provider.name === requestedLead.providerName);
       if (!assignedProvider) return res.status(422).json({ error: 'The assigned provider no longer exists. Match an eligible provider before booking.' });
       const providerMatch = (await getMatchesForLead(requestedLead, [assignedProvider]))[0];
-      if (!providerMatch.eligible) return res.status(422).json({ error: 'The assigned provider is no longer eligible for this referral.', reasons: providerMatch.reasons });
+      const wasManuallyOverridden = (requestedLead.activity || []).some((entry) => entry.actor === 'Admin' && entry.action?.startsWith(`Admin manually overrode provider eligibility for ${requestedLead.providerName}:`));
+      if (!providerMatch.eligible && !wasManuallyOverridden) return res.status(422).json({ error: 'The assigned provider is no longer eligible for this referral.', reasons: providerMatch.reasons });
     }
     const lead = await updateLeadRecord(leadId, { status: normalized }, { status: normalized.toLowerCase() });
     if (!lead) {
@@ -1577,6 +1579,7 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
   const requestedProviderId = clean(req.body?.providerId || '');
   const requestedProviderName = clean(req.body?.providerName || '');
   const matchStatus = clean(req.body?.matchStatus || 'Matched');
+  const overrideIneligible = req.body?.overrideIneligible === true;
 
   const leadList = await getLeadsFromDataSource();
   const requestedLead = leadList.find((item) => String(item.id) === leadId);
@@ -1591,15 +1594,16 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
       : item.businessName === requestedProviderName || item.name === requestedProviderName);
     if (!candidate) return res.status(404).json({ error: 'Provider not found.' });
     const candidateMatch = (await getMatchesForLead(requestedLead, [candidate]))[0];
-    if (!candidateMatch.eligible) return res.status(422).json({ error: 'This provider is not eligible for this referral.', reasons: candidateMatch.reasons });
+    if (!candidateMatch.eligible && !overrideIneligible) return res.status(422).json({ error: 'This provider is not eligible for this referral.', reasons: candidateMatch.reasons });
     providerName = candidate.businessName || candidate.name;
+    if (!candidateMatch.eligible) requestedLead.manualOverride = { providerName, reasons: candidateMatch.reasons };
   }
 
   try {
     const nextMatchStatus = isUnassigned ? 'Awaiting triage' : (matchStatus || 'Matched');
     const lead = await updateLeadRecord(
       leadId,
-      { providerName, matchStatus: nextMatchStatus, ...(!isUnassigned ? { status: 'Qualified' } : {}) },
+      { providerName, matchStatus: nextMatchStatus, ...(!isUnassigned ? { status: 'Qualified' } : {}), ...(requestedLead.manualOverride ? { manualOverride: requestedLead.manualOverride } : {}) },
       { provider_name: providerName, match_status: nextMatchStatus, ...(!isUnassigned ? { status: 'qualified' } : {}) },
     );
     if (!lead) {

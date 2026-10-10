@@ -303,7 +303,13 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     }
   };
 
-  const handleLeadMatch = async (leadId, providerId, matchStatus = 'Matched') => {
+  const handleLeadMatch = async (leadId, providerId, matchStatus = 'Matched', overrideIneligible = false) => {
+    if (overrideIneligible) {
+      const candidate = providerMatches.find((item) => String(item.provider.id) === String(providerId));
+      const reasons = candidate?.reasons?.join(' · ') || 'The provider did not pass all eligibility checks.';
+      const providerName = candidate?.provider.businessName || candidate?.provider.name || 'this provider';
+      if (!window.confirm(`Assign ${providerName} to this case despite these eligibility checks?\n\n${reasons}\n\nThe manual override will be recorded in case activity.`)) return;
+    }
     try {
       const response = await fetch(`/api/admin/leads/${leadId}/match`, {
         method: 'PUT',
@@ -311,7 +317,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${adminSession?.token || ''}`,
         },
-        body: JSON.stringify({ providerId, matchStatus }),
+        body: JSON.stringify({ providerId, matchStatus, overrideIneligible }),
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -859,17 +865,19 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               <select
                 value={providers.find((provider) => (provider.businessName || provider.name) === selectedLead.providerName)?.id || 'Unassigned'}
                 onChange={(event) => {
-                  handleLeadMatch(selectedLead.id, event.target.value, 'Matched');
+                  const candidate = providerMatches.find((item) => String(item.provider.id) === String(event.target.value));
+                  handleLeadMatch(selectedLead.id, event.target.value, 'Matched', candidate?.eligible === false);
                 }}
                 style={{ width: '100%', border: '1px solid #dfeaf8', borderRadius: 10, padding: '10px 12px', fontSize: '0.9rem', background: '#fff' }}
               >
                 <option value="Unassigned">Unassigned</option>
-                {(matchesForLeadId === String(selectedLead.id) ? providerMatches : []).filter((item) => item.eligible).map(({ provider }) => (
+                {(matchesForLeadId === String(selectedLead.id) ? providerMatches : []).map(({ provider, eligible }) => (
                   <option key={provider.id} value={provider.id}>
-                    {provider.businessName || provider.name || 'Provider'}
+                    {provider.businessName || provider.name || 'Provider'}{eligible ? '' : ' (not eligible — assign anyway)'}
                   </option>
                 ))}
               </select>
+              {matchesForLeadId === String(selectedLead.id) && providerMatches.some((item) => !item.eligible) && <small style={{ display: 'block', marginTop: 6, color: '#805a08', lineHeight: 1.5 }}>You can assign an ineligible provider if needed. You’ll be asked to confirm, and the override and failed checks will be recorded in case activity.</small>}
               <button type="button" onClick={() => loadProviderMatches(selectedLead.id)} disabled={loadingMatchesFor === String(selectedLead.id)} style={{ marginTop: 7, border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 8, padding: '7px 10px', cursor: loadingMatchesFor === String(selectedLead.id) ? 'wait' : 'pointer', opacity: loadingMatchesFor === String(selectedLead.id) ? 0.65 : 1 }}>{loadingMatchesFor === String(selectedLead.id) ? 'Checking coverage…' : 'Check coverage and eligibility'}</button>
               {matchesForLeadId === String(selectedLead.id) && <div role="status" style={{ marginTop: 8, border: `1px solid ${matchLocation?.resolved ? '#bde8c9' : '#f1d58b'}`, background: matchLocation?.resolved ? '#f4fbf6' : '#fff9e8', color: matchLocation?.resolved ? '#146c2e' : '#805a08', borderRadius: 9, padding: '9px 10px', fontSize: 12, lineHeight: 1.5 }}>{matchLocation?.resolved ? <>Location interpreted as <strong>{matchLocation.label}</strong>. The visitor’s original wording remains on the case.</> : <>Could not resolve “{matchLocation?.input || selectedLead.area || 'location not provided'}” to a UK postcode or town. Confirm the care location before assigning a provider.</>}</div>}
               {matchesForLeadId === String(selectedLead.id) && <div aria-live="polite" style={{ display: 'grid', gap: 7, marginTop: 8 }}>
