@@ -37,12 +37,14 @@ export function matchProviderToRequest(provider, request) {
     || ((location.kind === 'postcode-district' || location.kind === 'outcode') && location.outcode && ((requestPostcode && requestPostcode.startsWith(`${String(location.outcode).toUpperCase()} `)) || requestOutcode === String(location.outcode).toUpperCase()))
     || (request?.areaName && [location.name, ...(location.aliases || [])].some((name) => String(name || '').trim().toLowerCase() === String(request.areaName).trim().toLowerCase()))
   ));
-  const locationCovered = !excluded && (radiusMatch || explicitMatch);
+  const locationProvided = Boolean(requestPostcode || request?.coordinates || request?.areaName);
+  const locationCovered = locationProvided && !excluded && (radiusMatch || explicitMatch);
 
   const services = new Set((profile.services || [provider?.serviceType]).map((item) => String(item).toLowerCase()));
   const needs = new Set((profile.careNeeds || []).map((item) => String(item).toLowerCase()));
   const serviceCompatible = !request?.service || services.has(String(request.service).trim().toLowerCase());
   const careNeedsSupported = (request?.careNeeds || []).every((need) => needs.has(String(need).toLowerCase()));
+  const today = new Date().toISOString().slice(0, 10);
   const availabilityDate = String(profile.availability?.earliestDate || '').slice(0, 10);
   const requestedDate = String(request?.requestedDate || '').slice(0, 10);
   const canAcceptByRequestedDate = !availabilityDate || availabilityDate <= (requestedDate || today);
@@ -50,7 +52,6 @@ export function matchProviderToRequest(provider, request) {
     && Number(profile.availability?.capacity || 0) > 0
     && canAcceptByRequestedDate;
   const insuranceDates = Object.values(profile.compliance?.insurance || {}).filter(Boolean);
-  const today = new Date().toISOString().slice(0, 10);
   const expiredInsurance = insuranceDates.some((date) => String(date).slice(0, 10) < today);
   const rejectedDocument = (profile.compliance?.documents || []).some((document) => document.reviewStatus === 'rejected');
   const verificationSatisfied = provider?.status === 'active'
@@ -60,7 +61,7 @@ export function matchProviderToRequest(provider, request) {
     && !rejectedDocument;
 
   const reasons = [
-    locationCovered ? 'Location covered' : 'Location not in declared coverage',
+    !locationProvided ? 'Client location missing: provide a UK postcode or verified location' : locationCovered ? 'Location covered' : 'Location not in declared coverage',
     serviceCompatible ? 'Required service offered' : 'Required service not offered',
     careNeedsSupported ? 'Relevant care needs supported' : 'Care needs not supported',
     available ? 'Provider has availability' : 'No current capacity declared',

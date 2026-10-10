@@ -1510,8 +1510,10 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
   const leadList = await getLeadsFromDataSource();
   const requestedLead = leadList.find((item) => String(item.id) === leadId);
   if (!requestedLead) return res.status(404).json({ error: 'Lead not found.' });
+  const isUnassigned = !requestedProviderId || requestedProviderId.toLowerCase() === 'unassigned'
+    || requestedProviderName.toLowerCase() === 'unassigned';
   let providerName = 'Unassigned';
-  if (requestedProviderId || (requestedProviderName && requestedProviderName !== 'Unassigned')) {
+  if (!isUnassigned) {
     const providerList = await getProvidersFromDataSource();
     const candidate = providerList.find((item) => requestedProviderId
       ? String(item.id) === requestedProviderId
@@ -1523,10 +1525,11 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
   }
 
   try {
+    const nextMatchStatus = isUnassigned ? 'Awaiting triage' : (matchStatus || 'Matched');
     const lead = await updateLeadRecord(
       leadId,
-      { providerName: providerName || 'Unassigned', matchStatus: matchStatus || 'Matched', status: 'Qualified' },
-      { provider_name: providerName || 'Unassigned', match_status: matchStatus || 'Matched', status: 'qualified' },
+      { providerName, matchStatus: nextMatchStatus, ...(!isUnassigned ? { status: 'Qualified' } : {}) },
+      { provider_name: providerName, match_status: nextMatchStatus, ...(!isUnassigned ? { status: 'qualified' } : {}) },
     );
     if (!lead) {
       return res.status(404).json({ error: 'Lead not found.' });

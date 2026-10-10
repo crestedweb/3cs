@@ -27,6 +27,17 @@ test('normalizes UK postcodes across spaces and case', () => {
   assert.equal(normalizePostcode('not a postcode'), '');
 });
 
+test('does not report a location match when the client location is missing or unrecognized', () => {
+  const result = matchProviderToRequest(approvedProvider, {
+    area: 'I am looking for care professional/overnight',
+    service: 'Visiting/home care',
+    careNeeds: ['Dementia'],
+  });
+  assert.equal(result.locationCovered, false);
+  assert.equal(result.eligible, false);
+  assert.ok(result.reasons.some((reason) => reason.startsWith('Client location missing:')));
+});
+
 test('distance uses geographic coordinates in miles', () => {
   const same = { latitude: 52.6369, longitude: -1.1398 };
   assert.equal(distanceMiles(same, same), 0);
@@ -105,6 +116,25 @@ test('does not treat a provider as available before its declared earliest date',
     service: 'Visiting/home care',
     careNeeds: ['Dementia'],
     requestedDate: '2029-12-31',
+  });
+  assert.equal(result.available, false);
+  assert.equal(result.eligible, false);
+});
+
+test('uses today when a request does not specify a target date', () => {
+  const tomorrow = new Date();
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const provider = {
+    ...approvedProvider,
+    profileData: {
+      ...approvedProvider.profileData,
+      availability: { acceptingReferrals: true, capacity: 2, earliestDate: tomorrow.toISOString().slice(0, 10) },
+    },
+  };
+  const result = matchProviderToRequest(provider, {
+    areaName: 'Coventry',
+    service: 'Visiting/home care',
+    careNeeds: ['Dementia'],
   });
   assert.equal(result.available, false);
   assert.equal(result.eligible, false);

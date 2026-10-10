@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { normalizePostcode } from '../../provider-matching.mjs';
 
 export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   useEffect(() => {
@@ -151,6 +152,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
 
   const selectedProvider = providers.find((provider) => String(provider.id) === String(selectedProviderId)) || providers[0] || null;
   const selectedLead = leads.find((lead) => String(lead.id) === String(selectedLeadId)) || newestLead || null;
+  const selectedLeadHasMatchableLocation = Boolean(normalizePostcode(selectedLead?.area || ''));
   const selectedEnquiry = enquiries.find((enquiry) => String(enquiry.id) === String(selectedLeadId)) || newestEnquiry || null;
   const bookedLeads = leads.filter((lead) => String(lead.status || 'New').toLowerCase() === 'booked');
   const pendingProviders = providers.filter((provider) => String(provider.status || 'pending').toLowerCase() === 'pending');
@@ -712,7 +714,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   );
 
   const renderLeads = () => (
-    <div className="admin-lead-layout" style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 18 }}>
+    <div className="admin-lead-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 0.95fr)', gap: 18, alignItems: 'start' }}>
       <div className="admin-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
           <h3 style={{ margin: 0, color: '#0B1D3A', fontSize: '1.1rem' }}>Cases and leads</h3>
@@ -849,10 +851,12 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               ) : <small style={{ color: '#758397' }}>No activity history is available for this older record yet.</small>}
             </div>
 
-            <div style={{ borderTop: '1px solid #dfeaf8', paddingTop: 14 }}>
-              <div style={{ color: '#0B1D3A', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>Manage this lead</div>
+            <div className="admin-lead-management" style={{ borderTop: '1px solid #dfeaf8', paddingTop: 14 }}>
+              <div style={{ color: '#0B1D3A', fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Manage this lead</div>
+              <p style={{ color: '#5a6a7e', fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>Provider suggestions are checked against this request. Review eligibility, then assign a provider manually.</p>
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Recommended providers</label>
+              {!selectedLeadHasMatchableLocation && <div role="status" style={{ marginBottom: 8, border: '1px solid #f1d58b', background: '#fff9e8', color: '#805a08', borderRadius: 9, padding: '9px 10px', fontSize: 12, lineHeight: 1.5 }}><strong>Location needed for matching.</strong> This request has no valid UK postcode. Confirm the care location with the family before checking provider coverage.</div>}
               <select
                 value={providers.find((provider) => (provider.businessName || provider.name) === selectedLead.providerName)?.id || 'Unassigned'}
                 onChange={(event) => {
@@ -868,7 +872,10 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 ))}
               </select>
               <button type="button" onClick={() => loadProviderMatches(selectedLead.id)} disabled={loadingMatchesFor === String(selectedLead.id)} style={{ marginTop: 7, border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 8, padding: '7px 10px', cursor: loadingMatchesFor === String(selectedLead.id) ? 'wait' : 'pointer', opacity: loadingMatchesFor === String(selectedLead.id) ? 0.65 : 1 }}>{loadingMatchesFor === String(selectedLead.id) ? 'Checking coverage…' : 'Check coverage and eligibility'}</button>
-              {matchesForLeadId === String(selectedLead.id) && <div style={{ display: 'grid', gap: 7, marginTop: 8 }}>{providerMatches.map((item) => <div key={item.provider.id} style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, fontSize: 12 }}><strong>{item.provider.businessName}</strong> · {item.eligible ? 'Eligible' : 'Not eligible'}<div style={{ color: '#5a6a7e', marginTop: 3 }}>{item.reasons.join(' · ')}</div></div>)}</div>}
+              {matchesForLeadId === String(selectedLead.id) && <div aria-live="polite" style={{ display: 'grid', gap: 7, marginTop: 8 }}>
+                <div style={{ color: '#5a6a7e', fontSize: 12, fontWeight: 700 }}>{providerMatches.filter((item) => item.eligible).length} eligible of {providerMatches.length} providers checked</div>
+                {providerMatches.length === 0 ? <div style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 10, color: '#5a6a7e', fontSize: 12 }}>No providers are registered yet.</div> : providerMatches.map((item) => <div key={item.provider.id} style={{ border: `1px solid ${item.eligible ? '#bde8c9' : '#e4ecf6'}`, background: item.eligible ? '#f4fbf6' : '#fff', borderRadius: 9, padding: 10, fontSize: 12 }}><strong>{item.provider.businessName || item.provider.name || 'Provider'}</strong><span style={{ marginLeft: 6, color: item.eligible ? '#146c2e' : '#758397', fontWeight: 700 }}>{item.eligible ? 'Eligible' : 'Not eligible'}</span><div style={{ color: '#5a6a7e', marginTop: 4, lineHeight: 1.5 }}>{item.reasons.join(' · ')}</div></div>)}
+              </div>}
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Follow-up stage</label>
@@ -1136,6 +1143,9 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         .admin-dashboard-shell {
           background: linear-gradient(180deg, #f3f7fb 0%, #edf3f7 100%);
         }
+        .admin-dashboard-shell .admin-lead-layout {
+          grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr) !important;
+        }
         .admin-dashboard-card {
           background: linear-gradient(150deg, #ffffff 0%, #f8fbff 100%);
           box-shadow: 0 10px 26px rgba(11, 29, 58, 0.06);
@@ -1174,6 +1184,11 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           padding: 10px 12px;
           background: #ffffff;
         }
+        @media (max-width: 960px) {
+          .admin-dashboard-shell .admin-lead-layout {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+        }
         @media (max-width: 768px) {
           .admin-dashboard-shell {
             padding: 12px !important;
@@ -1193,6 +1208,10 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           }
           .admin-dashboard-shell .admin-dashboard-card {
             padding: 14px !important;
+          }
+          .admin-dashboard-shell .admin-lead-management {
+            display: grid;
+            gap: 12px;
           }
           .admin-dashboard-shell .admin-dashboard-topbar {
             flex-direction: column !important;
