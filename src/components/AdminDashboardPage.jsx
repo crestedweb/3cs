@@ -41,6 +41,13 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const [expandedRecentLeadId, setExpandedRecentLeadId] = useState('');
   const [actionFeedback, setActionFeedback] = useState('');
   const [providerActionBusy, setProviderActionBusy] = useState(false);
+  const [pendingOverrideMatch, setPendingOverrideMatch] = useState(null);
+  const [caseMessages, setCaseMessages] = useState([]);
+  const [caseMessagesForLeadId, setCaseMessagesForLeadId] = useState('');
+  const [caseMessageDraft, setCaseMessageDraft] = useState('');
+  const [caseMessagesError, setCaseMessagesError] = useState('');
+  const [caseMessagesLoading, setCaseMessagesLoading] = useState(false);
+  const [sendingCaseMessage, setSendingCaseMessage] = useState(false);
   const requestedView = new URLSearchParams(location.search || '').get('view');
   const currentView = ['overview', 'recent-leads', 'providers', 'leads', 'enquiries', 'bookings', 'reports', 'enquiry'].includes(requestedView) ? requestedView : 'overview';
 
@@ -152,7 +159,28 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
 
   const selectedProvider = providers.find((provider) => String(provider.id) === String(selectedProviderId)) || providers[0] || null;
   const selectedLead = leads.find((lead) => String(lead.id) === String(selectedLeadId)) || newestLead || null;
+  const visibleCaseMessages = caseMessagesForLeadId === String(selectedLead?.id || '') ? caseMessages : [];
   const selectedEnquiry = enquiries.find((enquiry) => String(enquiry.id) === String(selectedLeadId)) || newestEnquiry || null;
+  useEffect(() => {
+    if (!selectedLead?.id || !selectedLead.providerName || selectedLead.providerName === 'Unassigned') {
+      return undefined;
+    }
+    let active = true;
+    const loadMessages = async (initial = false) => {
+      if (initial) setCaseMessagesLoading(true);
+      try {
+        const response = await fetch(`/api/admin/leads/${selectedLead.id}/messages`, { headers: { Authorization: `Bearer ${adminSession?.token || ''}` } });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Unable to load case messages.');
+        if (active) { setCaseMessages(payload.messages || []); setCaseMessagesForLeadId(String(selectedLead.id)); setCaseMessagesError(''); }
+      } catch (error) {
+        if (active) setCaseMessagesError(error.message || 'Unable to load case messages.');
+      } finally { if (initial && active) setCaseMessagesLoading(false); }
+    };
+    void loadMessages(true);
+    const timer = window.setInterval(() => { void loadMessages(); }, 12000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [adminSession?.token, selectedLead?.id, selectedLead?.providerName]);
   const bookedLeads = leads.filter((lead) => String(lead.status || 'New').toLowerCase() === 'booked');
   const pendingProviders = providers.filter((provider) => String(provider.status || 'pending').toLowerCase() === 'pending');
   const activeProviders = providers.filter((provider) => String(provider.status || 'pending').toLowerCase() === 'active');
@@ -303,12 +331,11 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     }
   };
 
-  const handleLeadMatch = async (leadId, providerId, matchStatus = 'Matched', overrideIneligible = false) => {
-    if (overrideIneligible) {
+  const handleLeadMatch = async (leadId, providerId, matchStatus = 'Matched', overrideIneligible = false, confirmedOverride = false) => {
+    if (overrideIneligible && !confirmedOverride) {
       const candidate = providerMatches.find((item) => String(item.provider.id) === String(providerId));
-      const reasons = candidate?.reasons?.join(' · ') || 'The provider did not pass all eligibility checks.';
-      const providerName = candidate?.provider.businessName || candidate?.provider.name || 'this provider';
-      if (!window.confirm(`Assign ${providerName} to this case despite these eligibility checks?\n\n${reasons}\n\nThe manual override will be recorded in case activity.`)) return;
+      if (candidate) setPendingOverrideMatch({ leadId, providerId, matchStatus, candidate });
+      return;
     }
     try {
       const response = await fetch(`/api/admin/leads/${leadId}/match`, {
@@ -336,6 +363,34 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       console.error('Lead match failed', error);
       setActionFeedback(error.message || 'Unable to match this enquiry.');
     }
+  };
+
+  const handleSendCaseMessage = async (event) => {
+    event.preventDefault();
+    if (!selectedLead?.id || !caseMessageDraft.trim() || sendingCaseMessage) return;
+    setSendingCaseMessage(true);
+    setCaseMessagesError('');
+    try {
+      const response = await fetch(`/api/admin/leads/${selectedLead.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminSession?.token || ''}` },
+        body: JSON.stringify({ message: caseMessageDraft }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Unable to send message.');
+      setCaseMessages((current) => [...(caseMessagesForLeadId === String(selectedLead.id) ? current : []), payload.message]);
+      setCaseMessagesForLeadId(String(selectedLead.id));
+      setCaseMessageDraft('');
+    } catch (error) {
+      setCaseMessagesError(error.message || 'Unable to send message.');
+    } finally { setSendingCaseMessage(false); }
+  };
+
+  const confirmLeadOverride = () => {
+    if (!pendingOverrideMatch) return;
+    const { leadId, providerId, matchStatus } = pendingOverrideMatch;
+    setPendingOverrideMatch(null);
+    void handleLeadMatch(leadId, providerId, matchStatus, true, true);
   };
 
   const handleLeadFollowUp = async (leadId, followUpStage, adminNote = '') => {
@@ -834,6 +889,25 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               <strong style={{ display: 'block', color: '#0B1D3A', marginBottom: 6 }}>Enquirer’s message</strong>
               {selectedLead.message || 'No message was included with this submission.'}
             </div>
+
+            <section aria-label="Messages with assigned provider" style={{ border: '1px solid #dfeaf8', borderRadius: 14, background: '#fff', overflow: 'hidden' }}>
+              <div style={{ padding: '13px 15px', borderBottom: '1px solid #edf2f7', background: '#f9fbff' }}>
+                <strong style={{ display: 'block', color: '#0B1D3A' }}>Messages with provider</strong>
+                <small style={{ color: '#758397' }}>{selectedLead.providerName && selectedLead.providerName !== 'Unassigned' ? `Conversation with ${selectedLead.providerName}` : 'Assign a provider to this case to start a conversation.'}</small>
+              </div>
+              {selectedLead.providerName && selectedLead.providerName !== 'Unassigned' ? <>
+                <div aria-live="polite" style={{ display: 'grid', alignContent: 'start', gap: 9, maxHeight: 300, overflowY: 'auto', padding: 13 }}>
+                  {caseMessagesLoading ? <small style={{ color: '#758397' }}>Loading conversation…</small>
+                    : visibleCaseMessages.length === 0 && !caseMessagesError ? <small style={{ color: '#758397' }}>No messages yet. Send a message to begin discussing this referral.</small>
+                      : visibleCaseMessages.map((item) => <div key={item.id} style={{ justifySelf: item.senderRole === 'admin' ? 'end' : 'start', width: 'fit-content', maxWidth: '88%', borderRadius: 12, padding: '9px 11px', background: item.senderRole === 'admin' ? '#0B1D3A' : '#eef5ff', color: item.senderRole === 'admin' ? '#fff' : '#34445a' }}><strong style={{ display: 'block', marginBottom: 3, fontSize: 11, opacity: 0.78 }}>{item.senderRole === 'admin' ? '3Cs Care Services' : item.senderName}</strong><div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, lineHeight: 1.5 }}>{item.message}</div><small style={{ display: 'block', marginTop: 5, textAlign: 'right', opacity: 0.7, fontSize: 10 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}</small></div>)}
+                </div>
+                {caseMessagesError && <div role="alert" style={{ padding: '0 13px 8px', color: '#b42318', fontSize: 12 }}>{caseMessagesError}</div>}
+                <form onSubmit={handleSendCaseMessage} style={{ display: 'grid', gap: 8, padding: 12, borderTop: '1px solid #edf2f7' }}>
+                  <textarea value={caseMessageDraft} onChange={(event) => setCaseMessageDraft(event.target.value)} maxLength={2000} rows={3} placeholder="Write a message to the assigned provider…" aria-label="Message to assigned provider" style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', border: '1px solid #dfeaf8', borderRadius: 10, padding: 10, font: 'inherit', fontSize: 13 }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}><small style={{ color: '#758397' }}>{caseMessageDraft.length}/2000 · Messages are visible to the assigned provider.</small><button type="submit" disabled={sendingCaseMessage || !caseMessageDraft.trim()} style={{ border: 0, borderRadius: 9, padding: '9px 14px', background: sendingCaseMessage || !caseMessageDraft.trim() ? '#c7d1de' : '#0B1D3A', color: '#fff', fontWeight: 700, cursor: sendingCaseMessage || !caseMessageDraft.trim() ? 'not-allowed' : 'pointer' }}>{sendingCaseMessage ? 'Sending…' : 'Send message'}</button></div>
+                </form>
+              </> : <div style={{ padding: 14, color: '#758397', fontSize: 13 }}>Use the provider assignment control below first. Messages are shared only with the admin team and the provider assigned to this case.</div>}
+            </section>
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ background: '#eafaf1', color: '#146c2e', borderRadius: 999, padding: '6px 9px', fontSize: 11, fontWeight: 800 }}>Status: {selectedLead.status || 'New'}</span>
@@ -1373,6 +1447,30 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
 
         {renderCurrentView()}
       </div>
+
+      {pendingOverrideMatch && <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPendingOverrideMatch(null); }} style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 18, background: 'rgba(11, 29, 58, 0.58)', backdropFilter: 'blur(3px)' }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="provider-override-title" aria-describedby="provider-override-description" style={{ width: 'min(100%, 520px)', maxHeight: 'min(86vh, 680px)', overflowY: 'auto', background: '#fff', borderRadius: 20, boxShadow: '0 24px 70px rgba(4, 18, 39, 0.28)', padding: 'clamp(20px, 5vw, 30px)' }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <span aria-hidden="true" style={{ flex: '0 0 42px', height: 42, display: 'grid', placeItems: 'center', borderRadius: 13, background: '#fff4d8', color: '#9a6700', fontSize: 22, fontWeight: 800 }}>!</span>
+            <div>
+              <div style={{ marginBottom: 5, color: '#9a6700', fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase' }}>Eligibility override</div>
+              <h2 id="provider-override-title" style={{ margin: '0 0 8px', color: '#0B1D3A', fontSize: '1.35rem' }}>Assign this provider anyway?</h2>
+              <p id="provider-override-description" style={{ margin: 0, color: '#5a6a7e', lineHeight: 1.55 }}>You’re assigning <strong style={{ color: '#0B1D3A' }}>{pendingOverrideMatch.candidate.provider.businessName || pendingOverrideMatch.candidate.provider.name || 'this provider'}</strong> even though some checks did not pass. Review the reasons before continuing.</p>
+            </div>
+          </div>
+          <div style={{ marginTop: 20, border: '1px solid #f1d58b', borderRadius: 13, background: '#fffaf0', padding: '13px 15px' }}>
+            <strong style={{ display: 'block', color: '#805a08', marginBottom: 7, fontSize: 13 }}>Checks for this referral</strong>
+            <ul style={{ display: 'grid', gap: 6, margin: 0, paddingLeft: 20, color: '#5a4a2a', fontSize: 13, lineHeight: 1.45 }}>
+              {pendingOverrideMatch.candidate.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
+          </div>
+          <p style={{ margin: '14px 0 0', color: '#758397', fontSize: 12, lineHeight: 1.5 }}>This manual decision will be recorded in the case activity with the checks shown above.</p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9, flexWrap: 'wrap', marginTop: 24 }}>
+            <button type="button" autoFocus onClick={() => setPendingOverrideMatch(null)} style={{ minHeight: 42, padding: '9px 16px', border: '1px solid #d4deea', borderRadius: 10, background: '#fff', color: '#34445a', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+            <button type="button" onClick={confirmLeadOverride} style={{ minHeight: 42, padding: '9px 16px', border: '1px solid #0B1D3A', borderRadius: 10, background: '#0B1D3A', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Assign anyway</button>
+          </div>
+        </section>
+      </div>}
     </div>
   );
 }

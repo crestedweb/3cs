@@ -213,7 +213,7 @@ function ensureDataStore() {
   }
 
   if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ providers: defaultProviders, leads: defaultLeads }, null, 2));
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ providers: defaultProviders, leads: defaultLeads, leadMessages: [] }, null, 2));
   }
 }
 
@@ -225,6 +225,7 @@ function loadPersistedData() {
     return {
       providers: Array.isArray(parsed.providers) ? parsed.providers : defaultProviders,
       leads: Array.isArray(parsed.leads) ? parsed.leads : defaultLeads,
+      leadMessages: Array.isArray(parsed.leadMessages) ? parsed.leadMessages : [],
     };
   } catch (error) {
     console.error('Failed to read persisted app data:', error.message);
@@ -235,6 +236,7 @@ function loadPersistedData() {
 const persistedData = loadPersistedData();
 let providers = [...persistedData.providers];
 let leads = [...persistedData.leads];
+let leadMessages = [...persistedData.leadMessages];
 const fallbackLeads = [];
 let migratedLocalPasswords = false;
 providers = providers.map((provider) => {
@@ -267,7 +269,7 @@ if (migratedLocalPasswords) persistAppData();
 function persistAppData() {
   try {
     ensureDataStore();
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ providers, leads }, null, 2));
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ providers, leads, leadMessages }, null, 2));
   } catch (error) {
     console.error('Failed to persist app data:', error.message);
   }
@@ -419,6 +421,7 @@ function normalizeLead(row) {
     budget: submittedBudget || row.budget || 'TBC',
     status: row.status || 'New',
     providerName: row.provider_name || row.providerName || 'Unassigned',
+    assignedProviderId: row.assigned_provider_id || row.assignedProviderId || null,
     score: Number(row.score || 0),
     matchStatus: row.match_status || row.matchStatus || 'Awaiting triage',
     followUpStage: row.follow_up_stage || row.followUpStage || 'Pending',
@@ -1587,6 +1590,7 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
   const isUnassigned = !requestedProviderId || requestedProviderId.toLowerCase() === 'unassigned'
     || requestedProviderName.toLowerCase() === 'unassigned';
   let providerName = 'Unassigned';
+  let assignedProviderId = null;
   if (!isUnassigned) {
     const providerList = await getProvidersFromDataSource();
     const candidate = providerList.find((item) => requestedProviderId
@@ -1596,6 +1600,7 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
     const candidateMatch = (await getMatchesForLead(requestedLead, [candidate]))[0];
     if (!candidateMatch.eligible && !overrideIneligible) return res.status(422).json({ error: 'This provider is not eligible for this referral.', reasons: candidateMatch.reasons });
     providerName = candidate.businessName || candidate.name;
+    assignedProviderId = String(candidate.id);
     if (!candidateMatch.eligible) requestedLead.manualOverride = { providerName, reasons: candidateMatch.reasons };
   }
 
@@ -1603,8 +1608,8 @@ app.put('/api/admin/leads/:id/match', async (req, res) => {
     const nextMatchStatus = isUnassigned ? 'Awaiting triage' : (matchStatus || 'Matched');
     const lead = await updateLeadRecord(
       leadId,
-      { providerName, matchStatus: nextMatchStatus, ...(!isUnassigned ? { status: 'Qualified' } : {}), ...(requestedLead.manualOverride ? { manualOverride: requestedLead.manualOverride } : {}) },
-      { provider_name: providerName, match_status: nextMatchStatus, ...(!isUnassigned ? { status: 'qualified' } : {}) },
+      { providerName, assignedProviderId, matchStatus: nextMatchStatus, ...(!isUnassigned ? { status: 'Qualified' } : {}), ...(requestedLead.manualOverride ? { manualOverride: requestedLead.manualOverride } : {}) },
+      { provider_name: providerName, assigned_provider_id: assignedProviderId, match_status: nextMatchStatus, ...(!isUnassigned ? { status: 'qualified' } : {}) },
     );
     if (!lead) {
       return res.status(404).json({ error: 'Lead not found.' });
@@ -1687,10 +1692,13 @@ app.put('/api/admin/leads/:id/assign', async (req, res) => {
   const leadId = String(req.params.id);
   const providerName = clean(req.body?.providerName || 'Unassigned');
   try {
+    const provider = providerName && providerName !== 'Unassigned'
+      ? (await getProvidersFromDataSource()).find((item) => item.businessName === providerName || item.name === providerName)
+      : null;
     const lead = await updateLeadRecord(
       leadId,
-      { providerName: providerName || 'Unassigned' },
-      { provider_name: providerName || 'Unassigned' },
+      { providerName: providerName || 'Unassigned', assignedProviderId: provider ? String(provider.id) : null },
+      { provider_name: providerName || 'Unassigned', assigned_provider_id: provider ? String(provider.id) : null },
     );
     if (!lead) {
       return res.status(404).json({ error: 'Lead not found.' });
@@ -1777,6 +1785,165 @@ app.get('/api/admin/leads/:id/matches', async (req, res) => {
   return res.json({ matches: await getMatchesForLead(lead, providerList, location), location: { input: location.input, resolved: location.resolved, label: location.label } });
 });
 
+function findAssignedProvider(lead, providerList) {
+  if (!lead?.providerName || lead.providerName === 'Unassigned') return null;
+  if (lead.assignedProviderId) return providerList.find((provider) => String(provider.id) === String(lead.assignedProviderId)) || null;
+  return providerList.find((provider) => provider.businessName === lead.providerName || provider.name === lead.providerName) || null;
+}
+
+function normalizeLeadMessage(row) {
+  return {
+    id: row.id,
+    leadId: row.lead_id || row.leadId,
+    providerId: String(row.provider_id || row.providerId),
+    senderRole: row.sender_role || row.senderRole,
+    senderName: row.sender_name || row.senderName || '3Cs Care Services',
+    message: row.body || row.message || '',
+    createdAt: row.created_at || row.createdAt,
+  };
+}
+
+async function getLeadMessages(leadId, providerId) {
+  if (supabase) {
+    const { data, error } = await supabase.from('lead_messages').select('*')
+      .eq('lead_id', String(leadId)).eq('provider_id', String(providerId)).order('created_at', { ascending: true });
+    if (error) throw new Error(`Unable to load case messages: ${error.message}`);
+    return (data || []).map(normalizeLeadMessage);
+  }
+  return leadMessages.filter((item) => String(item.leadId) === String(leadId) && String(item.providerId) === String(providerId))
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+}
+
+async function saveLeadMessage({ leadId, provider, senderRole, senderId, senderName, message }) {
+  const createdAt = new Date().toISOString();
+  const row = {
+    leadId: String(leadId),
+    providerId: String(provider.id),
+    senderRole,
+    senderId: String(senderId),
+    senderName,
+    message,
+    createdAt,
+  };
+  if (supabase) {
+    const { data, error } = await supabase.from('lead_messages').insert([{
+      lead_id: row.leadId,
+      provider_id: row.providerId,
+      sender_role: row.senderRole,
+      sender_id: row.senderId,
+      sender_name: row.senderName,
+      body: row.message,
+      created_at: row.createdAt,
+    }]).select().single();
+    if (error) throw new Error(`Unable to send case message: ${error.message}`);
+    return normalizeLeadMessage(data);
+  }
+  row.id = randomUUID();
+  leadMessages.push(row);
+  persistAppData();
+  return row;
+}
+
+function validateMessageBody(body) {
+  const message = clean(body);
+  if (!message) return { error: 'Write a message before sending.' };
+  if (message.length > 2000) return { error: 'Messages must be 2,000 characters or fewer.' };
+  return { message };
+}
+
+app.get('/api/admin/leads/:id/messages', async (req, res) => {
+  if (!isConfiguredAdminRequest(req)) return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  try {
+    const lead = (await getLeadsFromDataSource()).find((item) => String(item.id) === String(req.params.id));
+    if (!lead) return res.status(404).json({ error: 'Case not found.' });
+    const provider = findAssignedProvider(lead, await getProvidersFromDataSource());
+    if (!provider) return res.status(409).json({ error: 'Assign a provider to this case before messaging.' });
+    return res.json({ messages: await getLeadMessages(lead.id, provider.id), provider: { id: provider.id, name: provider.businessName || provider.name } });
+  } catch (error) {
+    console.error('Admin case messages load failed:', error.message);
+    return res.status(500).json({ error: 'Unable to load case messages.' });
+  }
+});
+
+app.post('/api/admin/leads/:id/messages', async (req, res) => {
+  const session = getSession(req);
+  if (session?.role !== 'admin') return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  const parsed = validateMessageBody(req.body?.message);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  try {
+    const lead = (await getLeadsFromDataSource()).find((item) => String(item.id) === String(req.params.id));
+    if (!lead) return res.status(404).json({ error: 'Case not found.' });
+    const provider = findAssignedProvider(lead, await getProvidersFromDataSource());
+    if (!provider) return res.status(409).json({ error: 'Assign a provider to this case before messaging.' });
+    const message = await saveLeadMessage({ leadId: lead.id, provider, senderRole: 'admin', senderId: session.subject, senderName: '3Cs Care Services', message: parsed.message });
+    return res.status(201).json({ message });
+  } catch (error) {
+    console.error('Admin case message send failed:', error.message);
+    return res.status(500).json({ error: 'Unable to send case message.' });
+  }
+});
+
+app.get('/api/provider/:providerId/messages', async (req, res) => {
+  const providerId = String(req.params.providerId);
+  const session = getSession(req);
+  if (!isProviderSessionFor(session, providerId)) return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
+  try {
+    const providersForPortal = await getProvidersFromDataSource();
+    const provider = providersForPortal.find((item) => String(item.id) === providerId);
+    if (!provider) return res.status(404).json({ error: 'Provider account not found.' });
+    const assignedLeads = (await getLeadsFromDataSource()).filter((lead) => {
+      const assignedProvider = findAssignedProvider(lead, [provider]);
+      return Boolean(assignedProvider);
+    });
+    const threads = await Promise.all(assignedLeads.map(async (lead) => {
+      const messages = await getLeadMessages(lead.id, provider.id);
+      const lastMessage = messages.at(-1) || null;
+      return { leadId: lead.id, need: lead.need || 'Care support', area: lead.area || 'Area not provided', matchStatus: lead.matchStatus || 'Awaiting triage', messageCount: messages.length, lastMessage };
+    }));
+    return res.json({ threads });
+  } catch (error) {
+    console.error('Provider message inbox load failed:', error.message);
+    return res.status(500).json({ error: 'Unable to load provider messages.' });
+  }
+});
+
+app.get('/api/provider/:providerId/leads/:leadId/messages', async (req, res) => {
+  const providerId = String(req.params.providerId);
+  const session = getSession(req);
+  if (!isProviderSessionFor(session, providerId)) return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
+  try {
+    const [providerList, leadList] = await Promise.all([getProvidersFromDataSource(), getLeadsFromDataSource()]);
+    const provider = providerList.find((item) => String(item.id) === providerId);
+    const lead = leadList.find((item) => String(item.id) === String(req.params.leadId));
+    if (!provider || !lead) return res.status(404).json({ error: 'Case or provider not found.' });
+    if (!findAssignedProvider(lead, [provider])) return res.status(403).json({ error: 'You can only view messages for cases assigned to your provider account.' });
+    return res.json({ messages: await getLeadMessages(lead.id, provider.id) });
+  } catch (error) {
+    console.error('Provider case messages load failed:', error.message);
+    return res.status(500).json({ error: 'Unable to load case messages.' });
+  }
+});
+
+app.post('/api/provider/:providerId/leads/:leadId/messages', async (req, res) => {
+  const providerId = String(req.params.providerId);
+  const session = getSession(req);
+  if (!isProviderSessionFor(session, providerId)) return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
+  const parsed = validateMessageBody(req.body?.message);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  try {
+    const [providerList, leadList] = await Promise.all([getProvidersFromDataSource(), getLeadsFromDataSource()]);
+    const provider = providerList.find((item) => String(item.id) === providerId);
+    const lead = leadList.find((item) => String(item.id) === String(req.params.leadId));
+    if (!provider || !lead) return res.status(404).json({ error: 'Case or provider not found.' });
+    if (!findAssignedProvider(lead, [provider])) return res.status(403).json({ error: 'You can only message about cases assigned to your provider account.' });
+    const message = await saveLeadMessage({ leadId: lead.id, provider, senderRole: 'provider', senderId: provider.id, senderName: provider.businessName || provider.name || 'Provider', message: parsed.message });
+    return res.status(201).json({ message });
+  } catch (error) {
+    console.error('Provider case message send failed:', error.message);
+    return res.status(500).json({ error: 'Unable to send case message.' });
+  }
+});
+
 app.get('/api/provider/dashboard/:providerId', async (req, res) => {
   const providerId = String(req.params.providerId);
   const session = getSession(req);
@@ -1799,6 +1966,9 @@ app.get('/api/provider/dashboard/:providerId', async (req, res) => {
     delete safeLead.phone;
     delete safeLead.message;
     delete safeLead.family;
+    delete safeLead.adminNote;
+    delete safeLead.activity;
+    delete safeLead.adminRating;
     const outcode = providerMatch.outcode || String(lead.area || '').match(/[A-Z]{1,2}\d[A-Z\d]?/i)?.[0] || '';
     return { ...safeLead, area: providerMatch.areaName || (outcode ? `${outcode} area` : 'Area shared after referral review'), family: 'Private care opportunity', matchStatus: lead.matchStatus || 'Awaiting triage', followUpStage: lead.followUpStage || 'Pending', matchReasons: providerMatch.reasons };
   }));

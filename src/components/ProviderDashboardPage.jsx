@@ -9,7 +9,7 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
   const navigate = useNavigate();
   const location = useLocation();
   const pageName = location.pathname.split('/').filter(Boolean).at(-1);
-  const activeSection = ['overview', 'bio', 'documents', 'referrals'].includes(pageName) ? pageName : 'overview';
+  const activeSection = ['overview', 'bio', 'documents', 'referrals', 'messages'].includes(pageName) ? pageName : 'overview';
   const [profileData, setProfileData] = useState(() => ({ ...(providerSession?.profileData || {}), coverage: { radiusMiles: 0, locations: [], exclusions: [], ...(providerSession?.profileData?.coverage || {}) } }));
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const profilePhotoDocument = (profileData.compliance?.documents || []).find((document) => document.type === 'profile_photo' && document.reviewStatus !== 'rejected');
@@ -23,6 +23,13 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
   const [documentFile, setDocumentFile] = useState(null);
   const [documentType, setDocumentType] = useState('other');
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [messageThreads, setMessageThreads] = useState([]);
+  const [selectedMessageLeadId, setSelectedMessageLeadId] = useState('');
+  const [threadMessages, setThreadMessages] = useState([]);
+  const [threadMessagesForLeadId, setThreadMessagesForLeadId] = useState('');
+  const [providerMessageDraft, setProviderMessageDraft] = useState('');
+  const [messagesError, setMessagesError] = useState('');
+  const [sendingProviderMessage, setSendingProviderMessage] = useState(false);
   useEffect(() => {
     if (!providerSession?.id || !providerSession?.token) return;
     let active = true;
@@ -46,6 +53,42 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
       .catch(() => {});
     return () => { active = false; };
   }, [providerSession?.id, providerSession?.token, setDashboardLeads]);
+  useEffect(() => {
+    if (!providerSession?.id || !providerSession?.token) return undefined;
+    let active = true;
+    const loadThreads = async () => {
+      try {
+        const response = await fetch(`/api/provider/${providerSession.id}/messages`, { headers: { Authorization: `Bearer ${providerSession.token}` } });
+        const payload = await response.json().catch(() => ({}));
+        if (response.status === 401) { onLogout?.(); return; }
+        if (!response.ok) throw new Error(payload.error || 'Unable to load messages.');
+        if (!active) return;
+        const threads = payload.threads || [];
+        setMessageThreads(threads);
+        setMessagesError('');
+        setSelectedMessageLeadId((current) => current && threads.some((thread) => String(thread.leadId) === String(current)) ? current : String(threads[0]?.leadId || ''));
+      } catch (error) { if (active) setMessagesError(error.message || 'Unable to load messages.'); }
+    };
+    void loadThreads();
+    const timer = window.setInterval(() => { void loadThreads(); }, 12000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [providerSession?.id, providerSession?.token, onLogout]);
+  useEffect(() => {
+    if (!providerSession?.id || !providerSession?.token || !selectedMessageLeadId) return undefined;
+    let active = true;
+    const loadMessages = async () => {
+      try {
+        const response = await fetch(`/api/provider/${providerSession.id}/leads/${selectedMessageLeadId}/messages`, { headers: { Authorization: `Bearer ${providerSession.token}` } });
+        const payload = await response.json().catch(() => ({}));
+        if (response.status === 401) { onLogout?.(); return; }
+        if (!response.ok) throw new Error(payload.error || 'Unable to load this conversation.');
+        if (active) { setThreadMessages(payload.messages || []); setThreadMessagesForLeadId(String(selectedMessageLeadId)); setMessagesError(''); }
+      } catch (error) { if (active) setMessagesError(error.message || 'Unable to load this conversation.'); }
+    };
+    void loadMessages();
+    const timer = window.setInterval(() => { void loadMessages(); }, 8000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [providerSession?.id, providerSession?.token, selectedMessageLeadId, onLogout]);
   useEffect(() => {
     if (!providerSession?.id || !providerSession?.token || !profilePhotoDocument?.id) {
       setProfilePhotoUrl('');
@@ -145,6 +188,26 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
     } catch (error) { setDocumentMessage(error.message || 'Document upload failed.'); }
     finally { setUploadingDocument(false); }
   };
+  const sendProviderMessage = async (event) => {
+    event.preventDefault();
+    if (!selectedMessageLeadId || !providerMessageDraft.trim() || sendingProviderMessage) return;
+    setSendingProviderMessage(true);
+    setMessagesError('');
+    try {
+      const response = await fetch(`/api/provider/${providerSession.id}/leads/${selectedMessageLeadId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${providerSession.token}` },
+        body: JSON.stringify({ message: providerMessageDraft }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.status === 401) { onLogout?.(); throw new Error('Your session expired. Please sign in again.'); }
+      if (!response.ok) throw new Error(payload.error || 'Unable to send your message.');
+      setThreadMessages((current) => [...(threadMessagesForLeadId === String(selectedMessageLeadId) ? current : []), payload.message]);
+      setThreadMessagesForLeadId(String(selectedMessageLeadId));
+      setProviderMessageDraft('');
+    } catch (error) { setMessagesError(error.message || 'Unable to send your message.'); }
+    finally { setSendingProviderMessage(false); }
+  };
   const addCoveragePostcode = async () => {
     try {
       const district = /^[A-Z]{1,2}\d[A-Z\d]?$/i.test(postcodeAreaSearch.replace(/\s/g, ''));
@@ -169,10 +232,17 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
     { label: 'Booked', value: providerSession?.booked ?? 0 },
     { label: 'Rating', value: displayRating },
   ];
+  const visibleThreadMessages = threadMessagesForLeadId === String(selectedMessageLeadId) ? threadMessages : [];
 
   return (
     <div className="provider-dashboard-shell" style={{ minHeight: '100vh', background: '#f5f7fa', padding: 20 }}>
       <style>{`
+        .provider-messages-layout {
+          grid-template-columns: minmax(220px, .72fr) minmax(0, 1.5fr);
+        }
+        @media (max-width: 680px) {
+          .provider-messages-layout { grid-template-columns: minmax(0, 1fr); }
+        }
         .provider-dashboard-shell,
         .provider-dashboard-shell * {
           box-sizing: border-box;
@@ -262,8 +332,27 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
         </div>
 
         <nav aria-label="Provider dashboard pages" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '4px 0 14px', marginBottom: 14, borderBottom: '1px solid #e4ecf6' }}>
-          {[['overview', 'Overview'], ['bio', 'My bio'], ['documents', 'Documents'], ['referrals', 'Referrals']].map(([id, label]) => <button key={id} type="button" onClick={() => navigate(`/provider/dashboard/${id}`)} aria-current={activeSection === id ? 'page' : undefined} style={{ whiteSpace: 'nowrap', border: activeSection === id ? '1px solid #0B1D3A' : '1px solid #dfeaf8', borderRadius: 999, background: activeSection === id ? '#0B1D3A' : '#fff', color: activeSection === id ? '#fff' : '#34445a', padding: '9px 15px', fontWeight: 700, cursor: 'pointer' }}>{label}</button>)}
+          {[['overview', 'Overview'], ['bio', 'My bio'], ['documents', 'Documents'], ['referrals', 'Referrals'], ['messages', `Messages${messageThreads.some((thread) => thread.lastMessage?.senderRole === 'admin') ? ' •' : ''}`]].map(([id, label]) => <button key={id} type="button" onClick={() => navigate(`/provider/dashboard/${id}`)} aria-current={activeSection === id ? 'page' : undefined} style={{ whiteSpace: 'nowrap', border: activeSection === id ? '1px solid #0B1D3A' : '1px solid #dfeaf8', borderRadius: 999, background: activeSection === id ? '#0B1D3A' : '#fff', color: activeSection === id ? '#fff' : '#34445a', padding: '9px 15px', fontWeight: 700, cursor: 'pointer' }}>{label}</button>)}
         </nav>
+
+        {activeSection === 'messages' && <section className="provider-messages-layout" aria-label="Messages with 3Cs Care Services" style={{ display: 'grid', gap: 14, minHeight: 430 }}>
+          <div className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 16, padding: 14 }}>
+            <h3 style={{ margin: '0 0 4px', color: '#0B1D3A', fontSize: '1.05rem' }}>Case conversations</h3>
+            <p style={{ margin: '0 0 12px', color: '#758397', fontSize: 12, lineHeight: 1.5 }}>Messages are private to your provider account and the 3Cs admin team.</p>
+            {messageThreads.length ? <div style={{ display: 'grid', gap: 7 }}>{messageThreads.map((thread) => <button key={thread.leadId} type="button" onClick={() => setSelectedMessageLeadId(String(thread.leadId))} style={{ width: '100%', textAlign: 'left', border: String(thread.leadId) === String(selectedMessageLeadId) ? '1px solid #28A745' : '1px solid #edf2f7', borderRadius: 11, padding: 10, background: String(thread.leadId) === String(selectedMessageLeadId) ? '#f4fbf6' : '#fff', cursor: 'pointer' }}><strong style={{ display: 'block', color: '#0B1D3A', fontSize: 13 }}>{thread.need} · {thread.area}</strong><small style={{ color: '#758397' }}>{thread.lastMessage ? `${thread.lastMessage.senderRole === 'admin' ? '3Cs' : 'You'}: ${thread.lastMessage.message.slice(0, 56)}` : 'No messages yet'}</small></button>)}</div>
+              : <p style={{ margin: 0, color: '#758397', fontSize: 13, lineHeight: 1.5 }}>There are no cases assigned to your account yet. Once 3Cs assigns a case, its conversation will appear here.</p>}
+          </div>
+          <div className="provider-dashboard-card" style={{ display: 'flex', flexDirection: 'column', minWidth: 0, border: '1px solid #e4ecf6', borderRadius: 16, overflow: 'hidden' }}>
+            {selectedMessageLeadId ? <>
+              {(() => { const thread = messageThreads.find((item) => String(item.leadId) === String(selectedMessageLeadId)); return <div style={{ padding: '13px 15px', borderBottom: '1px solid #edf2f7', background: '#f9fbff' }}><strong style={{ display: 'block', color: '#0B1D3A' }}>{thread?.need || 'Care case'} · {thread?.area || ''}</strong><small style={{ color: '#758397' }}>Case conversation with 3Cs Care Services</small></div>; })()}
+              <div aria-live="polite" style={{ flex: 1, display: 'grid', alignContent: 'start', gap: 9, minHeight: 240, maxHeight: 430, overflowY: 'auto', padding: 13 }}>
+                {visibleThreadMessages.length ? visibleThreadMessages.map((item) => <div key={item.id} style={{ justifySelf: item.senderRole === 'provider' ? 'end' : 'start', width: 'fit-content', maxWidth: '88%', borderRadius: 12, padding: '9px 11px', background: item.senderRole === 'provider' ? '#0B1D3A' : '#eef5ff', color: item.senderRole === 'provider' ? '#fff' : '#34445a' }}><strong style={{ display: 'block', marginBottom: 3, fontSize: 11, opacity: 0.78 }}>{item.senderRole === 'provider' ? 'You' : '3Cs Care Services'}</strong><div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, lineHeight: 1.5 }}>{item.message}</div><small style={{ display: 'block', marginTop: 5, textAlign: 'right', opacity: 0.7, fontSize: 10 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}</small></div>) : <small style={{ color: '#758397' }}>No messages yet. Send 3Cs a message about this case.</small>}
+              </div>
+              {messagesError && <div role="alert" style={{ padding: '0 13px 8px', color: '#b42318', fontSize: 12 }}>{messagesError}</div>}
+              <form onSubmit={sendProviderMessage} style={{ display: 'grid', gap: 8, padding: 12, borderTop: '1px solid #edf2f7' }}><textarea value={providerMessageDraft} onChange={(event) => setProviderMessageDraft(event.target.value)} maxLength={2000} rows={3} placeholder="Write a message to the 3Cs admin team…" aria-label="Message to 3Cs admin team" style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', border: '1px solid #dfeaf8', borderRadius: 10, padding: 10, font: 'inherit', fontSize: 13 }} /><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}><small style={{ color: '#758397' }}>{providerMessageDraft.length}/2000</small><button type="submit" disabled={sendingProviderMessage || !providerMessageDraft.trim()} style={{ border: 0, borderRadius: 9, padding: '9px 14px', background: sendingProviderMessage || !providerMessageDraft.trim() ? '#c7d1de' : '#0B1D3A', color: '#fff', fontWeight: 700, cursor: sendingProviderMessage || !providerMessageDraft.trim() ? 'not-allowed' : 'pointer' }}>{sendingProviderMessage ? 'Sending…' : 'Send message'}</button></div></form>
+            </> : <div style={{ margin: 'auto', padding: 24, textAlign: 'center', color: '#758397' }}>{messagesError || 'Choose a case to view its conversation.'}</div>}
+          </div>
+        </section>}
 
         {activeSection === 'overview' && <>
         <div id="provider-overview" className="provider-dashboard-stats" style={{ scrollMarginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
