@@ -1,8 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-const DASHBOARD_FILTER_REFERENCE_TIME = Date.now();
-
 export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -113,7 +111,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const visibleEnquiries = sortedEnquiries.filter((enquiry) => {
     const statusMatches = enquiryStatusFilter === 'All'
       || String(enquiry.status || 'New').toLowerCase() === enquiryStatusFilter.toLowerCase();
-    const ageInDays = (DASHBOARD_FILTER_REFERENCE_TIME - new Date(enquiry.createdAt || 0).getTime()) / 86400000;
+    const ageInDays = (Date.now() - new Date(enquiry.createdAt || 0).getTime()) / 86400000;
     const dateMatches = enquiryDateFilter === 'All time'
       || (Number.isFinite(ageInDays) && ageInDays >= 0 && ageInDays <= Number(enquiryDateFilter));
     return statusMatches && dateMatches;
