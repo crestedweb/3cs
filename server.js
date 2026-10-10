@@ -5,7 +5,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import process from 'node:process';
-import { createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import { Buffer } from 'node:buffer';
 import { createClient } from '@supabase/supabase-js';
@@ -99,6 +99,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const authSessions = new Map();
 const revokedAdminSessions = new Set();
+const revokedProviderSessions = new Set();
 const adminSessionSecret = process.env.ADMIN_SESSION_SECRET
   || process.env.SUPABASE_SERVICE_ROLE_KEY
   || process.env.ADMIN_PASSWORD;
@@ -264,25 +265,41 @@ function getBearerToken(req) {
   return token;
 }
 
+let cachedSessionSecret = adminSessionSecret;
+
+function getSessionSigningSecret() {
+  if (cachedSessionSecret) return cachedSessionSecret;
+  const secretFile = path.join(path.dirname(DATA_FILE), 'session-signing-key');
+  fs.mkdirSync(path.dirname(secretFile), { recursive: true });
+  try {
+    cachedSessionSecret = fs.readFileSync(secretFile, 'utf8').trim();
+  } catch {
+    const generatedSecret = randomBytes(32).toString('hex');
+    try {
+      fs.writeFileSync(secretFile, generatedSecret, { flag: 'wx', mode: 0o600 });
+      cachedSessionSecret = generatedSecret;
+    } catch {
+      cachedSessionSecret = fs.readFileSync(secretFile, 'utf8').trim();
+    }
+  }
+  return cachedSessionSecret;
+}
+
 function createSession(role, subject, email) {
   const expiresAt = Date.now() + 12 * 60 * 60 * 1000;
-  const session = { role, subject: String(subject), email, expiresAt };
-  let token = randomUUID();
-  if (role === 'admin' && adminSessionSecret) {
-    session.sessionId = randomUUID();
-    const payload = Buffer.from(JSON.stringify(session)).toString('base64url');
-    const signature = createHmac('sha256', adminSessionSecret).update(payload).digest('base64url');
-    token = `admin.${payload}.${signature}`;
-  }
+  const session = { role, subject: String(subject), email, expiresAt, sessionId: randomUUID() };
+  const payload = Buffer.from(JSON.stringify(session)).toString('base64url');
+  const signature = createHmac('sha256', getSessionSigningSecret()).update(payload).digest('base64url');
+  const token = `${role}.${payload}.${signature}`;
   authSessions.set(token, session);
   return token;
 }
 
-function getSignedAdminSession(token) {
-  if (!adminSessionSecret) return null;
+function getSignedSession(token) {
+  const secret = getSessionSigningSecret();
   const [prefix, payload, signature, extra] = String(token || '').split('.');
-  if (prefix !== 'admin' || !payload || !signature || extra) return null;
-  const expected = createHmac('sha256', adminSessionSecret).update(payload).digest();
+  if (!['admin', 'provider'].includes(prefix) || !payload || !signature || extra) return null;
+  const expected = createHmac('sha256', secret).update(payload).digest();
   let provided;
   try {
     provided = Buffer.from(signature, 'base64url');
@@ -292,7 +309,9 @@ function getSignedAdminSession(token) {
   if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return null;
   try {
     const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    if (session.role !== 'admin' || !session.sessionId || revokedAdminSessions.has(session.sessionId)) return null;
+    if (session.role !== prefix || !session.subject || !session.sessionId) return null;
+    if (session.role === 'admin' && revokedAdminSessions.has(session.sessionId)) return null;
+    if (session.role === 'provider' && revokedProviderSessions.has(session.sessionId)) return null;
     return session;
   } catch {
     return null;
@@ -301,7 +320,7 @@ function getSignedAdminSession(token) {
 
 function getSession(req) {
   const token = getBearerToken(req);
-  const session = token ? (authSessions.get(token) || getSignedAdminSession(token)) : null;
+  const session = token ? (authSessions.get(token) || getSignedSession(token)) : null;
   if (session && session.expiresAt > Date.now()) return session;
   if (token) authSessions.delete(token);
   return null;
@@ -311,6 +330,7 @@ app.post('/api/logout', (req, res) => {
   const token = getBearerToken(req);
   const session = token ? getSession(req) : null;
   if (session?.role === 'admin' && session.sessionId) revokedAdminSessions.add(session.sessionId);
+  if (session?.role === 'provider' && session.sessionId) revokedProviderSessions.add(session.sessionId);
   if (token) authSessions.delete(token);
   return res.json({ ok: true });
 });

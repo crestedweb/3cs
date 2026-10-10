@@ -25,3 +25,5 @@ dist-ssr
 .env
 .env.*
 !.enc.example
+data/session-signing-key
+data/provider-documents/

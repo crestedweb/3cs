@@ -3650,7 +3650,7 @@ export default function App() {
         }
       />
       <Route
-        path="/provider/dashboard"
+        path="/provider/dashboard/:section?"
         element={
           providerSession ? (
             <ProviderDashboardPage

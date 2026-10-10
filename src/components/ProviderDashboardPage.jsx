@@ -1,11 +1,15 @@
 ﻿import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AUTH_KEYS } from '../data/siteData';
 
 const dashboardServices = ['Visiting/home care', 'Personal care', 'Live-in care', 'Overnight care', '24-hour care', 'Respite care', 'Emergency or urgent care', 'Hospital discharge and reablement', 'Companionship', 'Medication support', 'Domestic support', 'Complex care', 'Other'];
 const dashboardCareNeeds = ['Older adults', 'Dementia', 'Complex care', 'Physical disabilities', 'Learning disabilities', 'Autism', 'Mental health needs', 'Palliative or end-of-life care', 'Nursing care', 'Other specialist needs'];
 
 export default function ProviderDashboardPage({ providerSession, setProviderSession, dashboardLeads = [], setDashboardLeads, onBack, onLogout }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const pageName = location.pathname.split('/').filter(Boolean).at(-1);
+  const activeSection = ['overview', 'bio', 'documents', 'referrals'].includes(pageName) ? pageName : 'overview';
   const [profileData, setProfileData] = useState(() => ({ ...(providerSession?.profileData || {}), coverage: { radiusMiles: 0, locations: [], exclusions: [], ...(providerSession?.profileData?.coverage || {}) } }));
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
@@ -17,14 +21,18 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
   const [documentFile, setDocumentFile] = useState(null);
   const [documentType, setDocumentType] = useState('other');
   const [uploadingDocument, setUploadingDocument] = useState(false);
-  const [activeSection, setActiveSection] = useState('overview');
   useEffect(() => {
     if (!providerSession?.id || !providerSession?.token) return;
     let active = true;
     fetch(`/api/provider/dashboard/${providerSession.id}`, { headers: { Authorization: `Bearer ${providerSession.token}` } })
       .then(async (response) => ({ response, payload: await response.json() }))
       .then(({ response, payload }) => {
-        if (!active || !response.ok) return;
+        if (!active) return;
+        if (response.status === 401) {
+          onLogout?.();
+          return;
+        }
+        if (!response.ok) return;
         if (setDashboardLeads) setDashboardLeads(payload.dashboard?.leads || []);
         if (payload.provider) {
           const updatedSession = { ...providerSession, ...payload.provider, token: providerSession.token };
@@ -99,6 +107,10 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
       body.append('documentType', documentType);
       const response = await fetch(`/api/providers/${providerSession.id}/documents`, { method: 'POST', headers: { Authorization: `Bearer ${providerSession.token}` }, body });
       const payload = await response.json();
+      if (response.status === 401) {
+        onLogout?.();
+        throw new Error('Your session expired. Please sign in again, then retry the upload.');
+      }
       if (!response.ok) throw new Error(payload.error || 'Document upload failed.');
       const updatedSession = { ...providerSession, ...payload.provider, profileData: payload.provider.profileData };
       setProfileData(updatedSession.profileData);
@@ -219,10 +231,11 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
           </div>
         </div>
 
-        <nav aria-label="Provider dashboard sections" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '4px 0 14px', marginBottom: 14, borderBottom: '1px solid #e4ecf6' }}>
-          {[['overview', 'Overview'], ['bio', 'My bio'], ['documents', 'Documents'], ['referrals', 'Referrals']].map(([id, label]) => <button key={id} type="button" onClick={() => { setActiveSection(id); document.getElementById(`provider-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} aria-current={activeSection === id ? 'page' : undefined} style={{ whiteSpace: 'nowrap', border: activeSection === id ? '1px solid #0B1D3A' : '1px solid #dfeaf8', borderRadius: 999, background: activeSection === id ? '#0B1D3A' : '#fff', color: activeSection === id ? '#fff' : '#34445a', padding: '9px 15px', fontWeight: 700, cursor: 'pointer' }}>{label}</button>)}
+        <nav aria-label="Provider dashboard pages" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '4px 0 14px', marginBottom: 14, borderBottom: '1px solid #e4ecf6' }}>
+          {[['overview', 'Overview'], ['bio', 'My bio'], ['documents', 'Documents'], ['referrals', 'Referrals']].map(([id, label]) => <button key={id} type="button" onClick={() => navigate(`/provider/dashboard/${id}`)} aria-current={activeSection === id ? 'page' : undefined} style={{ whiteSpace: 'nowrap', border: activeSection === id ? '1px solid #0B1D3A' : '1px solid #dfeaf8', borderRadius: 999, background: activeSection === id ? '#0B1D3A' : '#fff', color: activeSection === id ? '#fff' : '#34445a', padding: '9px 15px', fontWeight: 700, cursor: 'pointer' }}>{label}</button>)}
         </nav>
 
+        {activeSection === 'overview' && <>
         <div id="provider-overview" className="provider-dashboard-stats" style={{ scrollMarginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
           {stats.map((stat) => (
             <div key={stat.label} style={{ background: stat.label === 'Rating' ? '#eaf7ff' : stat.label === 'Booked' ? '#f2f6fb' : stat.label === 'Qualified' ? '#eefaf2' : '#0B1D3A', color: stat.label === 'Rating' || stat.label === 'Booked' || stat.label === 'Qualified' ? '#0B1D3A' : '#fff', borderRadius: 16, padding: 16 }}>
@@ -239,14 +252,15 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
           {providerSession.referralEligibility !== 'eligible' && <div>Outstanding: wait for administrator review{pendingDocuments ? `; ${pendingDocuments} document(s) awaiting review` : ''}.</div>}
         </div>
 
-        <div id="provider-referrals" className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginBottom: 18 }}>
+        </>}
+        {activeSection === 'referrals' && <div id="provider-referrals" className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginBottom: 18 }}>
           <h3 style={{ margin: '0 0 10px', color: '#0B1D3A', fontSize: '1.1rem' }}>Eligible referral opportunities</h3>
           {providerSession.referralEligibility !== 'eligible' ? <p style={{ margin: 0, color: '#5a6a7e' }}>Referrals are restricted while your account or verification is pending. Check the verification progress below.</p>
             : dashboardLeads.length === 0 ? <p style={{ margin: 0, color: '#5a6a7e' }}>No current referrals match your declared coverage, services, care needs and availability.</p>
               : <div style={{ display: 'grid', gap: 9 }}>{dashboardLeads.map((lead) => <div key={lead.id} style={{ border: '1px solid #edf2f7', borderRadius: 11, padding: 12, background: '#f9fbff' }}><strong style={{ color: '#0B1D3A' }}>{lead.need || 'Care support'} · {lead.area || 'Area not provided'}</strong><div style={{ marginTop: 4, fontSize: 12, color: '#5a6a7e' }}>Why this matches: {(lead.matchReasons || []).join(' · ')}</div><div style={{ marginTop: 4, fontSize: 12, color: '#5a6a7e' }}>Submitted {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'recently'} · {lead.urgency || 'Soon'}</div></div>)}</div>}
-        </div>
+        </div>}
 
-        <div className="provider-dashboard-main" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18 }}>
+        {activeSection === 'overview' && <div className="provider-dashboard-main" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18 }}>
           <div className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16 }}>
             <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>Service overview</h3>
             <div style={{ display: 'grid', gap: 12 }}>
@@ -282,7 +296,8 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
               Next review: {nextReview}
             </div>
           </div>
-        </div>
+        </div>}
+        {activeSection === 'bio' && <>
         <section id="provider-bio" className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18 }}>
           <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>My submitted bio</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, color: '#34445a', fontSize: 13 }}>
@@ -330,7 +345,8 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
           {profileMessage && <div role="status" style={{ color: profileMessage.toLowerCase().includes('unable') || profileMessage.toLowerCase().includes('failed') ? '#b42318' : '#1e7d3d', fontSize: 13 }}>{profileMessage}</div>}
           <button type="submit" className="btn btn-green" disabled={savingProfile} style={{ padding: 12 }}>{savingProfile ? 'Saving…' : 'Save profile updates'}</button>
         </form>
-        <form id="provider-documents" onSubmit={uploadDocument} className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18, display: 'grid', gap: 10 }}>
+        </>}
+        {activeSection === 'documents' && <form id="provider-documents" onSubmit={uploadDocument} className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18, display: 'grid', gap: 10 }}>
           <h3 style={{ margin: 0, color: '#0B1D3A', fontSize: '1.1rem' }}>Verification documents</h3>
           <p style={{ margin: 0, color: '#5a6a7e', fontSize: 13 }}>PDF, DOC or DOCX, up to 5 MB. Documents are private and stay pending until reviewed by an administrator.</p>
           <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Document type<select className="finput" value={documentType} onChange={(event) => setDocumentType(event.target.value)}><option value="public_liability">Public liability insurance</option><option value="employers_liability">Employers' liability insurance</option><option value="professional_indemnity">Professional indemnity insurance</option><option value="safeguarding">Safeguarding policy</option><option value="complaints">Complaints procedure</option><option value="medication">Medication policy</option><option value="infection_control">Infection prevention and control policy</option><option value="registration">Regulator registration evidence</option><option value="other">Other supporting document</option></select></label>
@@ -338,7 +354,7 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
           <button type="submit" className="btn btn-ghost-green" disabled={!documentFile || uploadingDocument} style={{ padding: 12 }}>{uploadingDocument ? 'Uploading…' : 'Upload document'}</button>
           {documentMessage && <div role="status" aria-live="polite" style={{ borderRadius: 10, padding: '12px 14px', background: documentMessage.toLowerCase().includes('failed') || documentMessage.toLowerCase().includes('unable') ? '#fff1f2' : '#eafaf1', color: documentMessage.toLowerCase().includes('failed') || documentMessage.toLowerCase().includes('unable') ? '#b42318' : '#1e7d3d', fontSize: 13, fontWeight: 600 }}>{documentMessage}</div>}
           {(profileData.compliance?.documents || []).length === 0 ? <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>No documents submitted yet.</p> : <div style={{ display: 'grid', gap: 8 }}>{(profileData.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, border: '1px solid #edf2f7', borderRadius: 10, padding: '10px 12px', color: '#34445a', fontSize: 13 }}><span><strong style={{ color: '#0B1D3A' }}>{document.name}</strong><br />{String(document.type || 'other').replaceAll('_', ' ')} · {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString() : 'Submitted'}</span><strong style={{ color: document.reviewStatus === 'rejected' ? '#b42318' : document.reviewStatus === 'reviewed' ? '#1e7d3d' : '#9a6700', textTransform: 'capitalize' }}>{String(document.reviewStatus || 'pending review').replaceAll('_', ' ')}</strong></div>)}</div>}
-        </form>
+        </form>}
       </div>
     </div>
   );
