@@ -9,7 +9,7 @@ import { createHmac, randomBytes, randomUUID, scryptSync, timingSafeEqual } from
 import { fileURLToPath } from 'url';
 import { Buffer } from 'node:buffer';
 import { createClient } from '@supabase/supabase-js';
-import { matchProviderToRequest, normalizePostcode } from './provider-matching.mjs';
+import { extractPlaceQueryCandidates, matchProviderToRequest, normalizePostcode } from './provider-matching.mjs';
 import { calculateReferralEligibility, isProviderSessionFor } from './provider-policy.mjs';
 import {
   createProviderId,
@@ -104,6 +104,7 @@ const adminSessionSecret = process.env.ADMIN_SESSION_SECRET
   || process.env.SUPABASE_SERVICE_ROLE_KEY
   || process.env.ADMIN_PASSWORD;
 const postcodeLookupCache = new Map();
+const placeLookupCache = new Map();
 const providerServiceOptions = ['Visiting/home care', 'Personal care', 'Live-in care', 'Overnight care', '24-hour care', 'Respite care', 'Emergency or urgent care', 'Hospital discharge and reablement', 'Companionship', 'Medication support', 'Domestic support', 'Complex care', 'Other'];
 const providerCareNeedOptions = ['Older adults', 'Dementia', 'Complex care', 'Physical disabilities', 'Learning disabilities', 'Autism', 'Mental health needs', 'Palliative or end-of-life care', 'Nursing care', 'Other specialist needs'];
 const normalizeSelections = (values, allowed) => [...new Set((Array.isArray(values) ? values : []).map((value) => String(value).trim()).filter((value) => allowed.includes(value)))];
@@ -724,10 +725,79 @@ async function lookupPostcodeCoordinates(value) {
   return result;
 }
 
-async function getMatchesForLead(lead, providerList) {
-  const postcode = String(lead.area || '').match(/[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/i)?.[0]
-    || ( /^[A-Z]{1,2}\d[A-Z\d]?$/i.test(String(lead.area || '').trim()) ? String(lead.area).trim() : '' );
-  const coordinates = await lookupPostcodeCoordinates(postcode);
+function normalizePlaceName(value) {
+  return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+async function lookupPlaceCoordinates(value) {
+  const candidates = extractPlaceQueryCandidates(value);
+  for (const query of candidates) {
+    const cacheKey = normalizePlaceName(query);
+    if (!cacheKey) continue;
+    let lookup = placeLookupCache.get(cacheKey);
+    if (!lookup) {
+      lookup = (async () => {
+        try {
+          const response = await fetch(`https://api.postcodes.io/places?q=${encodeURIComponent(query)}&limit=8`, { signal: AbortSignal.timeout(5000) });
+          if (!response.ok) return [];
+          const payload = await response.json();
+          return Array.isArray(payload?.result) ? payload.result : [];
+        } catch { return []; }
+      })();
+      placeLookupCache.set(cacheKey, lookup);
+      if (placeLookupCache.size > 1000) placeLookupCache.delete(placeLookupCache.keys().next().value);
+    }
+    const results = await lookup;
+    const exact = results.filter((item) => [item.name_1, item.name_2].some((name) => normalizePlaceName(name) === cacheKey));
+    if (exact.length !== 1) continue;
+    const place = exact[0];
+    const latitude = Number(place.latitude);
+    const longitude = Number(place.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+    return {
+      latitude,
+      longitude,
+      areaName: place.name_1,
+      outcode: place.outcode || '',
+      placeCode: place.code,
+    };
+  }
+  return null;
+}
+
+async function resolveLeadLocation(value) {
+  const input = clean(value);
+  const postcodeMatch = input.match(/[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/i)?.[0]
+    || (/^[A-Z]{1,2}\d[A-Z\d]?$/i.test(input) ? input : '');
+  const postcode = normalizePostcode(postcodeMatch || '');
+  if (postcode) {
+    const coordinates = await lookupPostcodeCoordinates(postcode);
+    return {
+      input,
+      postcode,
+      coordinates,
+      areaName: coordinates?.areaName || '',
+      outcode: coordinates?.outcode || postcode.split(' ')[0],
+      resolved: Boolean(coordinates),
+      label: coordinates?.areaName || postcode,
+    };
+  }
+
+  const place = await lookupPlaceCoordinates(input);
+  return {
+    input,
+    postcode: '',
+    coordinates: place ? { latitude: place.latitude, longitude: place.longitude } : null,
+    areaName: place?.areaName || '',
+    outcode: place?.outcode || '',
+    resolved: Boolean(place),
+    label: place?.areaName || '',
+  };
+}
+
+async function getMatchesForLead(lead, providerList, location = null) {
+  const resolvedLocation = location || await resolveLeadLocation(lead.area);
+  const { postcode, coordinates, areaName, outcode } = resolvedLocation;
   const arrangement = String(lead.message || '').match(/(?:^|\|\s*)Arrangement:\s*([^|]+)/i)?.[1]?.trim().toLowerCase() || '';
   const serviceMap = { 'visiting care': 'visiting/home care', 'personal care': 'personal care', 'live-in care': 'live-in care', 'overnight care': 'overnight care', '24-hour care': '24-hour care' };
   const needServiceMap = { 'personal care': 'personal care', 'complex care': 'complex care', companionship: 'companionship', 'medication support': 'medication support', 'domestic support': 'domestic support', 'respite care': 'respite care', 'hospital discharge and rehabilitation': 'hospital discharge and reablement', 'other care support': 'other' };
@@ -750,10 +820,11 @@ async function getMatchesForLead(lead, providerList) {
     coordinates,
     service: lead.serviceType || serviceMap[arrangement] || needServiceMap[String(lead.need || '').toLowerCase()] || '',
     careNeeds: lead.careNeeds || careNeedMap[String(lead.need || '').toLowerCase()] || [],
-    areaName: coordinates?.areaName || '',
+    areaName,
+    locationQuery: resolvedLocation.input,
     requestedDate,
   };
-  return providerList.map((provider) => ({ provider: buildProviderSnapshot(provider), areaName: coordinates?.areaName || '', outcode: coordinates?.outcode || '', ...matchProviderToRequest(provider, request) }));
+  return providerList.map((provider) => ({ provider: buildProviderSnapshot(provider), areaName, outcode, location: { input: resolvedLocation.input, resolved: resolvedLocation.resolved, label: resolvedLocation.label }, ...matchProviderToRequest(provider, request) }));
 }
 
 async function sendProviderRegistrationEmail(provider) {
@@ -1698,7 +1769,8 @@ app.get('/api/admin/leads/:id/matches', async (req, res) => {
   const lead = leadList.find((item) => String(item.id) === String(req.params.id));
   if (!lead) return res.status(404).json({ error: 'Lead not found.' });
   const providerList = await getProvidersFromDataSource();
-  return res.json({ matches: await getMatchesForLead(lead, providerList) });
+  const location = await resolveLeadLocation(lead.area);
+  return res.json({ matches: await getMatchesForLead(lead, providerList, location), location: { input: location.input, resolved: location.resolved, label: location.label } });
 });
 
 app.get('/api/provider/dashboard/:providerId', async (req, res) => {

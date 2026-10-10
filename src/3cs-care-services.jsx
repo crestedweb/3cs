@@ -2013,7 +2013,7 @@ function GuidedCareModal({ open, onClose }) {
 
   const steps = [
     { key: "name", title: "Hi, what is your name?", kind: "text", placeholder: "Your full name" },
-    { key: "area", title: `Thanks, ${form.name || "there"}. Where do you need care?`, kind: "text", placeholder: "Town or UK postcode" },
+    { key: "area", title: `Thanks, ${form.name || "there"}. Where do you need care?`, kind: "text", placeholder: "Town, postcode, or e.g. I prefer London" },
     { key: "service", title: "What type of care do you need?", kind: "select", options: GUIDED_CARE_OPTIONS },
     { key: "arrangement", title: "What kind of care arrangement are you looking for?", kind: "select", options: GUIDED_CARE_ARRANGEMENTS },
     { key: "schedule", title: "How often and what hours is care needed?", kind: "schedule" },
@@ -2154,7 +2154,7 @@ function GuidedCareModal({ open, onClose }) {
                     autoFocus
                     style={{ width: "100%", boxSizing: "border-box", padding: "14px 16px", borderRadius: 10, border: "1px solid #dfe8f3", fontSize: "1rem", color: "#0B1D3A", outline: "none" }}
                   />
-                  {currentStep.key === "area" && <small style={{ display: "block", marginTop: 8, color: "#5a6a7e", lineHeight: 1.5 }}>A full UK postcode helps our team check provider coverage more accurately.</small>}
+                  {currentStep.key === "area" && <small style={{ display: "block", marginTop: 8, color: "#5a6a7e", lineHeight: 1.5 }}>We’ll save your location wording as entered. A UK postcode or town/city helps us check provider coverage.</small>}
                 </>
               )}
 

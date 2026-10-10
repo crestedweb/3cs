@@ -1,6 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { normalizePostcode } from '../../provider-matching.mjs';
 
 export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   useEffect(() => {
@@ -36,6 +35,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const [selectedProviderId, setSelectedProviderId] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState(() => new URLSearchParams(window.location.search).get('leadId') || '');
   const [providerMatches, setProviderMatches] = useState([]);
+  const [matchLocation, setMatchLocation] = useState(null);
   const [matchesForLeadId, setMatchesForLeadId] = useState('');
   const [loadingMatchesFor, setLoadingMatchesFor] = useState('');
   const [expandedRecentLeadId, setExpandedRecentLeadId] = useState('');
@@ -152,7 +152,6 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
 
   const selectedProvider = providers.find((provider) => String(provider.id) === String(selectedProviderId)) || providers[0] || null;
   const selectedLead = leads.find((lead) => String(lead.id) === String(selectedLeadId)) || newestLead || null;
-  const selectedLeadHasMatchableLocation = Boolean(normalizePostcode(selectedLead?.area || ''));
   const selectedEnquiry = enquiries.find((enquiry) => String(enquiry.id) === String(selectedLeadId)) || newestEnquiry || null;
   const bookedLeads = leads.filter((lead) => String(lead.status || 'New').toLowerCase() === 'booked');
   const pendingProviders = providers.filter((provider) => String(provider.status || 'pending').toLowerCase() === 'pending');
@@ -222,6 +221,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Unable to calculate provider matches.');
       setProviderMatches(payload.matches || []);
+      setMatchLocation(payload.location || null);
       setMatchesForLeadId(String(leadId));
     } catch (error) { setActionFeedback(error.message || 'Unable to calculate provider matches.'); }
     finally { setLoadingMatchesFor(''); }
@@ -856,7 +856,6 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               <p style={{ color: '#5a6a7e', fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>Provider suggestions are checked against this request. Review eligibility, then assign a provider manually.</p>
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 700 }}>Recommended providers</label>
-              {!selectedLeadHasMatchableLocation && <div role="status" style={{ marginBottom: 8, border: '1px solid #f1d58b', background: '#fff9e8', color: '#805a08', borderRadius: 9, padding: '9px 10px', fontSize: 12, lineHeight: 1.5 }}><strong>Location needed for matching.</strong> This request has no valid UK postcode. Confirm the care location with the family before checking provider coverage.</div>}
               <select
                 value={providers.find((provider) => (provider.businessName || provider.name) === selectedLead.providerName)?.id || 'Unassigned'}
                 onChange={(event) => {
@@ -872,6 +871,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 ))}
               </select>
               <button type="button" onClick={() => loadProviderMatches(selectedLead.id)} disabled={loadingMatchesFor === String(selectedLead.id)} style={{ marginTop: 7, border: '1px solid #28A745', color: '#0B1D3A', background: '#fff', borderRadius: 8, padding: '7px 10px', cursor: loadingMatchesFor === String(selectedLead.id) ? 'wait' : 'pointer', opacity: loadingMatchesFor === String(selectedLead.id) ? 0.65 : 1 }}>{loadingMatchesFor === String(selectedLead.id) ? 'Checking coverage…' : 'Check coverage and eligibility'}</button>
+              {matchesForLeadId === String(selectedLead.id) && <div role="status" style={{ marginTop: 8, border: `1px solid ${matchLocation?.resolved ? '#bde8c9' : '#f1d58b'}`, background: matchLocation?.resolved ? '#f4fbf6' : '#fff9e8', color: matchLocation?.resolved ? '#146c2e' : '#805a08', borderRadius: 9, padding: '9px 10px', fontSize: 12, lineHeight: 1.5 }}>{matchLocation?.resolved ? <>Location interpreted as <strong>{matchLocation.label}</strong>. The visitor’s original wording remains on the case.</> : <>Could not resolve “{matchLocation?.input || selectedLead.area || 'location not provided'}” to a UK postcode or town. Confirm the care location before assigning a provider.</>}</div>}
               {matchesForLeadId === String(selectedLead.id) && <div aria-live="polite" style={{ display: 'grid', gap: 7, marginTop: 8 }}>
                 <div style={{ color: '#5a6a7e', fontSize: 12, fontWeight: 700 }}>{providerMatches.filter((item) => item.eligible).length} eligible of {providerMatches.length} providers checked</div>
                 {providerMatches.length === 0 ? <div style={{ border: '1px solid #dfeaf8', borderRadius: 9, padding: 10, color: '#5a6a7e', fontSize: 12 }}>No providers are registered yet.</div> : providerMatches.map((item) => <div key={item.provider.id} style={{ border: `1px solid ${item.eligible ? '#bde8c9' : '#e4ecf6'}`, background: item.eligible ? '#f4fbf6' : '#fff', borderRadius: 9, padding: 10, fontSize: 12 }}><strong>{item.provider.businessName || item.provider.name || 'Provider'}</strong><span style={{ marginLeft: 6, color: item.eligible ? '#146c2e' : '#758397', fontWeight: 700 }}>{item.eligible ? 'Eligible' : 'Not eligible'}</span><div style={{ color: '#5a6a7e', marginTop: 4, lineHeight: 1.5 }}>{item.reasons.join(' · ')}</div></div>)}

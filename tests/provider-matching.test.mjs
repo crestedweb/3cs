@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { distanceMiles, matchProviderToRequest, normalizePostcode } from '../provider-matching.mjs';
+import { distanceMiles, extractPlaceQueryCandidates, matchProviderToRequest, normalizePostcode } from '../provider-matching.mjs';
 
 const approvedProvider = {
   status: 'active',
@@ -30,12 +30,19 @@ test('normalizes UK postcodes across spaces and case', () => {
 test('does not report a location match when the client location is missing or unrecognized', () => {
   const result = matchProviderToRequest(approvedProvider, {
     area: 'I am looking for care professional/overnight',
+    locationQuery: 'I am looking for care professional/overnight',
     service: 'Visiting/home care',
     careNeeds: ['Dementia'],
   });
   assert.equal(result.locationCovered, false);
   assert.equal(result.eligible, false);
-  assert.ok(result.reasons.some((reason) => reason.startsWith('Client location missing:')));
+  assert.ok(result.reasons.some((reason) => reason.startsWith('Client location could not be resolved')));
+});
+
+test('extracts town names from free-form care location wording without changing the submitted value', () => {
+  assert.deepEqual(extractPlaceQueryCandidates('London'), ['London']);
+  assert.deepEqual(extractPlaceQueryCandidates('I will prefer london'), ['I will prefer london', 'london']);
+  assert.deepEqual(extractPlaceQueryCandidates('I am looking for care in Manchester.'), ['I am looking for care in Manchester', 'Manchester']);
 });
 
 test('distance uses geographic coordinates in miles', () => {

@@ -4,6 +4,23 @@ export function normalizePostcode(value = '') {
   return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
 }
 
+export function extractPlaceQueryCandidates(value = '') {
+  const input = String(value || '').trim().replace(/\s+/g, ' ').replace(/[.,!?;:]+$/g, '').trim();
+  if (!input) return [];
+  const candidates = [input];
+  const patterns = [
+    /^(?:i\s+)?(?:would\s+|will\s+)?prefer(?:\s+to)?\s+(.+)$/i,
+    /^(?:i\s+)?(?:am\s+)?(?:looking for care|need care|want care)\s+(?:in|near|around)\s+(.+)$/i,
+    /\b(?:in|near|around|within)\s+([a-z][a-z\s'-]{1,60})$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = input.match(pattern);
+    const place = match?.[1]?.trim().replace(/[.,!?;:]+$/g, '').trim();
+    if (place && !candidates.some((candidate) => candidate.toLowerCase() === place.toLowerCase())) candidates.push(place);
+  }
+  return candidates;
+}
+
 export function distanceMiles(a, b) {
   if (![a?.latitude, a?.longitude, b?.latitude, b?.longitude].every(Number.isFinite)) return Infinity;
   const radians = (degrees) => degrees * Math.PI / 180;
@@ -61,7 +78,7 @@ export function matchProviderToRequest(provider, request) {
     && !rejectedDocument;
 
   const reasons = [
-    !locationProvided ? 'Client location missing: provide a UK postcode or verified location' : locationCovered ? 'Location covered' : 'Location not in declared coverage',
+    !locationProvided && request?.locationQuery ? 'Client location could not be resolved from the submitted text; confirm the postcode or town/city' : !locationProvided ? 'Client location missing: provide a UK postcode or verified location' : locationCovered ? 'Location covered' : 'Location not in declared coverage',
     serviceCompatible ? 'Required service offered' : 'Required service not offered',
     careNeedsSupported ? 'Relevant care needs supported' : 'Care needs not supported',
     available ? 'Provider has availability' : 'No current capacity declared',
