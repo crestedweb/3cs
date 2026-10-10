@@ -650,6 +650,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
             <div style={{ border: '1px solid #dfeaf8', borderRadius: 11, padding: 12, background: '#f9fbff', display: 'grid', gap: 5 }}>
               <strong>Verification and referral eligibility</strong>
               <div style={{ marginTop: 6 }}>Verification: {selectedProvider.verificationStatus || 'incomplete'}</div>
+              <div>Profile photo: {(selectedProvider.profileData?.compliance?.documents || []).some((document) => document.type === 'profile_photo' && document.reviewStatus === 'reviewed') ? 'approved' : (selectedProvider.profileData?.compliance?.documents || []).some((document) => document.type === 'profile_photo') ? 'awaiting review or rejected' : 'required'}</div>
               <div>Referrals: {selectedProvider.referralEligibility || 'temporarily_ineligible'}</div>
               <div style={{ marginTop: 8, fontSize: 12, color: '#5a6a7e' }}>Registration details and policies are self-declared unless separately checked. Platform verification is not regulatory approval.</div>
             </div>
@@ -700,6 +701,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 {providerActionBusy ? 'Saving…' : 'Delete provider'}
               </button>
               <div style={{ flexBasis: '100%', color: '#5a6a7e', fontSize: 12 }}>Rejecting verification leaves the account pending; it does not suspend or delete it.</div>
+              <div style={{ flexBasis: '100%', color: '#5a6a7e', fontSize: 12 }}>Approve the provider’s profile photo in Compliance and documents before verifying them.</div>
             </div>
           </div>
         ) : (

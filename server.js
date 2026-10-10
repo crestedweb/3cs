@@ -242,6 +242,25 @@ providers = providers.map((provider) => {
   migratedLocalPasswords = true;
   return { ...provider, password: hashProviderPassword(password) };
 });
+
+const providerDocumentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+    };
+    const extension = path.extname(file.originalname).toLowerCase();
+    if (allowed[extension] === file.mimetype) cb(null, true);
+    else cb(new Error('Choose a PDF, DOC, DOCX, JPG, PNG, or WEBP file'), false);
+  },
+});
 if (migratedLocalPasswords) persistAppData();
 
 function persistAppData() {
@@ -1087,31 +1106,38 @@ app.put('/api/providers/:id/profile', async (req, res) => {
   return res.json({ provider: buildProviderSnapshot(target) });
 });
 
-app.post('/api/providers/:id/documents', upload.single('document'), async (req, res) => {
+app.post('/api/providers/:id/documents', providerDocumentUpload.single('document'), async (req, res) => {
   const providerId = String(req.params.id);
   if (!isProviderSessionFor(getSession(req), providerId)) return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
-  if (!req.file) return res.status(400).json({ error: 'Select a PDF, DOC, or DOCX document under 5 MB.' });
+  if (!req.file) return res.status(400).json({ error: 'Select an allowed file under 5 MB.' });
   const buffer = req.file.buffer;
   const extension = path.extname(req.file.originalname).toLowerCase();
-  const validSignature = extension === '.pdf' ? buffer.subarray(0, 5).toString() === '%PDF-'
+  const isProfilePhoto = String(req.body?.documentType || '') === 'profile_photo';
+  const validSignature = extension === '.jpg' || extension === '.jpeg' ? buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+    : extension === '.png' ? buffer.subarray(0, 8).equals(Buffer.from('89504E470D0A1A0A', 'hex'))
+      : extension === '.webp' ? buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP'
+        : extension === '.pdf' ? buffer.subarray(0, 5).toString() === '%PDF-'
     : extension === '.doc' ? buffer.subarray(0, 8).equals(Buffer.from('D0CF11E0A1B11AE1', 'hex'))
       : extension === '.docx' && buffer.subarray(0, 2).toString() === 'PK';
   if (!validSignature) return res.status(400).json({ error: 'The file contents do not match the selected document type.' });
+  if (isProfilePhoto && !['.jpg', '.jpeg', '.png', '.webp'].includes(extension)) return res.status(400).json({ error: 'Profile photos must be JPG, PNG, or WEBP images.' });
+  if (!isProfilePhoto && ['.jpg', '.jpeg', '.png', '.webp'].includes(extension)) return res.status(400).json({ error: 'Choose Profile photo as the document type to upload an image.' });
   const providerList = await getProvidersFromDataSource();
   const provider = providerList.find((item) => String(item.id) === providerId);
   if (!provider) return res.status(404).json({ error: 'Provider not found.' });
-  const allowedDocumentTypes = ['public_liability', 'employers_liability', 'professional_indemnity', 'safeguarding', 'complaints', 'medication', 'infection_control', 'registration', 'other'];
+  const allowedDocumentTypes = ['profile_photo', 'public_liability', 'employers_liability', 'professional_indemnity', 'safeguarding', 'complaints', 'medication', 'infection_control', 'registration', 'other'];
   const documentType = allowedDocumentTypes.includes(String(req.body?.documentType)) ? String(req.body.documentType) : 'other';
+  if (documentType === 'profile_photo' && (provider.profileData?.compliance?.documents || []).some((item) => item.type === 'profile_photo' && item.reviewStatus !== 'rejected')) return res.status(409).json({ error: 'A profile photo is already awaiting review or approved.' });
   let storagePath;
   if (supabase) {
-    const bucket = process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents';
+    const bucket = isProfilePhoto ? (process.env.PROVIDER_PROFILE_PHOTOS_BUCKET || 'provider-profile-photos') : (process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents');
     storagePath = `${providerId}/${randomUUID()}-${path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     let { error: storageError } = await supabase.storage.from(bucket).upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
     if (storageError && /bucket.*not found|not found.*bucket/i.test(storageError.message || '')) {
       await supabase.storage.createBucket(bucket, {
         public: false,
         fileSizeLimit: 5 * 1024 * 1024,
-        allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        allowedMimeTypes: isProfilePhoto ? ['image/jpeg', 'image/png', 'image/webp'] : ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
       });
       ({ error: storageError } = await supabase.storage.from(bucket).upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false }));
     }
@@ -1161,13 +1187,19 @@ app.get('/api/admin/providers/:providerId/documents/:documentId/file', async (re
   if (!document) return res.status(404).json({ error: 'Document not found.' });
   if (document.storagePath?.startsWith('local:')) {
     const localName = path.basename(document.storagePath.slice('local:'.length));
-    if (!/^[0-9a-f-]+\.(pdf|doc|docx)$/i.test(localName)) return res.status(400).json({ error: 'Invalid document path.' });
+    if (!/^[0-9a-f-]+\.(pdf|doc|docx|jpg|jpeg|png|webp)$/i.test(localName)) return res.status(400).json({ error: 'Invalid document path.' });
     const fullPath = path.join(PROVIDER_DOCUMENTS_DIR, localName);
     if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Stored document file not found.' });
+    if (document.type === 'profile_photo') {
+      res.type(document.mimeType || 'image/jpeg');
+      res.setHeader('Content-Disposition', `inline; filename="${path.basename(document.name)}"`);
+      return res.send(fs.readFileSync(fullPath));
+    }
     return res.type(document.mimeType || 'application/octet-stream').download(fullPath, document.name);
   }
   if (!supabase) return res.status(503).json({ error: 'Document storage is unavailable.' });
-  const { data, error } = await supabase.storage.from(process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents').download(document.storagePath);
+  const documentBucket = document.type === 'profile_photo' ? (process.env.PROVIDER_PROFILE_PHOTOS_BUCKET || 'provider-profile-photos') : (process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents');
+  const { data, error } = await supabase.storage.from(documentBucket).download(document.storagePath);
   if (error || !data) return res.status(500).json({ error: 'Unable to access provider document.' });
   res.type(document.mimeType || 'application/octet-stream');
   res.setHeader('Content-Disposition', `inline; filename="${path.basename(document.name)}"`);
@@ -1392,6 +1424,10 @@ app.put('/api/admin/providers/:id/review', async (req, res) => {
   const providerList = await getProvidersFromDataSource();
   const reviewedProvider = providerList.find((item) => String(item.id) === id);
   if (!reviewedProvider) return res.status(404).json({ error: 'Provider not found.' });
+  if (verificationStatus === 'verified') {
+    const approvedPhoto = (reviewedProvider.profileData?.compliance?.documents || []).some((document) => document.type === 'profile_photo' && document.reviewStatus === 'reviewed');
+    if (!approvedPhoto) return res.status(400).json({ error: 'Unable to verify provider: review and approve their profile photo first.' });
+  }
   const referralEligibility = calculateReferralEligibility(accountStatus, verificationStatus, reviewedProvider.profileData);
   if (supabase) {
     const { data, error } = await supabase.from('providers').update({ status: accountStatus, account_status: accountStatus, verification_status: verificationStatus, referral_eligibility: referralEligibility, verified: verificationStatus === 'verified' }).eq('id', id).select();
@@ -1701,6 +1737,31 @@ app.get('/api/provider/dashboard/:providerId', async (req, res) => {
       leads: assignedLeads,
     },
   });
+});
+
+app.get('/api/provider/:providerId/profile-photo', async (req, res) => {
+  const providerId = String(req.params.providerId);
+  if (!isProviderSessionFor(getSession(req), providerId)) return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
+  const provider = (await getProvidersFromDataSource()).find((item) => String(item.id) === providerId);
+  if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+  const photo = (provider.profileData?.compliance?.documents || []).find((document) => document.type === 'profile_photo' && document.reviewStatus !== 'rejected');
+  if (!photo) return res.status(404).json({ error: 'No active profile photo.' });
+  const mimeType = ['image/jpeg', 'image/png', 'image/webp'].includes(photo.mimeType) ? photo.mimeType : 'image/jpeg';
+  if (photo.storagePath?.startsWith('local:')) {
+    const localName = path.basename(photo.storagePath.slice('local:'.length));
+    if (!/^[0-9a-f-]+\.(jpg|jpeg|png|webp)$/i.test(localName)) return res.status(400).json({ error: 'Invalid profile photo path.' });
+    const fullPath = path.join(PROVIDER_DOCUMENTS_DIR, localName);
+    if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Stored profile photo not found.' });
+    res.type(mimeType);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(fs.readFileSync(fullPath));
+  }
+  if (!supabase) return res.status(503).json({ error: 'Profile photo storage is unavailable.' });
+  const { data, error } = await supabase.storage.from(process.env.PROVIDER_PROFILE_PHOTOS_BUCKET || 'provider-profile-photos').download(photo.storagePath);
+  if (error || !data) return res.status(500).json({ error: 'Unable to load profile photo.' });
+  res.type(mimeType);
+  res.setHeader('Cache-Control', 'private, no-store');
+  return res.send(Buffer.from(await data.arrayBuffer()));
 });
 
 app.post('/api/send-message', upload.single('cv'), async (req, res) => {

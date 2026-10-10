@@ -11,6 +11,8 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
   const pageName = location.pathname.split('/').filter(Boolean).at(-1);
   const activeSection = ['overview', 'bio', 'documents', 'referrals'].includes(pageName) ? pageName : 'overview';
   const [profileData, setProfileData] = useState(() => ({ ...(providerSession?.profileData || {}), coverage: { radiusMiles: 0, locations: [], exclusions: [], ...(providerSession?.profileData?.coverage || {}) } }));
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
+  const profilePhotoDocument = (profileData.compliance?.documents || []).find((document) => document.type === 'profile_photo' && document.reviewStatus !== 'rejected');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
   const [documentMessage, setDocumentMessage] = useState('');
@@ -45,6 +47,26 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
     return () => { active = false; };
   }, [providerSession?.id, providerSession?.token, setDashboardLeads]);
   useEffect(() => {
+    if (!providerSession?.id || !providerSession?.token || !profilePhotoDocument?.id) {
+      setProfilePhotoUrl('');
+      return undefined;
+    }
+    let active = true;
+    let objectUrl = '';
+    fetch(`/api/provider/${providerSession.id}/profile-photo`, { headers: { Authorization: `Bearer ${providerSession.token}` } })
+      .then((response) => response.ok ? response.blob() : null)
+      .then((blob) => {
+        if (!active || !blob) return;
+        objectUrl = URL.createObjectURL(blob);
+        setProfilePhotoUrl(objectUrl);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [providerSession?.id, providerSession?.token, profilePhotoDocument?.id]);
+  useEffect(() => {
     if (areaSearch.trim().length < 2) return undefined;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
@@ -71,11 +93,13 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
   const registration = profileData.registration || {};
   const nextReview = 'Your verification review is pending';
   const coverage = profileData.coverage || { locations: [] };
+  const profilePhotoApproved = profilePhotoDocument?.reviewStatus === 'reviewed';
   const toggleCapability = (key, value) => setProfileData((current) => {
     const selected = current[key] || [];
     return { ...current, [key]: selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value] };
   });
   const pendingDocuments = (profileData.compliance?.documents || []).filter((document) => document.reviewStatus === 'pending').length;
+  const profilePhoto = (profileData.compliance?.documents || []).find((document) => document.type === 'profile_photo' && document.reviewStatus !== 'rejected');
   const saveProfile = async (event) => {
     event.preventDefault();
     setSavingProfile(true);
@@ -219,9 +243,15 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
 
       <div className="provider-dashboard-panel" style={{ width: '100%', maxWidth: 1100, margin: '0 auto', background: '#fff', borderRadius: 20, boxShadow: '0 16px 40px rgba(11,29,58,0.08)', padding: 18 }}>
         <div className="provider-dashboard-topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <div style={{ width: 58, height: 58, flex: '0 0 58px', position: 'relative' }}>
+              {profilePhotoUrl ? <img src={profilePhotoUrl} alt={`${providerName} profile`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', border: '2px solid #dfeaf8' }} /> : <div aria-label="No profile photo uploaded" style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', borderRadius: '50%', background: '#eef3f9', color: '#52657d', fontWeight: 800, fontSize: 18 }}>{providerName.slice(0, 1).toUpperCase()}</div>}
+              {verificationStatus === 'verified' && profilePhotoApproved && <span title="Verified provider" aria-label="Verified provider" style={{ position: 'absolute', right: -3, bottom: -2, width: 23, height: 23, display: 'grid', placeItems: 'center', borderRadius: '50%', border: '2px solid #fff', background: '#1e8e4a', color: '#fff', fontWeight: 900, fontSize: 14 }}>✓</span>}
+            </div>
+            <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 12, letterSpacing: 1.5, color: '#28A745', fontWeight: 800, textTransform: 'uppercase' }}>Provider dashboard</div>
             <h2 className="provider-dashboard-title" style={{ margin: '8px 0 0', color: '#0B1D3A', fontSize: 'clamp(1.5rem, 5vw, 2rem)' }}>{providerName}</h2>
+            </div>
           </div>
           <div className="provider-dashboard-topbar-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-ghost-green" onClick={onBack} style={{ width: 'auto', padding: '10px 16px', fontSize: '0.82rem' }}>Back to site</button>
@@ -247,7 +277,9 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
 
         <div className="provider-dashboard-card" style={{ border: '1px solid #dfeaf8', borderRadius: 16, padding: 14, marginBottom: 18, background: '#f9fbff', color: '#34445a', fontSize: 13, lineHeight: 1.6 }}>
           <strong style={{ color: '#0B1D3A' }}>Verification progress</strong>
+          {verificationStatus === 'verified' && profilePhotoApproved && <span style={{ display: 'inline-flex', marginLeft: 9, borderRadius: 999, padding: '3px 9px', background: '#eafaf1', color: '#18723a', fontWeight: 800, fontSize: 11 }}>✓ Verified provider</span>}
           <div>Account: {providerSession.accountStatus || providerSession.status || 'pending'} · Platform review: {verificationStatus.replaceAll('_', ' ')} · Referral eligibility: {(providerSession.referralEligibility || 'temporarily_ineligible').replaceAll('_', ' ')}</div>
+          <div>Profile photo: {profilePhoto ? `submitted (${profilePhoto.reviewStatus === 'reviewed' ? 'approved' : 'awaiting review'})` : 'required for verification'}</div>
           <div>Regulatory details are self-declared until reviewed. 3CS platform verification is not regulatory approval.</div>
           {providerSession.referralEligibility !== 'eligible' && <div>Outstanding: wait for administrator review{pendingDocuments ? `; ${pendingDocuments} document(s) awaiting review` : ''}.</div>}
         </div>
@@ -348,9 +380,9 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
         </>}
         {activeSection === 'documents' && <form id="provider-documents" onSubmit={uploadDocument} className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18, display: 'grid', gap: 10 }}>
           <h3 style={{ margin: 0, color: '#0B1D3A', fontSize: '1.1rem' }}>Verification documents</h3>
-          <p style={{ margin: 0, color: '#5a6a7e', fontSize: 13 }}>PDF, DOC or DOCX, up to 5 MB. Documents are private and stay pending until reviewed by an administrator.</p>
-          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Document type<select className="finput" value={documentType} onChange={(event) => setDocumentType(event.target.value)}><option value="public_liability">Public liability insurance</option><option value="employers_liability">Employers' liability insurance</option><option value="professional_indemnity">Professional indemnity insurance</option><option value="safeguarding">Safeguarding policy</option><option value="complaints">Complaints procedure</option><option value="medication">Medication policy</option><option value="infection_control">Infection prevention and control policy</option><option value="registration">Regulator registration evidence</option><option value="other">Other supporting document</option></select></label>
-          <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => setDocumentFile(event.target.files?.[0] || null)} />
+          <p style={{ margin: 0, color: '#5a6a7e', fontSize: 13 }}>A profile photo is required for verification. Upload a JPG, PNG, or WEBP photo (up to 5 MB) and supporting files. Photos and documents remain private and pending until reviewed by an administrator.</p>
+          <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>File type<select className="finput" value={documentType} onChange={(event) => { setDocumentType(event.target.value); setDocumentFile(null); }}><option value="profile_photo">Profile photo</option><option value="public_liability">Public liability insurance</option><option value="employers_liability">Employers' liability insurance</option><option value="professional_indemnity">Professional indemnity insurance</option><option value="safeguarding">Safeguarding policy</option><option value="complaints">Complaints procedure</option><option value="medication">Medication policy</option><option value="infection_control">Infection prevention and control policy</option><option value="registration">Regulator registration evidence</option><option value="other">Other supporting document</option></select></label>
+          <input type="file" accept={documentType === 'profile_photo' ? '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp' : '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'} onChange={(event) => setDocumentFile(event.target.files?.[0] || null)} />
           <button type="submit" className="btn btn-ghost-green" disabled={!documentFile || uploadingDocument} style={{ padding: 12 }}>{uploadingDocument ? 'Uploading…' : 'Upload document'}</button>
           {documentMessage && <div role="status" aria-live="polite" style={{ borderRadius: 10, padding: '12px 14px', background: documentMessage.toLowerCase().includes('failed') || documentMessage.toLowerCase().includes('unable') ? '#fff1f2' : '#eafaf1', color: documentMessage.toLowerCase().includes('failed') || documentMessage.toLowerCase().includes('unable') ? '#b42318' : '#1e7d3d', fontSize: 13, fontWeight: 600 }}>{documentMessage}</div>}
           {(profileData.compliance?.documents || []).length === 0 ? <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>No documents submitted yet.</p> : <div style={{ display: 'grid', gap: 8 }}>{(profileData.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, border: '1px solid #edf2f7', borderRadius: 10, padding: '10px 12px', color: '#34445a', fontSize: 13 }}><span><strong style={{ color: '#0B1D3A' }}>{document.name}</strong><br />{String(document.type || 'other').replaceAll('_', ' ')} · {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString() : 'Submitted'}</span><strong style={{ color: document.reviewStatus === 'rejected' ? '#b42318' : document.reviewStatus === 'reviewed' ? '#1e7d3d' : '#9a6700', textTransform: 'capitalize' }}>{String(document.reviewStatus || 'pending review').replaceAll('_', ' ')}</strong></div>)}</div>}
