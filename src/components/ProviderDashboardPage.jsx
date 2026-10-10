@@ -111,7 +111,7 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
         onLogout?.();
         throw new Error('Your session expired. Please sign in again, then retry the upload.');
       }
-      if (!response.ok) throw new Error(payload.error || 'Document upload failed.');
+      if (!response.ok) throw new Error(payload.details ? `${payload.error || 'Document upload failed.'} ${payload.details}` : (payload.error || 'Document upload failed.'));
       const updatedSession = { ...providerSession, ...payload.provider, profileData: payload.provider.profileData };
       setProfileData(updatedSession.profileData);
       setProviderSession?.(updatedSession);

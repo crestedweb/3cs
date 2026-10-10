@@ -1106,8 +1106,19 @@ app.post('/api/providers/:id/documents', upload.single('document'), async (req, 
   if (supabase) {
     const bucket = process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents';
     storagePath = `${providerId}/${randomUUID()}-${path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const { error: storageError } = await supabase.storage.from(bucket).upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-    if (storageError) return res.status(500).json({ error: 'Unable to securely store this document.', details: storageError.message });
+    let { error: storageError } = await supabase.storage.from(bucket).upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+    if (storageError && /bucket.*not found|not found.*bucket/i.test(storageError.message || '')) {
+      await supabase.storage.createBucket(bucket, {
+        public: false,
+        fileSizeLimit: 5 * 1024 * 1024,
+        allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      });
+      ({ error: storageError } = await supabase.storage.from(bucket).upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false }));
+    }
+    if (storageError) {
+      console.error(`Provider document storage failed for ${providerId}:`, storageError.message);
+      return res.status(500).json({ error: 'Unable to securely store this document.', details: storageError.message });
+    }
   } else {
     fs.mkdirSync(PROVIDER_DOCUMENTS_DIR, { recursive: true });
     const localName = `${randomUUID()}${extension}`;
