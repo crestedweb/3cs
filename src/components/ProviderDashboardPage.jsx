@@ -285,6 +285,12 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
         </div>
 
         </>}
+        {activeSection === 'referrals' && <div className="provider-dashboard-card" style={{ border: '1px solid #dfeaf8', borderRadius: 18, padding: 16, marginBottom: 18, background: '#f9fbff', color: '#34445a', lineHeight: 1.6 }}>
+          <h3 style={{ margin: '0 0 8px', color: '#0B1D3A', fontSize: '1.1rem' }}>How referral fees work</h3>
+          <p style={{ margin: '0 0 8px' }}>There is no registration or joining fee. A one-off introduction fee is due only if a 3CS referral results in a care package being agreed and started:</p>
+          <ul style={{ margin: '0 0 8px', paddingLeft: 20 }}><li>Packages below 10 hours per week: £250.</li><li>Packages of 10 hours per week or more: £500.</li></ul>
+          <p style={{ margin: 0 }}>There are no ongoing weekly commissions or recurring referral charges. For larger live-in, 24-hour or particularly complex packages, the fee is agreed with you in advance before the referral is made. The applicable fee is confirmed before each referral.</p>
+        </div>}
         {activeSection === 'referrals' && <div id="provider-referrals" className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginBottom: 18 }}>
           <h3 style={{ margin: '0 0 10px', color: '#0B1D3A', fontSize: '1.1rem' }}>Eligible referral opportunities</h3>
           {providerSession.referralEligibility !== 'eligible' ? <p style={{ margin: 0, color: '#5a6a7e' }}>Referrals are restricted while your account or verification is pending. Check the verification progress below.</p>
