@@ -874,7 +874,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
                 ['Phone', selectedLead.phone || 'Not provided'],
                 ['Urgency', selectedLead.urgency || 'Soon'],
                 ['Budget', selectedLead.budget || 'TBC'],
-                ['Assigned provider', selectedLead.providerName || 'Unassigned'],
+                ['Assigned:', selectedLead.providerName || 'Unassigned'],
                 ['Match status', selectedLead.matchStatus || 'Awaiting triage'],
                 ['Follow-up stage', selectedLead.followUpStage || 'Pending'],
                 ['Submitted', selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Date unavailable'],
