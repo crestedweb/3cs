@@ -1144,7 +1144,41 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           background: linear-gradient(180deg, #f3f7fb 0%, #edf3f7 100%);
         }
         .admin-dashboard-shell .admin-lead-layout {
-          grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr) !important;
+          grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr) !important;
+          gap: 14px !important;
+          align-items: start;
+        }
+        .admin-dashboard-shell .admin-lead-layout > .admin-dashboard-card {
+          border-radius: 14px !important;
+          padding: 14px !important;
+        }
+        .admin-dashboard-shell .admin-lead-layout > .admin-dashboard-card:last-child {
+          position: sticky;
+          top: 12px;
+          max-height: calc(100vh - 24px);
+          overflow-y: auto;
+          scrollbar-width: thin;
+        }
+        .admin-dashboard-shell .admin-leads-table {
+          font-size: 0.78rem !important;
+        }
+        .admin-dashboard-shell .admin-leads-table th,
+        .admin-dashboard-shell .admin-leads-table td {
+          padding: 9px 7px !important;
+          vertical-align: top;
+        }
+        .admin-dashboard-shell .admin-lead-management {
+          display: grid;
+          gap: 10px;
+        }
+        .admin-dashboard-shell .admin-lead-management select,
+        .admin-dashboard-shell .admin-lead-management textarea {
+          box-sizing: border-box;
+          max-width: 100%;
+        }
+        .admin-dashboard-shell .admin-lead-layout label {
+          color: #0B1D3A;
+          font-size: 0.82rem;
         }
         .admin-dashboard-card {
           background: linear-gradient(150deg, #ffffff 0%, #f8fbff 100%);
@@ -1184,9 +1218,14 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
           padding: 10px 12px;
           background: #ffffff;
         }
-        @media (max-width: 960px) {
+        @media (max-width: 780px) {
           .admin-dashboard-shell .admin-lead-layout {
             grid-template-columns: minmax(0, 1fr) !important;
+          }
+          .admin-dashboard-shell .admin-lead-layout > .admin-dashboard-card:last-child {
+            position: static;
+            max-height: none;
+            overflow: visible;
           }
         }
         @media (max-width: 768px) {
