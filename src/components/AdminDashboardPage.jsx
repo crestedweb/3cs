@@ -48,8 +48,29 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const [caseMessagesError, setCaseMessagesError] = useState('');
   const [caseMessagesLoading, setCaseMessagesLoading] = useState(false);
   const [sendingCaseMessage, setSendingCaseMessage] = useState(false);
+  const [providerDirectMessages, setProviderDirectMessages] = useState([]);
+  const [providerDirectMessagesForId, setProviderDirectMessagesForId] = useState('');
+  const [providerDirectDraft, setProviderDirectDraft] = useState('');
+  const [providerDirectError, setProviderDirectError] = useState('');
+  const [sendingProviderDirectMessage, setSendingProviderDirectMessage] = useState(false);
+  const [providerMessagesInbox, setProviderMessagesInbox] = useState([]);
   const requestedView = new URLSearchParams(location.search || '').get('view');
-  const currentView = ['overview', 'recent-leads', 'providers', 'leads', 'enquiries', 'bookings', 'reports', 'enquiry'].includes(requestedView) ? requestedView : 'overview';
+  const currentView = ['overview', 'recent-leads', 'providers', 'provider-messages', 'leads', 'enquiries', 'bookings', 'reports', 'enquiry'].includes(requestedView) ? requestedView : 'overview';
+
+  useEffect(() => {
+    if (!adminSession?.token) return undefined;
+    let active = true;
+    const loadInbox = async () => {
+      try {
+        const response = await fetch('/api/admin/provider-messages', { headers: { Authorization: `Bearer ${adminSession.token}` } });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && active) setProviderMessagesInbox(payload.inbox || []);
+      } catch { /* The provider details inbox displays its own load error. */ }
+    };
+    void loadInbox();
+    const timer = window.setInterval(() => { void loadInbox(); }, 12000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [adminSession?.token]);
 
   const updateView = (nextView, nextLeadId = null) => {
     if (nextLeadId) setSelectedLeadId(String(nextLeadId));
@@ -158,7 +179,23 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     : leads.filter((lead) => String(lead.status || 'New').toLowerCase() === statusFilter.toLowerCase());
 
   const selectedProvider = providers.find((provider) => String(provider.id) === String(selectedProviderId)) || providers[0] || null;
+  useEffect(() => {
+    if (!selectedProvider?.id) return undefined;
+    let active = true;
+    const loadMessages = async () => {
+      try {
+        const response = await fetch(`/api/admin/providers/${selectedProvider.id}/messages`, { headers: { Authorization: `Bearer ${adminSession?.token || ''}` } });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Unable to load provider messages.');
+        if (active) { setProviderDirectMessages(payload.messages || []); setProviderDirectMessagesForId(String(selectedProvider.id)); setProviderDirectError(''); }
+      } catch (error) { if (active) setProviderDirectError(error.message || 'Unable to load provider messages.'); }
+    };
+    void loadMessages();
+    const timer = window.setInterval(() => { void loadMessages(); }, 12000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [adminSession?.token, selectedProvider?.id]);
   const selectedLead = leads.find((lead) => String(lead.id) === String(selectedLeadId)) || newestLead || null;
+  const visibleProviderDirectMessages = providerDirectMessagesForId === String(selectedProvider?.id || '') ? providerDirectMessages : [];
   const visibleCaseMessages = caseMessagesForLeadId === String(selectedLead?.id || '') ? caseMessages : [];
   const selectedEnquiry = enquiries.find((enquiry) => String(enquiry.id) === String(selectedLeadId)) || newestEnquiry || null;
   useEffect(() => {
@@ -192,6 +229,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     { key: 'enquiries', label: 'Enquiries' },
     { key: 'recent-leads', label: 'Recent leads' },
     { key: 'providers', label: 'Providers' },
+    { key: 'provider-messages', label: providerMessagesInbox.some((thread) => thread.lastMessage?.senderRole === 'provider') ? 'Provider messages •' : 'Provider messages' },
     { key: 'leads', label: 'Leads' },
     { key: 'bookings', label: 'Bookings' },
     { key: 'reports', label: 'Reports' },
@@ -384,6 +422,26 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
     } catch (error) {
       setCaseMessagesError(error.message || 'Unable to send message.');
     } finally { setSendingCaseMessage(false); }
+  };
+
+  const handleSendProviderDirectMessage = async (event) => {
+    event.preventDefault();
+    if (!selectedProvider?.id || !providerDirectDraft.trim() || sendingProviderDirectMessage) return;
+    setSendingProviderDirectMessage(true);
+    setProviderDirectError('');
+    try {
+      const response = await fetch(`/api/admin/providers/${selectedProvider.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminSession?.token || ''}` },
+        body: JSON.stringify({ message: providerDirectDraft }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Unable to send provider message.');
+      setProviderDirectMessages((current) => [...(providerDirectMessagesForId === String(selectedProvider.id) ? current : []), payload.message]);
+      setProviderDirectMessagesForId(String(selectedProvider.id));
+      setProviderDirectDraft('');
+    } catch (error) { setProviderDirectError(error.message || 'Unable to send provider message.'); }
+    finally { setSendingProviderDirectMessage(false); }
   };
 
   const confirmLeadOverride = () => {
@@ -673,7 +731,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
                   <strong style={{ color: '#0B1D3A' }}>{provider.businessName || provider.name || 'Provider'}</strong>
-                  <span style={{ background: provider.status === 'pending' ? '#fff4d8' : '#eafaf1', color: '#0B1D3A', borderRadius: 999, padding: '4px 8px', fontSize: 11, fontWeight: 700 }}>{(provider.status || 'pending').toString()}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ background: provider.status === 'pending' ? '#fff4d8' : '#eafaf1', color: '#0B1D3A', borderRadius: 999, padding: '4px 8px', fontSize: 11, fontWeight: 700 }}>{(provider.status || 'pending').toString()}</span>{providerMessagesInbox.some((thread) => String(thread.providerId) === String(provider.id) && thread.lastMessage?.senderRole === 'provider') && <span style={{ background: '#fff4d8', color: '#805a08', borderRadius: 999, padding: '4px 8px', fontSize: 10, fontWeight: 800 }}>Needs reply</span>}</span>
                 </div>
                 <div style={{ color: '#5a6a7e', fontSize: '0.85rem', lineHeight: 1.6 }}>
                   {provider.email || 'No email'}<br />
@@ -717,6 +775,14 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               <div>Referrals: {selectedProvider.referralEligibility || 'temporarily_ineligible'}</div>
               <div style={{ marginTop: 8, fontSize: 12, color: '#5a6a7e' }}>Registration details and policies are self-declared unless separately checked. Platform verification is not regulatory approval.</div>
             </div>
+            <section aria-label="Direct messages with provider" style={{ border: '1px solid #dfeaf8', borderRadius: 12, background: '#fff', overflow: 'hidden' }}>
+              <div style={{ padding: '11px 13px', borderBottom: '1px solid #edf2f7', background: '#f9fbff' }}><strong style={{ display: 'block' }}>Direct messages</strong><small style={{ color: '#758397' }}>General conversation with this provider, separate from individual case chats.</small></div>
+              <div aria-live="polite" style={{ display: 'grid', alignContent: 'start', gap: 8, maxHeight: 230, overflowY: 'auto', padding: 12 }}>
+                {visibleProviderDirectMessages.length ? visibleProviderDirectMessages.map((item) => <div key={item.id} style={{ justifySelf: item.senderRole === 'admin' ? 'end' : 'start', width: 'fit-content', maxWidth: '90%', borderRadius: 11, padding: '8px 10px', background: item.senderRole === 'admin' ? '#0B1D3A' : '#eef5ff', color: item.senderRole === 'admin' ? '#fff' : '#34445a' }}><strong style={{ display: 'block', marginBottom: 3, fontSize: 11, opacity: 0.78 }}>{item.senderRole === 'admin' ? '3Cs Care Services' : item.senderName}</strong><div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, lineHeight: 1.45 }}>{item.message}</div><small style={{ display: 'block', marginTop: 4, textAlign: 'right', opacity: 0.7, fontSize: 10 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}</small></div>) : <small style={{ color: '#758397' }}>No messages yet. The provider can start the conversation from their Messages page.</small>}
+              </div>
+              {providerDirectError && <div role="alert" style={{ padding: '0 12px 8px', color: '#b42318', fontSize: 12 }}>{providerDirectError}</div>}
+              <form onSubmit={handleSendProviderDirectMessage} style={{ display: 'grid', gap: 8, padding: 11, borderTop: '1px solid #edf2f7' }}><textarea value={providerDirectDraft} onChange={(event) => setProviderDirectDraft(event.target.value)} rows={2} maxLength={2000} placeholder={`Message ${selectedProvider.businessName || selectedProvider.name || 'this provider'}…`} aria-label="Direct message to provider" style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', border: '1px solid #dfeaf8', borderRadius: 9, padding: 9, font: 'inherit', fontSize: 13 }} /><div style={{ display: 'flex', justifyContent: 'flex-end' }}><button type="submit" disabled={sendingProviderDirectMessage || !providerDirectDraft.trim()} style={{ border: 0, borderRadius: 8, padding: '8px 12px', background: sendingProviderDirectMessage || !providerDirectDraft.trim() ? '#c7d1de' : '#0B1D3A', color: '#fff', fontWeight: 700, cursor: sendingProviderDirectMessage || !providerDirectDraft.trim() ? 'not-allowed' : 'pointer' }}>{sendingProviderDirectMessage ? 'Sending…' : 'Send message'}</button></div></form>
+            </section>
             <details style={{ border: '1px solid #dfeaf8', borderRadius: 11, padding: 12 }}>
               <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Business and registration</summary>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10, marginTop: 12, fontSize: 13, color: '#34445a' }}>
@@ -1202,6 +1268,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       case 'recent-leads':
         return renderOverview({ recentOnly: true });
       case 'providers':
+        return renderProviders();
+      case 'provider-messages':
         return renderProviders();
       case 'leads':
         return renderLeads();

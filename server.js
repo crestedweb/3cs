@@ -597,11 +597,31 @@ async function updateLeadRecord(leadId, localUpdates, databaseUpdates) {
       adminRating: existing.admin_rating,
     });
     const caseActivity = [...(Array.isArray(existing.case_activity) ? existing.case_activity : []), ...activityEntries].slice(-100);
-    const { data, error } = await supabase
+    let updateResult = await supabase
       .from('leads')
       .update({ ...databaseUpdates, case_activity: caseActivity })
       .eq('id', leadId)
       .select();
+
+    // Keep assignments working on databases that have not applied the
+    // assigned_provider_id migration yet. Provider name remains the legacy
+    // assignment field and can still be used to resolve the provider.
+    const updateError = updateResult.error;
+    const assignedProviderColumnMissing = Object.hasOwn(databaseUpdates, 'assigned_provider_id')
+      && updateError
+      && (updateError.code === '42703' || updateError.code === 'PGRST204')
+      && /assigned_provider_id/i.test(updateError.message || '');
+    if (assignedProviderColumnMissing) {
+      const legacyUpdates = { ...databaseUpdates };
+      delete legacyUpdates.assigned_provider_id;
+      updateResult = await supabase
+        .from('leads')
+        .update({ ...legacyUpdates, case_activity: caseActivity })
+        .eq('id', leadId)
+        .select();
+    }
+
+    const { data, error } = updateResult;
 
     if (error) {
       throw new Error(error.message);
@@ -1883,6 +1903,49 @@ app.post('/api/admin/leads/:id/messages', async (req, res) => {
   }
 });
 
+app.get('/api/admin/providers/:providerId/messages', async (req, res) => {
+  if (!isConfiguredAdminRequest(req)) return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  try {
+    const provider = (await getProvidersFromDataSource()).find((item) => String(item.id) === String(req.params.providerId));
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+    return res.json({ messages: await getLeadMessages('provider-inbox', provider.id) });
+  } catch (error) {
+    console.error('Admin provider messages load failed:', error.message);
+    return res.status(500).json({ error: 'Unable to load provider messages.' });
+  }
+});
+
+app.post('/api/admin/providers/:providerId/messages', async (req, res) => {
+  const session = getSession(req);
+  if (session?.role !== 'admin') return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  const parsed = validateMessageBody(req.body?.message);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  try {
+    const provider = (await getProvidersFromDataSource()).find((item) => String(item.id) === String(req.params.providerId));
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+    const message = await saveLeadMessage({ leadId: 'provider-inbox', provider, senderRole: 'admin', senderId: session.subject, senderName: '3Cs Care Services', message: parsed.message });
+    return res.status(201).json({ message });
+  } catch (error) {
+    console.error('Admin provider message send failed:', error.message);
+    return res.status(500).json({ error: 'Unable to send provider message.' });
+  }
+});
+
+app.get('/api/admin/provider-messages', async (req, res) => {
+  if (!isConfiguredAdminRequest(req)) return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  try {
+    const providersForInbox = await getProvidersFromDataSource();
+    const inbox = await Promise.all(providersForInbox.map(async (provider) => {
+      const messages = await getLeadMessages('provider-inbox', provider.id);
+      return { providerId: provider.id, providerName: provider.businessName || provider.name || 'Provider', lastMessage: messages.at(-1) || null };
+    }));
+    return res.json({ inbox });
+  } catch (error) {
+    console.error('Admin provider message inbox load failed:', error.message);
+    return res.status(500).json({ error: 'Unable to load provider message inbox.' });
+  }
+});
+
 app.get('/api/provider/:providerId/messages', async (req, res) => {
   const providerId = String(req.params.providerId);
   const session = getSession(req);
@@ -1895,12 +1958,14 @@ app.get('/api/provider/:providerId/messages', async (req, res) => {
       const assignedProvider = findAssignedProvider(lead, [provider]);
       return Boolean(assignedProvider);
     });
+    const generalMessages = await getLeadMessages('provider-inbox', provider.id);
+    const generalThread = { leadId: 'provider-inbox', need: 'Message 3Cs Care Services', area: 'General conversation', matchStatus: 'Provider inbox', messageCount: generalMessages.length, lastMessage: generalMessages.at(-1) || null };
     const threads = await Promise.all(assignedLeads.map(async (lead) => {
       const messages = await getLeadMessages(lead.id, provider.id);
       const lastMessage = messages.at(-1) || null;
       return { leadId: lead.id, need: lead.need || 'Care support', area: lead.area || 'Area not provided', matchStatus: lead.matchStatus || 'Awaiting triage', messageCount: messages.length, lastMessage };
     }));
-    return res.json({ threads });
+    return res.json({ threads: [generalThread, ...threads] });
   } catch (error) {
     console.error('Provider message inbox load failed:', error.message);
     return res.status(500).json({ error: 'Unable to load provider messages.' });
@@ -1912,8 +1977,13 @@ app.get('/api/provider/:providerId/leads/:leadId/messages', async (req, res) => 
   const session = getSession(req);
   if (!isProviderSessionFor(session, providerId)) return res.status(401).json({ error: 'Unauthorized. Provider session required.' });
   try {
-    const [providerList, leadList] = await Promise.all([getProvidersFromDataSource(), getLeadsFromDataSource()]);
+    const providerList = await getProvidersFromDataSource();
     const provider = providerList.find((item) => String(item.id) === providerId);
+    if (String(req.params.leadId) === 'provider-inbox') {
+      if (!provider) return res.status(404).json({ error: 'Provider account not found.' });
+      return res.json({ messages: await getLeadMessages('provider-inbox', provider.id) });
+    }
+    const leadList = await getLeadsFromDataSource();
     const lead = leadList.find((item) => String(item.id) === String(req.params.leadId));
     if (!provider || !lead) return res.status(404).json({ error: 'Case or provider not found.' });
     if (!findAssignedProvider(lead, [provider])) return res.status(403).json({ error: 'You can only view messages for cases assigned to your provider account.' });
@@ -1931,8 +2001,14 @@ app.post('/api/provider/:providerId/leads/:leadId/messages', async (req, res) =>
   const parsed = validateMessageBody(req.body?.message);
   if (parsed.error) return res.status(400).json({ error: parsed.error });
   try {
-    const [providerList, leadList] = await Promise.all([getProvidersFromDataSource(), getLeadsFromDataSource()]);
+    const providerList = await getProvidersFromDataSource();
     const provider = providerList.find((item) => String(item.id) === providerId);
+    if (String(req.params.leadId) === 'provider-inbox') {
+      if (!provider) return res.status(404).json({ error: 'Provider account not found.' });
+      const message = await saveLeadMessage({ leadId: 'provider-inbox', provider, senderRole: 'provider', senderId: provider.id, senderName: provider.businessName || provider.name || 'Provider', message: parsed.message });
+      return res.status(201).json({ message });
+    }
+    const leadList = await getLeadsFromDataSource();
     const lead = leadList.find((item) => String(item.id) === String(req.params.leadId));
     if (!provider || !lead) return res.status(404).json({ error: 'Case or provider not found.' });
     if (!findAssignedProvider(lead, [provider])) return res.status(403).json({ error: 'You can only message about cases assigned to your provider account.' });
@@ -1960,7 +2036,8 @@ app.get('/api/provider/dashboard/:providerId', async (req, res) => {
   const leadList = await getLeadsFromDataSource();
   const matches = await Promise.all(leadList.map(async (lead) => {
     const providerMatch = (await getMatchesForLead(lead, [provider]))[0];
-    if (!providerMatch.eligible) return null;
+    const isAssigned = Boolean(findAssignedProvider(lead, [provider]));
+    if (!providerMatch.eligible && !isAssigned) return null;
     const safeLead = { ...lead };
     delete safeLead.contactEmail;
     delete safeLead.phone;
@@ -1970,7 +2047,7 @@ app.get('/api/provider/dashboard/:providerId', async (req, res) => {
     delete safeLead.activity;
     delete safeLead.adminRating;
     const outcode = providerMatch.outcode || String(lead.area || '').match(/[A-Z]{1,2}\d[A-Z\d]?/i)?.[0] || '';
-    return { ...safeLead, area: providerMatch.areaName || (outcode ? `${outcode} area` : 'Area shared after referral review'), family: 'Private care opportunity', matchStatus: lead.matchStatus || 'Awaiting triage', followUpStage: lead.followUpStage || 'Pending', matchReasons: providerMatch.reasons };
+    return { ...safeLead, area: providerMatch.areaName || (outcode ? `${outcode} area` : 'Area shared after referral review'), family: 'Private care opportunity', assigned: isAssigned, eligible: providerMatch.eligible, matchStatus: lead.matchStatus || 'Awaiting triage', followUpStage: lead.followUpStage || 'Pending', matchReasons: providerMatch.reasons };
   }));
   const assignedLeads = matches.filter(Boolean).slice(0, 20);
 

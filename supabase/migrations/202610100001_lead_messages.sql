@@ -1,4 +1,4 @@
--- Private case-linked messages between administrators and the assigned provider.
+-- Private direct and case-linked messages between administrators and providers.
 alter table public.leads
   add column if not exists assigned_provider_id text;
 
@@ -30,4 +30,4 @@ revoke all on public.lead_messages from public, anon, authenticated;
 grant all on public.lead_messages to service_role;
 
 comment on table public.lead_messages is
-  'Private admin and assigned-provider conversation messages for a care case. Accessed only through the authenticated application server.';
+  'Private admin/provider conversations. The provider-inbox lead_id identifies a provider-wide conversation; other lead_id values identify case conversations. Accessed only through the authenticated application server.';
