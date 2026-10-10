@@ -39,6 +39,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const [loadingMatchesFor, setLoadingMatchesFor] = useState('');
   const [expandedRecentLeadId, setExpandedRecentLeadId] = useState('');
   const [actionFeedback, setActionFeedback] = useState('');
+  const [providerActionBusy, setProviderActionBusy] = useState(false);
   const requestedView = new URLSearchParams(location.search || '').get('view');
   const currentView = ['overview', 'recent-leads', 'providers', 'leads', 'enquiries', 'bookings', 'reports', 'enquiry'].includes(requestedView) ? requestedView : 'overview';
 
@@ -168,6 +169,8 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   ];
 
   const handleProviderReview = async (provider, accountStatus, verificationStatus) => {
+    if (providerActionBusy) return;
+    setProviderActionBusy(true);
     try {
       const response = await fetch(`/api/admin/providers/${provider.id}/review`, {
         method: 'PUT',
@@ -179,6 +182,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       await refreshDashboard();
       setActionFeedback(`${provider.businessName || 'Provider'} review updated: ${verificationStatus.replace('_', ' ')}.`);
     } catch (error) { setActionFeedback(error.message || 'Unable to save provider review.'); }
+    finally { setProviderActionBusy(false); }
   };
 
   const handleProviderDocument = async (provider, document, action) => {
@@ -276,6 +280,7 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
   const handleProviderDelete = async (provider) => {
     const providerName = provider.businessName || provider.name || 'this provider';
     if (!window.confirm(`Delete ${providerName} permanently? This cannot be undone.`)) return;
+    setProviderActionBusy(true);
     try {
       const response = await fetch(`/api/admin/providers/${provider.id}`, {
         method: 'DELETE',
@@ -287,8 +292,12 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
       }
       setSelectedProviderId('');
       await refreshDashboard();
+      setActionFeedback(`${providerName} was deleted.`);
     } catch (error) {
       console.error('Provider deletion failed', error);
+      setActionFeedback(error.message || 'Unable to delete provider.');
+    } finally {
+      setProviderActionBusy(false);
     }
   };
 
@@ -683,13 +692,14 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
               </div>
             </details>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-              <button type="button" className="btn btn-green" onClick={() => handleProviderReview(selectedProvider, 'active', 'verified')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Verify and activate</button>
-              <button type="button" className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'pending', 'pending_review')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Set pending review</button>
-              <button type="button" className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'pending', 'rejected')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Reject verification</button>
-              <button type="button" className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'suspended', selectedProvider.verificationStatus || 'pending_review')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Suspend account</button>
-              <button type="button" onClick={() => handleProviderDelete(selectedProvider)} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>
-                Delete provider
+              <button type="button" disabled={providerActionBusy} className="btn btn-green" onClick={() => handleProviderReview(selectedProvider, 'active', 'verified')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>{providerActionBusy ? 'Saving…' : 'Verify and activate'}</button>
+              <button type="button" disabled={providerActionBusy} className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'pending', 'pending_review')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Set pending review</button>
+              <button type="button" disabled={providerActionBusy} className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'pending', 'rejected')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Reject verification</button>
+              <button type="button" disabled={providerActionBusy} className="btn btn-ghost-green" onClick={() => handleProviderReview(selectedProvider, 'suspended', selectedProvider.verificationStatus || 'pending_review')} style={{ width: 'auto', padding: '8px 12px', fontSize: '0.75rem' }}>Suspend account</button>
+              <button type="button" disabled={providerActionBusy} onClick={() => handleProviderDelete(selectedProvider)} style={{ border: '1px solid #dc3545', color: '#b42318', background: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: '0.75rem', fontWeight: 700, cursor: providerActionBusy ? 'wait' : 'pointer', opacity: providerActionBusy ? 0.6 : 1 }}>
+                {providerActionBusy ? 'Saving…' : 'Delete provider'}
               </button>
+              <div style={{ flexBasis: '100%', color: '#5a6a7e', fontSize: 12 }}>Rejecting verification leaves the account pending; it does not suspend or delete it.</div>
             </div>
           </div>
         ) : (
