@@ -9,6 +9,7 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
   const [profileData, setProfileData] = useState(() => ({ ...(providerSession?.profileData || {}), coverage: { radiusMiles: 0, locations: [], exclusions: [], ...(providerSession?.profileData?.coverage || {}) } }));
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
+  const [documentMessage, setDocumentMessage] = useState('');
   const [areaSearch, setAreaSearch] = useState('');
   const [postcodeAreaSearch, setPostcodeAreaSearch] = useState('');
   const [areaOptions, setAreaOptions] = useState([]);
@@ -16,12 +17,22 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
   const [documentFile, setDocumentFile] = useState(null);
   const [documentType, setDocumentType] = useState('other');
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [activeSection, setActiveSection] = useState('overview');
   useEffect(() => {
-    if (!providerSession?.id || !providerSession?.token || !setDashboardLeads) return;
+    if (!providerSession?.id || !providerSession?.token) return;
     let active = true;
     fetch(`/api/provider/dashboard/${providerSession.id}`, { headers: { Authorization: `Bearer ${providerSession.token}` } })
       .then(async (response) => ({ response, payload: await response.json() }))
-      .then(({ response, payload }) => { if (active && response.ok) setDashboardLeads(payload.dashboard?.leads || []); })
+      .then(({ response, payload }) => {
+        if (!active || !response.ok) return;
+        if (setDashboardLeads) setDashboardLeads(payload.dashboard?.leads || []);
+        if (payload.provider) {
+          const updatedSession = { ...providerSession, ...payload.provider, token: providerSession.token };
+          setProfileData((current) => payload.provider.profileData || current);
+          setProviderSession?.(updatedSession);
+          localStorage.setItem(AUTH_KEYS.provider, JSON.stringify(updatedSession));
+        }
+      })
       .catch(() => {});
     return () => { active = false; };
   }, [providerSession?.id, providerSession?.token, setDashboardLeads]);
@@ -81,7 +92,7 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
     event.preventDefault();
     if (!documentFile) return;
     setUploadingDocument(true);
-    setProfileMessage('');
+    setDocumentMessage('');
     try {
       const body = new FormData();
       body.append('document', documentFile);
@@ -94,8 +105,8 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
       setProviderSession?.(updatedSession);
       localStorage.setItem(AUTH_KEYS.provider, JSON.stringify(updatedSession));
       setDocumentFile(null);
-      setProfileMessage('Document uploaded securely and marked pending admin review.');
-    } catch (error) { setProfileMessage(error.message || 'Document upload failed.'); }
+      setDocumentMessage('Document uploaded successfully. It is now in your documents and available to the admin for review.');
+    } catch (error) { setDocumentMessage(error.message || 'Document upload failed.'); }
     finally { setUploadingDocument(false); }
   };
   const addCoveragePostcode = async () => {
@@ -208,7 +219,11 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
           </div>
         </div>
 
-        <div className="provider-dashboard-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
+        <nav aria-label="Provider dashboard sections" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '4px 0 14px', marginBottom: 14, borderBottom: '1px solid #e4ecf6' }}>
+          {[['overview', 'Overview'], ['bio', 'My bio'], ['documents', 'Documents'], ['referrals', 'Referrals']].map(([id, label]) => <button key={id} type="button" onClick={() => { setActiveSection(id); document.getElementById(`provider-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} aria-current={activeSection === id ? 'page' : undefined} style={{ whiteSpace: 'nowrap', border: activeSection === id ? '1px solid #0B1D3A' : '1px solid #dfeaf8', borderRadius: 999, background: activeSection === id ? '#0B1D3A' : '#fff', color: activeSection === id ? '#fff' : '#34445a', padding: '9px 15px', fontWeight: 700, cursor: 'pointer' }}>{label}</button>)}
+        </nav>
+
+        <div id="provider-overview" className="provider-dashboard-stats" style={{ scrollMarginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
           {stats.map((stat) => (
             <div key={stat.label} style={{ background: stat.label === 'Rating' ? '#eaf7ff' : stat.label === 'Booked' ? '#f2f6fb' : stat.label === 'Qualified' ? '#eefaf2' : '#0B1D3A', color: stat.label === 'Rating' || stat.label === 'Booked' || stat.label === 'Qualified' ? '#0B1D3A' : '#fff', borderRadius: 16, padding: 16 }}>
               <div style={{ fontSize: 11, opacity: 0.8 }}>{stat.label}</div>
@@ -224,7 +239,7 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
           {providerSession.referralEligibility !== 'eligible' && <div>Outstanding: wait for administrator review{pendingDocuments ? `; ${pendingDocuments} document(s) awaiting review` : ''}.</div>}
         </div>
 
-        <div className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginBottom: 18 }}>
+        <div id="provider-referrals" className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginBottom: 18 }}>
           <h3 style={{ margin: '0 0 10px', color: '#0B1D3A', fontSize: '1.1rem' }}>Eligible referral opportunities</h3>
           {providerSession.referralEligibility !== 'eligible' ? <p style={{ margin: 0, color: '#5a6a7e' }}>Referrals are restricted while your account or verification is pending. Check the verification progress below.</p>
             : dashboardLeads.length === 0 ? <p style={{ margin: 0, color: '#5a6a7e' }}>No current referrals match your declared coverage, services, care needs and availability.</p>
@@ -268,6 +283,13 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
             </div>
           </div>
         </div>
+        <section id="provider-bio" className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18 }}>
+          <h3 style={{ margin: '0 0 12px', color: '#0B1D3A', fontSize: '1.1rem' }}>My submitted bio</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, color: '#34445a', fontSize: 13 }}>
+            {[[ 'Contact', profileData.business?.contactName || providerSession.name ], ['Provider', profileData.business?.providerName || providerSession.businessName], ['Email', providerSession.email], ['Phone', profileData.business?.phone || providerSession.phone], ['Legal business name', profileData.business?.legalName], ['Business type', profileData.business?.type?.replaceAll('_', ' ')], ['Companies House number', profileData.business?.companiesHouseNumber], ['Address', profileData.business?.address], ['Website', profileData.business?.website], ['Nation', registration.nation], ['Regulator', registration.regulator], ['Registration status', registration.isRegistered ? 'Registered' : 'Not registered / not applicable'], ['Registration details', registration.registrationDetails || registration.cqcRegistration || registration.otherRegistration], ['Registration location IDs', (registration.locationIds || []).join(', ')], ['Registered manager', registration.registeredManager], ['Regulated activities', (registration.regulatedActivities || []).join(', ')], ['Office postcode', coverage.basePostcode], ['Travel radius', `${coverage.radiusMiles || 0} miles`], ['Covered locations', (coverage.locations || []).map((item) => item.name).join(', ')], ['Excluded locations', (coverage.exclusions || []).map((item) => item.name).join(', ')], ['Services', (profileData.services || []).join(', ')], ['Care needs supported', (profileData.careNeeds || []).join(', ')], ['Accepting referrals', profileData.availability?.acceptingReferrals ? 'Yes' : 'No'], ['Capacity', profileData.availability?.capacity], ['Earliest referral date', profileData.availability?.earliestDate], ['Service description', profileData.serviceDescription], ['Specialisms', (profileData.specialisms || []).join(', ')], ['Minimum package', profileData.minimumPackage], ['Minimum visit duration', profileData.minimumVisit], ['Indicative pricing', profileData.indicativePrice], ['Public liability expiry', profileData.compliance?.insurance?.publicLiabilityExpiry], ['Employers liability expiry', profileData.compliance?.insurance?.employersLiabilityExpiry], ['Professional indemnity expiry', profileData.compliance?.insurance?.indemnityExpiry], ['Policies declared', Object.entries(profileData.compliance?.policies || {}).filter(([, supplied]) => supplied).map(([policy]) => policy.replaceAll(/([A-Z])/g, ' $1')).join(', ')], ['Provider terms accepted', profileData.consent?.providerTermsAccepted ? `Yes · ${profileData.consent.acceptedAt ? new Date(profileData.consent.acceptedAt).toLocaleDateString() : ''}` : 'No']].map(([label, value]) => <div key={label}><strong style={{ display: 'block', color: '#0B1D3A', marginBottom: 3 }}>{label}</strong><span>{value || 'Not provided'}</span></div>)}
+          </div>
+          <p style={{ color: '#64748b', fontSize: 12, margin: '14px 0 0' }}>This is the information currently saved to your provider profile. Use the form below to make changes.</p>
+        </section>
         <form onSubmit={saveProfile} className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18, display: 'grid', gap: 12 }}>
           <div><h3 style={{ margin: '0 0 4px', color: '#0B1D3A', fontSize: '1.1rem' }}>Edit service coverage and capabilities</h3><p style={{ margin: 0, color: '#5a6a7e', fontSize: 13 }}>Your office postcode is kept separate from the areas you declare you can serve.</p></div>
           <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Contact person<input className="finput" value={profileData.business?.contactName || providerSession.name || ''} onChange={(event) => setProfileData((current) => ({ ...current, business: { ...(current.business || {}), contactName: event.target.value } }))} /></label>
@@ -308,13 +330,14 @@ export default function ProviderDashboardPage({ providerSession, setProviderSess
           {profileMessage && <div role="status" style={{ color: profileMessage.toLowerCase().includes('unable') || profileMessage.toLowerCase().includes('failed') ? '#b42318' : '#1e7d3d', fontSize: 13 }}>{profileMessage}</div>}
           <button type="submit" className="btn btn-green" disabled={savingProfile} style={{ padding: 12 }}>{savingProfile ? 'Saving…' : 'Save profile updates'}</button>
         </form>
-        <form onSubmit={uploadDocument} className="provider-dashboard-card" style={{ border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18, display: 'grid', gap: 10 }}>
+        <form id="provider-documents" onSubmit={uploadDocument} className="provider-dashboard-card" style={{ scrollMarginTop: 16, border: '1px solid #e4ecf6', borderRadius: 18, padding: 16, marginTop: 18, display: 'grid', gap: 10 }}>
           <h3 style={{ margin: 0, color: '#0B1D3A', fontSize: '1.1rem' }}>Verification documents</h3>
           <p style={{ margin: 0, color: '#5a6a7e', fontSize: 13 }}>PDF, DOC or DOCX, up to 5 MB. Documents are private and stay pending until reviewed by an administrator.</p>
           <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Document type<select className="finput" value={documentType} onChange={(event) => setDocumentType(event.target.value)}><option value="public_liability">Public liability insurance</option><option value="employers_liability">Employers' liability insurance</option><option value="professional_indemnity">Professional indemnity insurance</option><option value="safeguarding">Safeguarding policy</option><option value="complaints">Complaints procedure</option><option value="medication">Medication policy</option><option value="infection_control">Infection prevention and control policy</option><option value="registration">Regulator registration evidence</option><option value="other">Other supporting document</option></select></label>
           <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => setDocumentFile(event.target.files?.[0] || null)} />
           <button type="submit" className="btn btn-ghost-green" disabled={!documentFile || uploadingDocument} style={{ padding: 12 }}>{uploadingDocument ? 'Uploading…' : 'Upload document'}</button>
-          <div style={{ display: 'grid', gap: 6 }}>{(profileData.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, borderBottom: '1px solid #edf2f7', padding: '6px 0', color: '#34445a', fontSize: 13 }}><span>{document.name}</span><strong>{document.reviewStatus || 'pending review'}</strong></div>)}</div>
+          {documentMessage && <div role="status" aria-live="polite" style={{ borderRadius: 10, padding: '12px 14px', background: documentMessage.toLowerCase().includes('failed') || documentMessage.toLowerCase().includes('unable') ? '#fff1f2' : '#eafaf1', color: documentMessage.toLowerCase().includes('failed') || documentMessage.toLowerCase().includes('unable') ? '#b42318' : '#1e7d3d', fontSize: 13, fontWeight: 600 }}>{documentMessage}</div>}
+          {(profileData.compliance?.documents || []).length === 0 ? <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>No documents submitted yet.</p> : <div style={{ display: 'grid', gap: 8 }}>{(profileData.compliance?.documents || []).map((document) => <div key={document.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, border: '1px solid #edf2f7', borderRadius: 10, padding: '10px 12px', color: '#34445a', fontSize: 13 }}><span><strong style={{ color: '#0B1D3A' }}>{document.name}</strong><br />{String(document.type || 'other').replaceAll('_', ' ')} · {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString() : 'Submitted'}</span><strong style={{ color: document.reviewStatus === 'rejected' ? '#b42318' : document.reviewStatus === 'reviewed' ? '#1e7d3d' : '#9a6700', textTransform: 'capitalize' }}>{String(document.reviewStatus || 'pending review').replaceAll('_', ' ')}</strong></div>)}</div>}
         </form>
       </div>
     </div>

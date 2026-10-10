@@ -114,6 +114,7 @@ app.use(express.static('dist'));
 
 const TO_EMAIL = process.env.CONTACT_TO_EMAIL || "info@3cscareservices.co.uk";
 const DATA_FILE = path.join(__dirname, 'data', 'app-data.json');
+const PROVIDER_DOCUMENTS_DIR = path.join(__dirname, 'data', 'provider-documents');
 
 const defaultProviders = [
   {
@@ -1076,25 +1077,40 @@ app.post('/api/providers/:id/documents', upload.single('document'), async (req, 
     : extension === '.doc' ? buffer.subarray(0, 8).equals(Buffer.from('D0CF11E0A1B11AE1', 'hex'))
       : extension === '.docx' && buffer.subarray(0, 2).toString() === 'PK';
   if (!validSignature) return res.status(400).json({ error: 'The file contents do not match the selected document type.' });
-  if (!supabase) return res.status(503).json({ error: 'Private document storage requires Supabase configuration.' });
   const providerList = await getProvidersFromDataSource();
   const provider = providerList.find((item) => String(item.id) === providerId);
   if (!provider) return res.status(404).json({ error: 'Provider not found.' });
   const allowedDocumentTypes = ['public_liability', 'employers_liability', 'professional_indemnity', 'safeguarding', 'complaints', 'medication', 'infection_control', 'registration', 'other'];
   const documentType = allowedDocumentTypes.includes(String(req.body?.documentType)) ? String(req.body.documentType) : 'other';
-  const bucket = process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents';
-  const storagePath = `${providerId}/${randomUUID()}-${path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  const { error: storageError } = await supabase.storage.from(bucket).upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-  if (storageError) return res.status(500).json({ error: 'Unable to securely store this document.', details: storageError.message });
+  let storagePath;
+  if (supabase) {
+    const bucket = process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents';
+    storagePath = `${providerId}/${randomUUID()}-${path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error: storageError } = await supabase.storage.from(bucket).upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+    if (storageError) return res.status(500).json({ error: 'Unable to securely store this document.', details: storageError.message });
+  } else {
+    fs.mkdirSync(PROVIDER_DOCUMENTS_DIR, { recursive: true });
+    const localName = `${randomUUID()}${extension}`;
+    storagePath = `local:${localName}`;
+    fs.writeFileSync(path.join(PROVIDER_DOCUMENTS_DIR, localName), req.file.buffer, { flag: 'wx' });
+  }
   const document = { id: randomUUID(), type: documentType, name: path.basename(req.file.originalname), mimeType: req.file.mimetype, size: req.file.size, storagePath, uploadedAt: new Date().toISOString(), reviewStatus: 'pending' };
   const profileData = { ...(provider.profileData || {}), compliance: { ...(provider.profileData?.compliance || {}), documents: [...(provider.profileData?.compliance?.documents || []), document] } };
   const referralEligibility = calculateReferralEligibility(provider.status, provider.verificationStatus, profileData);
-  const { data, error } = await supabase.from('providers').update({ profile_data: profileData, referral_eligibility: referralEligibility }).eq('id', providerId).select();
-  if (error || !data?.[0]) {
-    await supabase.storage.from(bucket).remove([storagePath]);
-    return res.status(500).json({ error: 'Document was uploaded but could not be attached to the provider profile.', details: error?.message });
+  if (supabase) {
+    const { data, error } = await supabase.from('providers').update({ profile_data: profileData, referral_eligibility: referralEligibility }).eq('id', providerId).select();
+    if (error || !data?.[0]) {
+      if (!storagePath.startsWith('local:')) await supabase.storage.from(process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents').remove([storagePath]);
+      return res.status(500).json({ error: 'Document was uploaded but could not be attached to the provider profile.', details: error?.message });
+    }
+    return res.status(201).json({ document, provider: buildProviderSnapshot(normalizeProvider(data[0])) });
   }
-  return res.status(201).json({ document, provider: buildProviderSnapshot(normalizeProvider(data[0])) });
+  const localProvider = providers.find((item) => String(item.id) === providerId);
+  if (!localProvider) return res.status(404).json({ error: 'Provider not found.' });
+  localProvider.profileData = profileData;
+  localProvider.referralEligibility = referralEligibility;
+  persistAppData();
+  return res.status(201).json({ document, provider: buildProviderSnapshot(localProvider) });
 });
 
 app.get('/api/admin/providers/:providerId/documents/:documentId/url', async (req, res) => {
@@ -1105,6 +1121,26 @@ app.get('/api/admin/providers/:providerId/documents/:documentId/url', async (req
   const { data, error } = await supabase.storage.from(process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents').createSignedUrl(document.storagePath, 60);
   if (error) return res.status(500).json({ error: 'Unable to access provider document.' });
   return res.json({ url: data.signedUrl });
+});
+
+app.get('/api/admin/providers/:providerId/documents/:documentId/file', async (req, res) => {
+  if (!isConfiguredAdminRequest(req)) return res.status(401).json({ error: 'Unauthorized. Admin session required.' });
+  const provider = (await getProvidersFromDataSource()).find((item) => String(item.id) === String(req.params.providerId));
+  const document = provider?.profileData?.compliance?.documents?.find((item) => item.id === req.params.documentId);
+  if (!document) return res.status(404).json({ error: 'Document not found.' });
+  if (document.storagePath?.startsWith('local:')) {
+    const localName = path.basename(document.storagePath.slice('local:'.length));
+    if (!/^[0-9a-f-]+\.(pdf|doc|docx)$/i.test(localName)) return res.status(400).json({ error: 'Invalid document path.' });
+    const fullPath = path.join(PROVIDER_DOCUMENTS_DIR, localName);
+    if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Stored document file not found.' });
+    return res.type(document.mimeType || 'application/octet-stream').download(fullPath, document.name);
+  }
+  if (!supabase) return res.status(503).json({ error: 'Document storage is unavailable.' });
+  const { data, error } = await supabase.storage.from(process.env.PROVIDER_DOCUMENTS_BUCKET || 'provider-documents').download(document.storagePath);
+  if (error || !data) return res.status(500).json({ error: 'Unable to access provider document.' });
+  res.type(document.mimeType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `inline; filename="${path.basename(document.name)}"`);
+  return res.send(Buffer.from(await data.arrayBuffer()));
 });
 
 app.put('/api/admin/providers/:providerId/documents/:documentId', async (req, res) => {
