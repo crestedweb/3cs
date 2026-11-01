@@ -103,8 +103,8 @@ const GUIDED_URGENCY_OPTIONS = [
 
 const CARE_ACTION_FEATURES = [
   {
-    src: careImageA,
-    alt: 'Care provider offering friendly companionship at home',
+    src: careImageC,
+    alt: 'Care provider supporting an older person with mobility at home',
     focus: 'center',
     title: 'Mobility support with confidence',
     body: 'Introductions to providers who can assess mobility support needs at home.',
@@ -1907,6 +1907,14 @@ const CSS = `
     }
     .care-photo,
     .care-photo.feature { height: 250px; min-height: 250px; }
+    .care-photo {
+      box-shadow: 0 12px 26px rgba(11,29,58,0.12), 0 3px 8px rgba(11,29,58,0.08);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .care-photo:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 18px 34px rgba(11,29,58,0.16), 0 5px 12px rgba(11,29,58,0.10);
+    }
     .faq-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
     .why-grid { grid-template-columns: repeat(3, 1fr); }
     .posts-grid { grid-template-columns: repeat(4, 1fr); }
