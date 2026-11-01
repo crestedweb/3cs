@@ -529,6 +529,7 @@ const CSS = `
     max-width: 520px; margin-inline: auto;
     box-shadow: 0 -8px 48px rgba(0,0,0,0.4);
   }
+  .hero-visual { position: relative; }
   .hero-img-wrap img { width: 100%; height: 280px; object-fit: cover; }
   .hero-img-overlay {
     position: absolute; inset: 0;
@@ -1844,22 +1845,50 @@ const CSS = `
     .ham { display: none; }
     .nav-desktop { display: flex; }
     .hero { padding: 40px 40px 0; }
-    .hero-layout { display: flex; align-items: center; gap: 56px; }
-    .hero-text { flex: 1 1 480px; }
-    .hero-visual { flex: 1 1 400px; }
-    .hero-badge { position: relative; top: 0; margin-bottom: 24px; }
-    .hero-btns {
-      left: 18px; right: 18px; bottom: 18px; padding: 7px; gap: 8px;
+    .hero-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      grid-template-areas: "copy photo" "actions actions";
+      align-items: center;
+      gap: 30px 48px;
     }
-    .hero-btns .btn { min-height: 48px; font-size: 0.9rem; }
+    .hero-text { grid-area: copy; min-width: 0; }
+    .hero-visual { display: contents; }
+    .hero-badge { position: relative; top: 0; margin-bottom: 24px; padding: 10px 18px; font-size: 0.75rem; }
+    .hero-h1 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: clamp(2.8rem, 4.4vw, 4rem);
+      font-weight: 500;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      margin-bottom: 20px;
+    }
+    .hero-copy-row { display: block; max-width: 500px; }
+    .hero-copy-full { display: none; }
+    .hero-trust { margin: 20px 0 0; }
+    .hero-btns {
+      position: static;
+      grid-area: actions;
+      width: 100%;
+      padding: 0;
+      gap: 18px;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      backdrop-filter: none;
+      margin-top: 0;
+    }
+    .hero-btns .btn { min-height: 72px; font-size: 0.95rem; border-radius: 14px; }
     .hero-img-wrap {
+      grid-area: photo;
       position: relative;
       max-width: 100%;
       margin-inline: 0;
       border-radius: 18px;
       box-shadow: 0 10px 28px rgba(11,29,58,0.12);
     }
-    .hero-img-wrap img { height: 440px; }
+    .hero-img-wrap img { height: clamp(360px, 34vw, 490px); }
+    .hero-img-overlay { background: none; }
     .srv-grid { grid-template-columns: repeat(4, 1fr); }
     .care-layout { grid-template-columns: 0.9fr 1.1fr; gap: 28px; }
     .care-gallery {
@@ -3085,11 +3114,11 @@ export default function App() {
             <div className="hero-img-wrap">
               <img src={IMAGES.hero} alt="Care provider supporting an elderly client at home" loading="eager"/>
               <div className="hero-img-overlay"/>
-              <div className="hero-btns">
-                <button className="btn btn-green" onClick={openGuidedCare}>Find Care</button>
-                <button className="btn btn-ghost-white" onClick={() => go("contact-form")}>Speak to Our Team</button>
-                <button className="btn btn-ghost-green" onClick={goToProviderLogin}>Join Our Provider Network</button>
-              </div>
+            </div>
+            <div className="hero-btns">
+              <button className="btn btn-green" onClick={openGuidedCare}>Find Care</button>
+              <button className="btn btn-ghost-white" onClick={() => go("contact-form")}>Speak to Our Team</button>
+              <button className="btn btn-ghost-green" onClick={goToProviderLogin}>Join Our Provider Network</button>
             </div>
           </div>
         </div>
