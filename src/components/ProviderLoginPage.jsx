@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import logoImage from '../assets/logo.png';
 import { AUTH_KEYS } from '../data/siteData';
+import GoogleMark from './GoogleMark.jsx';
 
 export default function ProviderLoginPage({ onSuccess, onAdminSuccess, onBack, onRegister, setProviderSession, onOpenProviderDashboard, setDashboardLeads }) {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -219,6 +220,7 @@ export default function ProviderLoginPage({ onSuccess, onAdminSuccess, onBack, o
                 disabled={googleLoading || loading}
                 style={{ width: '100%', marginTop: 12, border: '1px solid #d5deea', background: '#fff', color: '#26384f' }}
               >
+                <GoogleMark />
                 {googleLoading ? 'Connecting to Google…' : 'Continue with Google'}
               </button>
               <button

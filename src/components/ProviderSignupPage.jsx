@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import logoImage from '../assets/logo.png';
+import GoogleMark from './GoogleMark.jsx';
 import ProviderSignupForm from './ProviderSignupForm';
 
 export default function ProviderSignupPage({ onBack, onLogin, setProviderSession, onOpenProviderDashboard, setDashboardLeads }) {
@@ -66,7 +67,7 @@ export default function ProviderSignupPage({ onBack, onLogin, setProviderSession
           <div style={{ margin: '22px 0', padding: '22px 24px', border: '1px solid #e1e8f0', borderRadius: 16, background: 'linear-gradient(145deg, #f8fbff 0%, #fff 75%)', boxShadow: '0 8px 24px rgba(11,29,58,.06)', textAlign: 'center' }}>
             <p style={{ margin: '0 0 16px', color: '#34445a', fontWeight: 600 }}>Start with Google, then complete the provider details below.</p>
             <button className="provider-google-signup-button" type="button" onClick={startGoogleSignup} disabled={googleLoading} style={{ width: '100%', minHeight: 54, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '12px 18px', border: '1px solid #d5deea', borderRadius: 10, background: '#fff', color: '#243247', boxShadow: '0 3px 10px rgba(11,29,58,.08)', fontSize: 15, fontWeight: 700, cursor: googleLoading ? 'wait' : 'pointer', transition: 'box-shadow .2s ease, transform .2s ease' }}>
-              <span aria-hidden="true" style={{ fontSize: 22, lineHeight: 1, fontWeight: 800, background: 'conic-gradient(from -45deg, #4285F4 0 25%, #34A853 25% 50%, #FBBC05 50% 75%, #EA4335 75% 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' }}>G</span>
+              <GoogleMark />
               {googleLoading ? 'Connecting to Google…' : 'Sign up with Google'}
             </button>
             {googleError && <p role="alert" style={{ color: '#b42318', margin: '10px 0 0' }}>{googleError}</p>}
