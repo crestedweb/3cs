@@ -3647,6 +3647,8 @@ export default function App() {
         element={
           <ProviderGoogleCallbackPage
             onBack={goToProviderLogin}
+            onBackSignup={goToProviderRegister}
+            onSignup={({ accessToken, email }) => navigate('/provider/register', { state: { googleSignup: { accessToken, email } } })}
             onSuccess={(session) => {
               persistProviderSession(session);
               goToProviderDashboard();

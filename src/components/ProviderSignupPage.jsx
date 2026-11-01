@@ -1,11 +1,36 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import logoImage from '../assets/logo.png';
 import ProviderSignupForm from './ProviderSignupForm';
 
 export default function ProviderSignupPage({ onBack, onLogin, setProviderSession, onOpenProviderDashboard, setDashboardLeads }) {
+  const location = useLocation();
+  const googleSignup = location.state?.googleSignup || null;
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState('');
+
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, []);
+
+  const startGoogleSignup = async () => {
+    setGoogleLoading(true);
+    setGoogleError('');
+    try {
+      const response = await fetch('/api/providers/oauth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'signup' }),
+      });
+      const payload = await response.json().catch(() => ({ error: 'The server did not return a valid response. Please try again later.' }));
+      if (!response.ok) throw new Error(payload.error || 'Google sign-up is unavailable.');
+      if (!payload.url) throw new Error('Google sign-up could not be started. Please try again.');
+      window.location.assign(payload.url);
+    } catch (error) {
+      setGoogleError(error.message || 'Google sign-up is unavailable.');
+      setGoogleLoading(false);
+    }
+  };
 
   return (
     <div className="provider-page">
@@ -38,10 +63,19 @@ export default function ProviderSignupPage({ onBack, onLogin, setProviderSession
             </div>
             <p>Tell us about your service to create your provider portal and start receiving relevant care enquiries.</p>
           </div>
+          <div style={{ margin: '18px 0', padding: 16, border: '1px solid #dfeaf8', borderRadius: 12, background: '#f9fbff', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 12px', color: '#34445a' }}>Start with Google, then complete the provider details below.</p>
+            <button className="btn btn-ghost-green" type="button" onClick={startGoogleSignup} disabled={googleLoading} style={{ width: '100%', background: '#fff' }}>
+              {googleLoading ? 'Connecting to Google…' : 'Sign up with Google'}
+            </button>
+            {googleError && <p role="alert" style={{ color: '#b42318', margin: '10px 0 0' }}>{googleError}</p>}
+            {googleSignup?.email && <p role="status" style={{ color: '#1e7d3d', margin: '10px 0 0' }}>Google account verified: {googleSignup.email}</p>}
+          </div>
           <ProviderSignupForm
             setProviderSession={setProviderSession}
             onOpenProviderDashboard={onOpenProviderDashboard}
             setDashboardLeads={setDashboardLeads}
+            googleSignup={googleSignup}
           />
           <p className="provider-login-prompt">Already have an account? <button type="button" onClick={onLogin}>Log in as a provider</button></p>
         </section>

@@ -102,6 +102,8 @@ const providerGoogleRedirectUrl = new URL(
   '/provider/google-callback',
   process.env.PUBLIC_APP_URL || 'https://www.3cscareservices.co.uk',
 ).toString();
+const providerGoogleSignupRedirectUrl = new URL(providerGoogleRedirectUrl);
+providerGoogleSignupRedirectUrl.searchParams.set('mode', 'signup');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -976,12 +978,34 @@ app.post('/api/providers/register', async (req, res) => {
   const body = req.body || {};
   const name = clean(body.name);
   const businessName = clean(body.businessName);
-  const email = clean(body.email).toLowerCase();
+  let email = clean(body.email).toLowerCase();
   const phone = clean(body.phone);
   const cqcRegistration = clean(body.cqcRegistration);
   const serviceType = clean(body.serviceType || body.service);
   const area = clean(body.area);
-  const password = clean(body.password || 'welcome123');
+  const password = String(body.password || '');
+  const oauthAccessToken = clean(body.oauthAccessToken);
+  let oauthGoogleUser = null;
+  if (oauthAccessToken) {
+    if (!supabaseAdmin || !supabaseAuth) {
+      return res.status(503).json({ error: 'Google sign-up is unavailable. Please use email and password.' });
+    }
+    const { data, error } = await supabaseAuth.auth.getUser(oauthAccessToken);
+    const user = data?.user;
+    const linkedProviders = user?.app_metadata?.providers || [];
+    if (error || !user?.email || !user.email_confirmed_at
+      || (user.app_metadata?.provider !== 'google' && !linkedProviders.includes('google'))) {
+      return res.status(401).json({ error: 'Your Google sign-up session is invalid or expired. Please start again.' });
+    }
+    if (email !== user.email.toLowerCase()) {
+      return res.status(400).json({ error: 'Use the email address verified by your Google account.' });
+    }
+    if (user.user_metadata?.role && user.user_metadata.role !== 'provider') {
+      return res.status(403).json({ error: 'This Google account cannot be used to create a provider account.' });
+    }
+    email = user.email.toLowerCase();
+    oauthGoogleUser = user;
+  }
   const submittedProfileData = body.profileData && typeof body.profileData === 'object' ? body.profileData : {};
   const submittedServices = normalizeSelections(submittedProfileData.services, providerServiceOptions);
   const submittedCareNeeds = normalizeSelections(submittedProfileData.careNeeds, providerCareNeedOptions);
@@ -997,7 +1021,7 @@ app.post('/api/providers/register', async (req, res) => {
   if (!Number.isFinite(initialRadius) || initialRadius < 0 || initialRadius > 250) return res.status(400).json({ error: 'Travel radius must be between 0 and 250 miles.' });
   if (submittedProfileData.registration?.cqcRegistered && !clean(submittedProfileData.registration?.cqcRegistration)) return res.status(400).json({ error: 'CQC registration details are required when marked CQC registered.' });
 
-  if (password.length < 10) {
+  if (!oauthGoogleUser && password.length < 10) {
     return res.status(400).json({ error: 'Password must be at least 10 characters long.' });
   }
 
@@ -1047,36 +1071,51 @@ app.post('/api/providers/register', async (req, res) => {
   let createdAuthUser = false;
   if (supabaseAdmin) {
     try {
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          role: 'provider',
-          business_name: businessName,
-          name,
-          service_type: serviceType,
-          area,
-        },
-      });
-
-      if (authError) {
-        const duplicateEmail = authError.code === 'email_exists'
-          || /already registered|already exists/i.test(authError.message || '');
-        if (duplicateEmail) {
-          const { data: existingAuthData, error: signInError } = await supabaseAuth.auth.signInWithPassword({ email, password });
-          if (signInError || existingAuthData?.user?.user_metadata?.role !== 'provider') {
-            return res.status(409).json({
-              error: 'An account with this email already exists. If this is your previous provider account, register again with its existing password. If you have forgotten it, contact support to restore access.',
-            });
-          }
-          createdAuthUserId = existingAuthData.user.id;
-        } else {
-          throw new Error(authError.message);
-        }
+      if (oauthGoogleUser) {
+        createdAuthUserId = oauthGoogleUser.id;
+        const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(oauthGoogleUser.id, {
+          user_metadata: {
+            ...oauthGoogleUser.user_metadata,
+            role: 'provider',
+            business_name: businessName,
+            name,
+            service_type: serviceType,
+            area,
+          },
+        });
+        if (metadataError) throw new Error(metadataError.message);
       } else {
-        createdAuthUserId = authData?.user?.id || null;
-        createdAuthUser = Boolean(createdAuthUserId);
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            role: 'provider',
+            business_name: businessName,
+            name,
+            service_type: serviceType,
+            area,
+          },
+        });
+
+        if (authError) {
+          const duplicateEmail = authError.code === 'email_exists'
+            || /already registered|already exists/i.test(authError.message || '');
+          if (duplicateEmail) {
+            const { data: existingAuthData, error: signInError } = await supabaseAuth.auth.signInWithPassword({ email, password });
+            if (signInError || existingAuthData?.user?.user_metadata?.role !== 'provider') {
+              return res.status(409).json({
+                error: 'An account with this email already exists. If this is your previous provider account, register again with its existing password. If you have forgotten it, contact support to restore access.',
+              });
+            }
+            createdAuthUserId = existingAuthData.user.id;
+          } else {
+            throw new Error(authError.message);
+          }
+        } else {
+          createdAuthUserId = authData?.user?.id || null;
+          createdAuthUser = Boolean(createdAuthUserId);
+        }
       }
 
       if (!createdAuthUserId) {
@@ -1141,6 +1180,7 @@ app.post('/api/providers/register', async (req, res) => {
   return res.status(201).json({
     message: `Provider registered successfully in ${source}. ${source === 'supabase' ? 'The provider is available in the admin dashboard.' : 'The provider is available in the local fallback store.'}`,
     provider: buildProviderSnapshot(savedProvider),
+    ...(oauthGoogleUser ? { token: createSession('provider', savedProvider.id, email) } : {}),
   });
 });
 
@@ -1479,9 +1519,12 @@ app.post('/api/providers/oauth/google', async (req, res) => {
         },
       },
     );
+    const redirectTo = req.body?.mode === 'signup'
+      ? providerGoogleSignupRedirectUrl.toString()
+      : providerGoogleRedirectUrl;
     const { data, error } = await oauthClient.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: providerGoogleRedirectUrl, skipBrowserRedirect: true },
+      options: { redirectTo, skipBrowserRedirect: true },
     });
     if (error || !data?.url) {
       if (error) console.error('Provider Google OAuth initialization failed:', error.message);
@@ -1492,6 +1535,32 @@ app.post('/api/providers/oauth/google', async (req, res) => {
     console.error('Provider Google OAuth initialization failed:', error.message);
     return res.status(503).json({ error: 'Google sign-in is unavailable. Please use email and password.' });
   }
+});
+
+app.post('/api/providers/oauth/google/prepare-signup', async (req, res) => {
+  const accessToken = clean(req.body?.accessToken);
+  if (!accessToken) return res.status(400).json({ error: 'Google sign-up did not return a valid session. Please try again.' });
+  if (!supabaseAdmin || !supabaseAuth) {
+    return res.status(503).json({ error: 'Google sign-up is not configured. Please use email and password.' });
+  }
+
+  const { data, error } = await supabaseAuth.auth.getUser(accessToken);
+  const user = data?.user;
+  const linkedProviders = user?.app_metadata?.providers || [];
+  if (error || !user?.email || !user.email_confirmed_at
+    || (user.app_metadata?.provider !== 'google' && !linkedProviders.includes('google'))) {
+    return res.status(401).json({ error: 'Google could not verify this account. Please try again.' });
+  }
+  if (user.user_metadata?.role && user.user_metadata.role !== 'provider') {
+    return res.status(403).json({ error: 'This Google account cannot be used to create a provider account.' });
+  }
+
+  const existingProvider = (await getProvidersFromDataSource())
+    .find((provider) => provider.email?.toLowerCase() === user.email.toLowerCase());
+  if (existingProvider) {
+    return res.status(409).json({ error: 'A provider profile already uses this email. Please log in instead.' });
+  }
+  return res.json({ email: user.email.toLowerCase() });
 });
 
 app.post('/api/providers/oauth/google/complete', async (req, res) => {

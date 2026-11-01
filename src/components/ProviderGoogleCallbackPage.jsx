@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AUTH_KEYS } from '../data/siteData';
 
-export default function ProviderGoogleCallbackPage({ onSuccess, setProviderSession, onOpenProviderDashboard, setDashboardLeads, onBack }) {
+export default function ProviderGoogleCallbackPage({ onSuccess, onSignup, setProviderSession, onOpenProviderDashboard, setDashboardLeads, onBack, onBackSignup }) {
   const location = useLocation();
   const params = new URLSearchParams(location.hash.slice(1));
   const accessToken = params.get('access_token') || '';
   const oauthError = params.get('error_description') || params.get('error') || '';
+  const isSignup = new URLSearchParams(location.search).get('mode') === 'signup';
   const started = useRef(false);
   const [status, setStatus] = useState(() => accessToken
-    ? { type: 'loading', message: 'Signing you in with Google…' }
-    : { type: 'error', message: oauthError || 'Google sign-in did not complete. Please try again.' });
+    ? { type: 'loading', message: isSignup ? 'Preparing your provider registration…' : 'Signing you in with Google…' }
+    : { type: 'error', message: oauthError || `${isSignup ? 'Google sign-up' : 'Google sign-in'} did not complete. Please try again.` });
 
   useEffect(() => {
     if (started.current || !accessToken) return;
@@ -19,6 +20,19 @@ export default function ProviderGoogleCallbackPage({ onSuccess, setProviderSessi
 
     const completeSignIn = async () => {
       try {
+        if (isSignup) {
+          const response = await fetch('/api/providers/oauth/google/prepare-signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken }),
+          });
+          const payload = await response.json().catch(() => ({ error: 'The server did not return a valid response. Please try again.' }));
+          if (!response.ok) throw new Error(payload.error || 'Google sign-up failed.');
+          setStatus({ type: 'success', message: 'Google verified. Continue by completing the provider registration form…' });
+          onSignup?.({ accessToken, email: payload.email });
+          return;
+        }
+
         const response = await fetch('/api/providers/oauth/google/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -47,7 +61,7 @@ export default function ProviderGoogleCallbackPage({ onSuccess, setProviderSessi
     };
 
     void completeSignIn();
-  }, [accessToken, onOpenProviderDashboard, onSuccess, setDashboardLeads, setProviderSession]);
+  }, [accessToken, isSignup, onOpenProviderDashboard, onSignup, onSuccess, setDashboardLeads, setProviderSession]);
 
   return (
     <main className="dashboard-shell provider-access-shell" style={{ background: '#f5f7fa', minHeight: '100vh' }}>
@@ -55,15 +69,15 @@ export default function ProviderGoogleCallbackPage({ onSuccess, setProviderSessi
         <div className="provider-auth-header">
           <div>
             <div style={{ fontSize: 12, letterSpacing: 1.5, color: '#28A745', fontWeight: 800, textTransform: 'uppercase' }}>Secure access</div>
-            <h1 style={{ fontSize: '1.4rem', margin: '8px 0' }}>Google sign-in</h1>
+            <h1 style={{ fontSize: '1.4rem', margin: '8px 0' }}>{isSignup ? 'Google sign-up' : 'Google sign-in'}</h1>
           </div>
         </div>
         <p role={status.type === 'error' ? 'alert' : 'status'} style={{ color: status.type === 'error' ? '#b42318' : '#5a6a7e' }}>
           {status.message}
         </p>
         {status.type === 'error' && (
-          <button className="btn btn-green" type="button" onClick={onBack} style={{ width: '100%' }}>
-            Back to provider login
+          <button className="btn btn-green" type="button" onClick={isSignup ? onBackSignup : onBack} style={{ width: '100%' }}>
+            {isSignup ? 'Back to provider registration' : 'Back to provider login'}
           </button>
         )}
       </section>

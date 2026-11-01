@@ -17,8 +17,9 @@ function CheckList({ title, options, selected, onChange }) {
   return <fieldset style={{ border: '1px solid #dfeaf8', borderRadius: 10, padding: 12, margin: '0 0 12px' }}><legend style={{ color: '#0B1D3A', fontWeight: 700, padding: '0 5px' }}>{title}</legend><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>{options.map((item) => <label key={item} style={{ color: '#34445a', display: 'flex', gap: 8, alignItems: 'flex-start' }}><input type="checkbox" checked={selected.includes(item)} onChange={() => onChange(selected.includes(item) ? selected.filter((value) => value !== item) : [...selected, item])} />{item}</label>)}</div></fieldset>;
 }
 
-export default function ProviderOnboardingForm({ setProviderSession, onOpenProviderDashboard, setDashboardLeads }) {
-  const [form, setForm] = useState(emptyForm);
+export default function ProviderOnboardingForm({ setProviderSession, onOpenProviderDashboard, setDashboardLeads, googleSignup }) {
+  const isGoogleSignup = Boolean(googleSignup?.accessToken);
+  const [form, setForm] = useState(() => ({ ...emptyForm, email: googleSignup?.email || '' }));
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
@@ -111,13 +112,13 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
 
   const validateStep = () => {
     if (step === 0) {
-      if (!form.name || !form.businessName || !form.businessType || !form.email || !form.phone || !form.address || !form.mainOfficePostcode || !form.password) return 'Complete all required business and account fields.';
+      if (!form.name || !form.businessName || !form.businessType || !form.email || !form.phone || !form.address || !form.mainOfficePostcode || (!isGoogleSignup && !form.password)) return 'Complete all required business and account fields.';
       if (!normalizePostcode(form.mainOfficePostcode)) {
         setPostcodeError('Enter a valid UK postcode, for example SW1A 1AA.');
         return 'Correct the main office postcode before continuing.';
       }
-      if (form.password.length < 10) return 'Use a password with at least 10 characters.';
-      if (form.password !== form.confirmPassword) return 'Passwords do not match.';
+      if (!isGoogleSignup && form.password.length < 10) return 'Use a password with at least 10 characters.';
+      if (!isGoogleSignup && form.password !== form.confirmPassword) return 'Passwords do not match.';
     }
     if (step === 1 && form.nation === 'England' && form.cqcRegistered === 'yes' && !form.cqcRegistration) return 'Enter the CQC registration details or change the registration answer.';
     if (step === 1 && form.nation !== 'England' && form.otherRegistered === 'yes' && !form.otherRegistration) return 'Enter the applicable regulator registration details or change the registration answer.';
@@ -151,13 +152,16 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
         compliance: { insurance: { publicLiabilityExpiry: form.publicLiabilityExpiry, employersLiabilityExpiry: form.employersLiabilityExpiry, indemnityExpiry: form.indemnityExpiry }, policies: { safeguarding: form.safeguardingPolicy, complaints: form.complaintsProcedure, medication: form.medicationPolicy, infectionControl: form.infectionPolicy }, documentReviewStatus: 'not_submitted' },
         consent: { providerTermsAccepted: true, acceptedAt: new Date().toISOString() },
       };
-      const response = await fetch('/api/providers/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, businessName: form.businessName, email: form.email, phone: form.phone, cqcRegistration: form.cqcRegistration, serviceType: form.services[0] || '', area: base.areaName || base.postcode, password: form.password, termsAccepted: form.termsAccepted, profileData }) });
+      const response = await fetch('/api/providers/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, businessName: form.businessName, email: form.email, phone: form.phone, cqcRegistration: form.cqcRegistration, serviceType: form.services[0] || '', area: base.areaName || base.postcode, password: form.password, oauthAccessToken: googleSignup?.accessToken, termsAccepted: form.termsAccepted, profileData }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.details ? `${payload.error} ${payload.details}` : (payload.error || 'Provider registration failed.'));
 
-      const loginResponse = await fetch('/api/providers/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: form.email, password: form.password }) });
-      const loginPayload = await loginResponse.json();
-      if (!loginResponse.ok) throw new Error(loginPayload.error || 'Automatic provider login failed.');
+      let loginPayload = payload;
+      if (!payload.token) {
+        const loginResponse = await fetch('/api/providers/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: form.email, password: form.password }) });
+        loginPayload = await loginResponse.json();
+        if (!loginResponse.ok) throw new Error(loginPayload.error || 'Automatic provider login failed.');
+      }
       const session = { ...loginPayload.provider, token: loginPayload.token };
       setProviderSession?.(session);
       localStorage.setItem(AUTH_KEYS.provider, JSON.stringify(session));
@@ -172,7 +176,7 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
     finally { setSubmitting(false); }
   };
 
-  const input = (name, label, type = 'text', required = false) => <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>{label}{required && ' *'}<input className="finput" name={name} type={type} value={form[name]} onChange={update} required={required} autoComplete={type === 'password' ? 'new-password' : 'off'} /></label>;
+  const input = (name, label, type = 'text', required = false) => <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>{label}{required && ' *'}<input className="finput" name={name} type={type} value={form[name]} onChange={update} required={required} readOnly={name === 'email' && isGoogleSignup} autoComplete={type === 'password' ? 'new-password' : 'off'} /></label>;
   const select = (name, label, options) => <label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>{label}<select className="finput" name={name} value={form[name]} onChange={update}>{options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>;
   const toggle = (name, text) => <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: '#33445b', marginBottom: 8 }}><input type="checkbox" checked={form[name]} onChange={update} name={name} />{text}</label>;
 
@@ -183,7 +187,7 @@ export default function ProviderOnboardingForm({ setProviderSession, onOpenProvi
       {select('businessType', 'Business type', [['', 'Select business type'], ['limited_company', 'Limited company'], ['sole_trader', 'Sole trader'], ['partnership', 'Partnership'], ['charity', 'Charity'], ['other', 'Other']])}
       {input('email', 'Business email address', 'email', true)}{input('phone', 'Business phone number', 'tel', true)}{input('website', 'Website (optional)', 'url')}
       {input('address', 'Registered business address', 'text', true)}<label style={{ display: 'grid', gap: 5, color: '#33445b', fontSize: 13 }}>Main office postcode *<input className="finput" name="mainOfficePostcode" type="text" value={form.mainOfficePostcode} onChange={update} onBlur={checkOfficePostcode} required autoComplete="postal-code" aria-invalid={Boolean(postcodeError)} aria-describedby={postcodeError ? 'main-office-postcode-error' : undefined} />{postcodeError && <span id="main-office-postcode-error" role="alert" style={{ color: '#b42318', fontSize: 12 }}>{postcodeError}</span>}</label>{input('companiesHouseNumber', 'Companies House number (where applicable)')}
-      {input('password', 'Password (10+ characters)', 'password', true)}{input('confirmPassword', 'Confirm password', 'password', true)}
+      {!isGoogleSignup && <>{input('password', 'Password (10+ characters)', 'password', true)}{input('confirmPassword', 'Confirm password', 'password', true)}</>}
     </div>}
     {step === 1 && <div style={{ display: 'grid', gap: 10 }}>
       {select('nation', 'Nation where services are delivered', [['England', 'England'], ['Wales', 'Wales'], ['Scotland', 'Scotland'], ['Northern Ireland', 'Northern Ireland']])}
