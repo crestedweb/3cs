@@ -98,6 +98,10 @@ const providerPasswordResetRedirectUrl = new URL(
   '/provider/reset-password',
   process.env.PUBLIC_APP_URL || 'https://www.3cscareservices.co.uk',
 ).toString();
+const providerGoogleRedirectUrl = new URL(
+  '/provider/google-callback',
+  process.env.PUBLIC_APP_URL || 'https://www.3cscareservices.co.uk',
+).toString();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1456,6 +1460,83 @@ app.post('/api/providers/password-reset/confirm', async (req, res) => {
     return res.status(400).json({ error: 'We could not update your password. The reset link may have expired; request a new one and try again.' });
   }
   return res.json({ message: 'Your password has been updated. You can now log in with your new password.' });
+});
+
+app.post('/api/providers/oauth/google', async (req, res) => {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+    return res.status(503).json({ error: 'Google sign-in is not configured. Please use email and password.' });
+  }
+  try {
+    const oauthClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY,
+      {
+        auth: {
+          flowType: 'implicit',
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      },
+    );
+    const { data, error } = await oauthClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: providerGoogleRedirectUrl, skipBrowserRedirect: true },
+    });
+    if (error || !data?.url) {
+      if (error) console.error('Provider Google OAuth initialization failed:', error.message);
+      return res.status(503).json({ error: 'Google sign-in is unavailable. Please use email and password.' });
+    }
+    return res.json({ url: data.url });
+  } catch (error) {
+    console.error('Provider Google OAuth initialization failed:', error.message);
+    return res.status(503).json({ error: 'Google sign-in is unavailable. Please use email and password.' });
+  }
+});
+
+app.post('/api/providers/oauth/google/complete', async (req, res) => {
+  const accessToken = clean(req.body?.accessToken);
+  if (!accessToken) return res.status(400).json({ error: 'Google sign-in did not return a valid session. Please try again.' });
+  if (!supabaseAdmin || !supabaseAuth) {
+    return res.status(503).json({ error: 'Google sign-in is not configured. Please use email and password.' });
+  }
+
+  try {
+    const { data, error } = await supabaseAuth.auth.getUser(accessToken);
+    const user = data?.user;
+    const linkedProviders = user?.app_metadata?.providers || [];
+    if (error || !user?.email || !user.email_confirmed_at
+      || (user.app_metadata?.provider !== 'google' && !linkedProviders.includes('google'))) {
+      return res.status(401).json({ error: 'Google could not verify this account. Please try again or use email and password.' });
+    }
+
+    const email = user.email.toLowerCase();
+    const provider = (await getProvidersFromDataSource()).find((item) => item.email?.toLowerCase() === email);
+    if (!provider) {
+      return res.status(403).json({ error: 'Google sign-in is available only for an existing provider account. Register as a provider first.' });
+    }
+    if (user.user_metadata?.role && user.user_metadata.role !== 'provider') {
+      return res.status(403).json({ error: 'This Google account is not registered as a provider account.' });
+    }
+
+    if (user.user_metadata?.role !== 'provider') {
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        user_metadata: { ...user.user_metadata, role: 'provider' },
+      });
+      if (updateError) {
+        console.error('Provider Google account linking failed:', updateError.message);
+        return res.status(500).json({ error: 'We could not link this Google account. Please contact support.' });
+      }
+    }
+
+    return res.json({
+      token: createSession('provider', provider.id, email),
+      provider: buildProviderSnapshot(provider),
+    });
+  } catch (error) {
+    console.error('Provider Google sign-in failed:', error.message);
+    return res.status(500).json({ error: 'Google sign-in failed. Please try again or use email and password.' });
+  }
 });
 
 app.get('/api/leads', async (req, res) => {

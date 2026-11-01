@@ -6,6 +6,7 @@ export default function ProviderLoginPage({ onSuccess, onAdminSuccess, onBack, o
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetStatus, setResetStatus] = useState({ type: '', message: '' });
@@ -26,13 +27,28 @@ export default function ProviderLoginPage({ onSuccess, onAdminSuccess, onBack, o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: resetEmail }),
       });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => ({ error: 'The server did not return a valid response. Please try again later.' }));
       if (!response.ok) throw new Error(payload.error || 'Unable to request a password reset.');
       setResetStatus({ type: 'success', message: payload.message });
     } catch (err) {
       setResetStatus({ type: 'error', message: err.message || 'Unable to request a password reset.' });
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/providers/oauth/google', { method: 'POST' });
+      const payload = await response.json().catch(() => ({ error: 'The server did not return a valid response. Please try again later.' }));
+      if (!response.ok) throw new Error(payload.error || 'Google sign-in is unavailable.');
+      if (!payload.url) throw new Error('Google sign-in could not be started. Please try again.');
+      window.location.assign(payload.url);
+    } catch (err) {
+      setError(err.message || 'Google sign-in is unavailable.');
+      setGoogleLoading(false);
     }
   };
 
@@ -196,6 +212,15 @@ export default function ProviderLoginPage({ onSuccess, onAdminSuccess, onBack, o
                   {loading ? 'Logging in...' : 'Log in'}
                 </button>
               </form>
+              <button
+                className="btn btn-ghost-green"
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={googleLoading || loading}
+                style={{ width: '100%', marginTop: 12, border: '1px solid #d5deea', background: '#fff', color: '#26384f' }}
+              >
+                {googleLoading ? 'Connecting to Google…' : 'Continue with Google'}
+              </button>
               <button
                 type="button"
                 onClick={() => { setResetEmail(form.email); setForgotPassword(true); setResetStatus({ type: '', message: '' }); }}

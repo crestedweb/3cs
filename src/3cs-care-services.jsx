@@ -4,6 +4,7 @@ import Counter from './components/Counter.jsx';
 import Reveal from './components/Reveal.jsx';
 import ProviderLoginPage from './components/ProviderLoginPage.jsx';
 import ProviderPasswordResetPage from './components/ProviderPasswordResetPage.jsx';
+import ProviderGoogleCallbackPage from './components/ProviderGoogleCallbackPage.jsx';
 import ProviderSignupPage from './components/ProviderSignupPage.jsx';
 import ProviderDashboardPage from './components/ProviderDashboardPage.jsx';
 import AdminLoginPage from './components/AdminLoginPage.jsx';
@@ -3640,6 +3641,21 @@ export default function App() {
       <Route
         path="/provider/reset-password"
         element={<ProviderPasswordResetPage onBack={goToSite} onLogin={goToProviderLogin} />}
+      />
+      <Route
+        path="/provider/google-callback"
+        element={
+          <ProviderGoogleCallbackPage
+            onBack={goToProviderLogin}
+            onSuccess={(session) => {
+              persistProviderSession(session);
+              goToProviderDashboard();
+            }}
+            setProviderSession={setProviderSession}
+            onOpenProviderDashboard={goToProviderDashboard}
+            setDashboardLeads={setDashboardLeads}
+          />
+        }
       />
       <Route
         path="/admin/login"
