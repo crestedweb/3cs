@@ -1893,7 +1893,60 @@ const CSS = `
     .hero-img-wrap img { height: clamp(340px, 28vw, 410px); }
     .hero-img-overlay { background: none; }
     .srv-grid { grid-template-columns: repeat(4, 1fr); }
-    .care-layout { grid-template-columns: 0.9fr 1.1fr; gap: 28px; }
+    .care-section-heading { margin-bottom: 42px !important; }
+    .care-section-heading .label {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: 0.18em;
+    }
+    .care-section-heading .label::before,
+    .care-section-heading .label::after {
+      content: "";
+      width: clamp(36px, 5vw, 72px);
+      height: 1px;
+      background: rgba(40,167,69,0.48);
+    }
+    .care-section-heading .sec-h2 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.5rem, 4vw, 3.35rem);
+      font-weight: 500;
+      line-height: 1.08;
+      letter-spacing: -0.025em;
+    }
+    .care-section-heading > p {
+      max-width: 620px !important;
+      font-size: 1.05rem;
+      line-height: 1.65;
+    }
+    .care-layout {
+      grid-template-columns: minmax(0, 0.62fr) minmax(0, 1fr);
+      gap: 34px;
+      align-items: stretch;
+    }
+    .care-layout > .reveal { display: flex; }
+    .care-story {
+      width: 100%;
+      padding: 32px;
+      border-radius: 24px;
+      border-color: #e6ece8;
+      background: #fff;
+      box-shadow: 0 16px 34px rgba(11,29,58,0.12), 0 4px 10px rgba(11,29,58,0.06);
+    }
+    .care-story h3 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.7rem, 2.2vw, 2rem);
+      font-weight: 500;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-top: 12px;
+      margin-bottom: 16px;
+    }
+    .care-story > p { font-size: 0.98rem; line-height: 1.75; margin-bottom: 20px; }
+    .care-notes { gap: 18px; }
+    .care-note { gap: 14px; }
+    .care-note h4 { font-size: 0.96rem; }
+    .care-note p { font-size: 0.86rem; line-height: 1.6; }
     .care-gallery {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1906,15 +1959,29 @@ const CSS = `
       transform: none;
     }
     .care-photo,
-    .care-photo.feature { height: 250px; min-height: 250px; }
+    .care-photo.feature {
+      height: auto;
+      min-height: 0;
+      aspect-ratio: 4 / 3;
+      border-radius: 20px;
+    }
     .care-photo {
-      box-shadow: 0 12px 26px rgba(11,29,58,0.12), 0 3px 8px rgba(11,29,58,0.08);
+      box-shadow: 0 14px 28px rgba(11,29,58,0.14), 0 4px 10px rgba(11,29,58,0.07);
       transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
     .care-photo:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 18px 34px rgba(11,29,58,0.16), 0 5px 12px rgba(11,29,58,0.10);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 36px rgba(11,29,58,0.18), 0 6px 14px rgba(11,29,58,0.09);
     }
+    .care-caption { padding: 22px 20px 18px; }
+    .care-kicker {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+      margin-bottom: 5px;
+    }
+    .care-caption h4 { font-size: 1.05rem; line-height: 1.25; margin-bottom: 5px; }
+    .care-caption p { font-size: 0.84rem; line-height: 1.5; }
     .faq-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
     .why-grid { grid-template-columns: repeat(3, 1fr); }
     .posts-grid { grid-template-columns: repeat(4, 1fr); }
@@ -3201,7 +3268,7 @@ export default function App() {
       <section className="sec" style={{ background: "var(--bg-primary)" }}>
         <div className="sec-wide">
           <Reveal>
-            <div className="text-center" style={{ marginBottom: 36 }}>
+            <div className="care-section-heading text-center" style={{ marginBottom: 36 }}>
               <span className="label">CARE IN ACTION</span>
               <h2 className="sec-h2">Finding Support That Feels Familiar</h2>
               <p style={{ color: "var(--text-secondary)", marginTop: 12, maxWidth: 560, marginInline: "auto", lineHeight: 1.7 }}>
