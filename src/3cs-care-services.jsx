@@ -337,7 +337,8 @@ const CSS = `
     min-width: max-content;
     animation: topbarMarquee 22s linear infinite;
   }
-  .topbar-track span { flex: 0 0 auto; }
+  .topbar-contact { display: flex; align-items: center; gap: 14px; }
+  .topbar-contact span { flex: 0 0 auto; }
   .topbar > span { display: none; }
   @keyframes topbarMarquee {
     from { transform: translateX(0); }
@@ -1840,17 +1841,19 @@ const CSS = `
 
   @media (min-width: 900px) {
     .sec { padding: 88px 40px; }
-    .topbar { padding: 8px 40px; }
+    .topbar { justify-content: flex-end; padding: 8px 40px; }
+    .topbar-track { width: 100%; justify-content: space-between; animation: none; }
+    .topbar-contact:not(.topbar-duplicate) { width: 100%; justify-content: space-between; }
     .nav-inner { height: 72px; padding: 0 40px; }
     .ham { display: none; }
     .nav-desktop { display: flex; }
-    .hero { padding: 40px 40px 0; }
+    .hero { padding: 24px 40px 0; }
     .hero-layout {
       display: grid;
       grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
       grid-template-areas: "copy photo" "actions actions";
       align-items: center;
-      gap: 30px 48px;
+      gap: 20px 48px;
     }
     .hero-text { grid-area: copy; min-width: 0; }
     .hero-visual { display: contents; }
@@ -1878,7 +1881,7 @@ const CSS = `
       backdrop-filter: none;
       margin-top: 0;
     }
-    .hero-btns .btn { min-height: 72px; font-size: 0.95rem; border-radius: 14px; }
+    .hero-btns .btn { min-height: 64px; font-size: 0.95rem; border-radius: 14px; }
     .hero-img-wrap {
       grid-area: photo;
       position: relative;
@@ -1887,7 +1890,7 @@ const CSS = `
       border-radius: 18px;
       box-shadow: 0 10px 28px rgba(11,29,58,0.12);
     }
-    .hero-img-wrap img { height: clamp(360px, 34vw, 490px); }
+    .hero-img-wrap img { height: clamp(340px, 28vw, 410px); }
     .hero-img-overlay { background: none; }
     .srv-grid { grid-template-columns: repeat(4, 1fr); }
     .care-layout { grid-template-columns: 0.9fr 1.1fr; gap: 28px; }
@@ -2997,8 +3000,14 @@ export default function App() {
       <div className="topbar-wrap">
         <div className="topbar">
           <div className="topbar-track">
-            <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
-            <span className="topbar-duplicate" aria-hidden="true">📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
+            <div className="topbar-contact">
+              <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a></span>
+              <span>✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
+            </div>
+            <div className="topbar-contact topbar-duplicate" aria-hidden="true">
+              <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a></span>
+              <span>✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
+            </div>
           </div>
           <span>📞 <a href="tel:+441162766600">+44 116 276 6600</a> &nbsp;·&nbsp; ✉ <a href="mailto:info@3cscareservices.co.uk">info@3cscareservices.co.uk</a></span>
         </div>
