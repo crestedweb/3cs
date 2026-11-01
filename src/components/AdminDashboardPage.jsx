@@ -354,13 +354,13 @@ export default function AdminDashboardPage({ adminSession, onBack, onLogout }) {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${adminSession?.token || ''}` },
       });
+      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || 'Unable to delete provider.');
       }
       setSelectedProviderId('');
       await refreshDashboard();
-      setActionFeedback(`${providerName} was deleted.`);
+      setActionFeedback(payload.message || `${providerName} was deleted.`);
     } catch (error) {
       console.error('Provider deletion failed', error);
       setActionFeedback(error.message || 'Unable to delete provider.');

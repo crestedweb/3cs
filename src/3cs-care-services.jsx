@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Counter from './components/Counter.jsx';
 import Reveal from './components/Reveal.jsx';
 import ProviderLoginPage from './components/ProviderLoginPage.jsx';
+import ProviderPasswordResetPage from './components/ProviderPasswordResetPage.jsx';
 import ProviderSignupPage from './components/ProviderSignupPage.jsx';
 import ProviderDashboardPage from './components/ProviderDashboardPage.jsx';
 import AdminLoginPage from './components/AdminLoginPage.jsx';
@@ -3635,6 +3636,10 @@ export default function App() {
             />
           )
         }
+      />
+      <Route
+        path="/provider/reset-password"
+        element={<ProviderPasswordResetPage onBack={goToSite} onLogin={goToProviderLogin} />}
       />
       <Route
         path="/admin/login"

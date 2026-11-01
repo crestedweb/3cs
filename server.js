@@ -94,6 +94,10 @@ const supabaseAnon = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
 
 const supabase = supabaseAdmin;
 const supabaseAuth = supabaseAnon || supabaseAdmin;
+const providerPasswordResetRedirectUrl = new URL(
+  '/provider/reset-password',
+  process.env.PUBLIC_APP_URL || 'https://www.3cscareservices.co.uk',
+).toString();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -683,6 +687,19 @@ async function deleteProviderRecord(providerId) {
   return true;
 }
 
+async function findProviderAuthUserByEmail(email) {
+  const perPage = 1000;
+  for (let page = 1; ; page += 1) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(error.message);
+    const users = data?.users || [];
+    const user = users.find((item) => item.email?.toLowerCase() === email.toLowerCase()
+      && item.user_metadata?.role === 'provider');
+    if (user) return user;
+    if (users.length < perPage) return null;
+  }
+}
+
 async function getMarketplaceSummaryFromDataSource() {
   const providerList = await getProvidersFromDataSource();
   const leadList = await getLeadsFromDataSource();
@@ -1023,6 +1040,7 @@ app.post('/api/providers/register', async (req, res) => {
   let savedProvider = newProvider;
   let source = 'local';
   let createdAuthUserId = null;
+  let createdAuthUser = false;
   if (supabaseAdmin) {
     try {
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -1039,9 +1057,27 @@ app.post('/api/providers/register', async (req, res) => {
       });
 
       if (authError) {
-        throw new Error(authError.message);
+        const duplicateEmail = authError.code === 'email_exists'
+          || /already registered|already exists/i.test(authError.message || '');
+        if (duplicateEmail) {
+          const { data: existingAuthData, error: signInError } = await supabaseAuth.auth.signInWithPassword({ email, password });
+          if (signInError || existingAuthData?.user?.user_metadata?.role !== 'provider') {
+            return res.status(409).json({
+              error: 'An account with this email already exists. If this is your previous provider account, register again with its existing password. If you have forgotten it, contact support to restore access.',
+            });
+          }
+          createdAuthUserId = existingAuthData.user.id;
+        } else {
+          throw new Error(authError.message);
+        }
+      } else {
+        createdAuthUserId = authData?.user?.id || null;
+        createdAuthUser = Boolean(createdAuthUserId);
       }
-      createdAuthUserId = authData?.user?.id || null;
+
+      if (!createdAuthUserId) {
+        throw new Error('Supabase did not return the provider authentication account.');
+      }
 
       const { data, error } = await supabase.from('providers').insert([{
         name,
@@ -1072,7 +1108,14 @@ app.post('/api/providers/register', async (req, res) => {
       source = 'supabase';
     } catch (error) {
       console.error('Supabase provider registration failed:', error.message);
-      if (createdAuthUserId) await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId).catch(() => {});
+      if (createdAuthUser && createdAuthUserId) {
+        try {
+          const { error: cleanupError } = await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId);
+          if (cleanupError) console.error('Provider Auth account cleanup failed:', cleanupError.message);
+        } catch (cleanupError) {
+          console.error('Provider Auth account cleanup failed:', cleanupError.message);
+        }
+      }
       return res.status(500).json({
         error: 'Provider registration could not be saved to Supabase.',
         details: error.message,
@@ -1361,6 +1404,60 @@ app.post('/api/providers/login', async (req, res) => {
   });
 });
 
+app.post('/api/providers/password-reset/request', async (req, res) => {
+  const email = clean(req.body?.email).toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Enter a valid email address.' });
+  }
+  if (!supabaseAuth) {
+    return res.status(503).json({ error: 'Password reset is temporarily unavailable. Please contact support.' });
+  }
+
+  const { error } = await supabaseAuth.auth.resetPasswordForEmail(email, {
+    redirectTo: providerPasswordResetRedirectUrl,
+  });
+  if (error) {
+    console.error('Provider password reset email failed:', error.message);
+    return res.status(502).json({ error: 'We could not send a password reset email right now. Please try again later.' });
+  }
+  return res.json({ message: 'If an account exists for that email, a password reset link will be sent shortly.' });
+});
+
+app.post('/api/providers/password-reset/confirm', async (req, res) => {
+  const accessToken = clean(req.body?.accessToken);
+  const refreshToken = clean(req.body?.refreshToken);
+  const password = String(req.body?.password || '');
+  if (!accessToken || !refreshToken) {
+    return res.status(400).json({ error: 'This password reset link is incomplete. Request a new link and try again.' });
+  }
+  if (password.length < 10) {
+    return res.status(400).json({ error: 'Password must be at least 10 characters long.' });
+  }
+  if (!process.env.SUPABASE_URL || (!process.env.SUPABASE_ANON_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY)) {
+    return res.status(503).json({ error: 'Password reset is temporarily unavailable. Please contact support.' });
+  }
+
+  const recoveryClient = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } },
+  );
+  const { data: sessionData, error: sessionError } = await recoveryClient.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  if (sessionError || sessionData?.user?.user_metadata?.role !== 'provider') {
+    return res.status(400).json({ error: 'This password reset link is invalid or expired. Request a new link and try again.' });
+  }
+
+  const { error } = await recoveryClient.auth.updateUser({ password });
+  if (error) {
+    console.error('Provider password update failed:', error.message);
+    return res.status(400).json({ error: 'We could not update your password. The reset link may have expired; request a new one and try again.' });
+  }
+  return res.json({ message: 'Your password has been updated. You can now log in with your new password.' });
+});
+
 app.get('/api/leads', async (req, res) => {
   const leadList = await getLeadsFromDataSource();
   res.json({
@@ -1544,9 +1641,21 @@ app.delete('/api/admin/providers/:id', async (req, res) => {
   }
 
   try {
+    const provider = (await getProvidersFromDataSource()).find((item) => String(item.id) === String(req.params.id));
+    if (!provider) return res.status(404).json({ error: 'Provider not found.' });
+    const authUser = supabaseAdmin ? await findProviderAuthUserByEmail(provider.email) : null;
     const deleted = await deleteProviderRecord(String(req.params.id));
     if (!deleted) return res.status(404).json({ error: 'Provider not found.' });
-    return res.json({ message: 'Provider deleted.' });
+    if (authUser) {
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(authUser.id);
+      if (error) {
+        console.error('Provider Auth account deletion failed:', error.message);
+        return res.json({
+          message: 'Provider record deleted, but its Supabase sign-in account could not be removed. Delete that provider account from Supabase Authentication > Users before re-registration.',
+        });
+      }
+    }
+    return res.json({ message: 'Provider and sign-in account deleted.' });
   } catch (error) {
     console.error('Provider deletion failed:', error.message);
     return res.status(500).json({ error: 'Unable to delete provider.' });

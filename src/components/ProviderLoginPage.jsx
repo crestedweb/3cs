@@ -6,10 +6,34 @@ export default function ProviderLoginPage({ onSuccess, onAdminSuccess, onBack, o
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotPassword, setForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetStatus, setResetStatus] = useState({ type: '', message: '' });
+  const [resetLoading, setResetLoading] = useState(false);
 
   const update = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handlePasswordResetRequest = async (event) => {
+    event.preventDefault();
+    setResetLoading(true);
+    setResetStatus({ type: '', message: '' });
+    try {
+      const response = await fetch('/api/providers/password-reset/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to request a password reset.');
+      setResetStatus({ type: 'success', message: payload.message });
+    } catch (err) {
+      setResetStatus({ type: 'error', message: err.message || 'Unable to request a password reset.' });
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -143,36 +167,52 @@ export default function ProviderLoginPage({ onSuccess, onAdminSuccess, onBack, o
           <div className="provider-auth-header">
             <div>
               <div style={{ fontSize: 12, letterSpacing: 1.5, color: '#28A745', fontWeight: 800, textTransform: 'uppercase' }}>Secure access</div>
-              <h3>Log in to your account</h3>
+              <h3>{forgotPassword ? 'Reset your password' : 'Log in to your account'}</h3>
             </div>
             {onBack && (
               <button className="btn btn-ghost-green" onClick={onBack} style={{ width: 'auto', padding: '10px 16px', fontSize: '0.82rem' }}>Back</button>
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="provider-login-form" autoComplete="off">
-            <input className="finput" name="email" type="email" value={form.email} onChange={update} placeholder="Email address" autoComplete="off" />
-            <input className="finput" name="password" type="password" value={form.password} onChange={update} placeholder="Password" autoComplete="new-password" />
-            {error && <div className="provider-error" style={{ color: '#d32f2f' }}>{error}</div>}
-            <button className="btn btn-green" type="submit" disabled={loading} style={{ width: '100%' }}>
-              {loading ? 'Logging in...' : 'Log in'}
-            </button>
-          </form>
-
-          <div className="provider-auth-divider">or</div>
-
-          <div className="provider-cta-card">
-            <h4>New to 3Cs?</h4>
-            <p>Register your service and start receiving qualified enquiries from families seeking care.</p>
-            <button
-              className="btn btn-ghost-green"
-              type="button"
-              style={{ width: '100%' }}
-              onClick={onRegister}
-            >
-              Register as provider
-            </button>
-          </div>
+          {forgotPassword ? (
+            <form onSubmit={handlePasswordResetRequest} className="provider-login-form">
+              <p style={{ color: '#5a6a7e', margin: 0 }}>Enter the email address on your provider account. If an account exists, we’ll email you a reset link.</p>
+              <input className="finput" name="resetEmail" type="email" value={resetEmail} onChange={(event) => setResetEmail(event.target.value)} placeholder="Email address" autoComplete="email" required />
+              {resetStatus.message && <div role={resetStatus.type === 'error' ? 'alert' : 'status'} style={{ color: resetStatus.type === 'error' ? '#b42318' : '#1e7d3d' }}>{resetStatus.message}</div>}
+              <button className="btn btn-green" type="submit" disabled={resetLoading} style={{ width: '100%' }}>
+                {resetLoading ? 'Sending link…' : 'Email me a reset link'}
+              </button>
+              <button className="btn btn-ghost-green" type="button" onClick={() => { setForgotPassword(false); setResetStatus({ type: '', message: '' }); }} style={{ width: '100%' }}>
+                Back to login
+              </button>
+            </form>
+          ) : (
+            <>
+              <form onSubmit={handleSubmit} className="provider-login-form" autoComplete="off">
+                <input className="finput" name="email" type="email" value={form.email} onChange={update} placeholder="Email address" autoComplete="email" />
+                <input className="finput" name="password" type="password" value={form.password} onChange={update} placeholder="Password" autoComplete="current-password" />
+                {error && <div className="provider-error" style={{ color: '#d32f2f' }}>{error}</div>}
+                <button className="btn btn-green" type="submit" disabled={loading} style={{ width: '100%' }}>
+                  {loading ? 'Logging in...' : 'Log in'}
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => { setResetEmail(form.email); setForgotPassword(true); setResetStatus({ type: '', message: '' }); }}
+                style={{ display: 'block', margin: '12px 0 0 auto', padding: 0, border: 0, background: 'transparent', color: '#218838', font: 'inherit', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Forgot password?
+              </button>
+              <div className="provider-auth-divider">or</div>
+              <div className="provider-cta-card">
+                <h4>New to 3Cs?</h4>
+                <p>Register your service and start receiving qualified enquiries from families seeking care.</p>
+                <button className="btn btn-ghost-green" type="button" style={{ width: '100%' }} onClick={onRegister}>
+                  Register as provider
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
