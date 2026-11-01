@@ -7,6 +7,7 @@ import ProviderPasswordResetPage from './components/ProviderPasswordResetPage.js
 import ProviderGoogleCallbackPage from './components/ProviderGoogleCallbackPage.jsx';
 import ProviderSignupPage from './components/ProviderSignupPage.jsx';
 import PrivacyPolicyPage from './components/PrivacyPolicyPage.jsx';
+import TermsOfServicePage from './components/TermsOfServicePage.jsx';
 import ProviderDashboardPage from './components/ProviderDashboardPage.jsx';
 import AdminLoginPage from './components/AdminLoginPage.jsx';
 import AdminDashboardPage from './components/AdminDashboardPage.jsx';
@@ -3580,8 +3581,8 @@ export default function App() {
             </div>
             <div>
               <h4 style={{ color: "#fff", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: "0.88rem", marginBottom: 18, letterSpacing: "0.05em" }}>Company</h4>
-              {[["About Us","about-us"],["Why Choose Us","why-choose-us"],["Testimonials","testimonials"],["Careers","careers-apply"],["Contact Us","contact"],["Privacy Policy","privacy"]].map(([l, id]) => (
-                <a key={l} className="foot-link" href={id === "privacy" ? "/privacy" : "#"} onClick={e => { e.preventDefault(); id === "privacy" ? navigate('/privacy') : go(id); }}>{l}</a>
+              {[["About Us","about-us"],["Why Choose Us","why-choose-us"],["Testimonials","testimonials"],["Careers","careers-apply"],["Contact Us","contact"],["Privacy Policy","privacy"],["Terms of Service","terms"]].map(([l, id]) => (
+                <a key={l} className="foot-link" href={id === "privacy" || id === "terms" ? `/${id}` : "#"} onClick={e => { e.preventDefault(); id === "privacy" || id === "terms" ? navigate(`/${id}`) : go(id); }}>{l}</a>
               ))}
             </div>
           </div>
@@ -3600,6 +3601,7 @@ export default function App() {
       <Routes>
       <Route path="/" element={siteView} />
       <Route path="/privacy" element={<PrivacyPolicyPage onBack={goToSite} />} />
+      <Route path="/terms" element={<TermsOfServicePage onBack={goToSite} />} />
       <Route
         path="/provider/login"
         element={
